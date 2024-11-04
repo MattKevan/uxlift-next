@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import { PostItemSmall } from '@/components/PostItemSmall'
+import { PostItemSmall } from '@/components/posts/PostItemSmall'
 import { Database } from '@/types/supabase'
 import {
   Pagination,

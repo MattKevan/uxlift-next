@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { Divider } from '@/components/catalyst/divider'
-import { PostItem } from '@/components/PostItem'
+import { PostItem } from '@/components/posts/PostItem'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {

@@ -1,6 +1,10 @@
 import { createClient } from '@/utils/supabase/server'
-import { PostGridItem } from '@/components/PostGridItem'
+import { PostGridItem } from '@/components/posts/PostGridItem'
 import Link from 'next/link'
+import { Layout1 } from '@/components/Layout1'
+import { Layout2 } from '@/components/Layout2'
+import { Layout3 } from '@/components/Layout3'
+import { Layout4 } from '@/components/Layout4'
 
 interface GroupedPosts {
   [key: string]: any[]
@@ -78,6 +82,19 @@ export default async function HomePage() {
   const groupedPosts = groupPostsByDate(transformedPosts)
   const lastSevenDays = getLastSevenDays()
 
+  const PostLayout = ({ posts }: { posts: any[] }) => {
+    switch (posts.length) {
+      case 1:
+        return <Layout1 posts={posts} />;
+      case 2:
+        return <Layout2 posts={posts} />;
+      case 3:
+        return <Layout3 posts={posts} />;
+      default: // 4 or more posts
+        return <Layout4 posts={posts.slice(0, 4)} />;
+    }
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-12">
       <div className="mb-12 flex justify-between items-center">
@@ -101,11 +118,7 @@ export default async function HomePage() {
               <h2 className="text-2xl font-semibold">
                 {formatDate(dateKey)}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {postsForDay.map((post) => (
-                  <PostGridItem key={post.id} post={post} />
-                ))}
-              </div>
+              <PostLayout posts={postsForDay} />
             </section>
           )
         })}

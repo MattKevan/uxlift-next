@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
-import { PostItem } from '@/components/PostItem'
+import { PostItem } from '@/components/posts/PostItem'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 
