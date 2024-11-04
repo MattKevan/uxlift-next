@@ -14,16 +14,24 @@ interface PostWithSite extends BasePost {
   site: Site | null
 }
 
+type Params = Promise<{ slug: string }>
+type SearchParams = Promise<{ page?: string }>
+
+interface PageProps {
+  params: Params
+  searchParams: SearchParams 
+}
+
 const ITEMS_PER_PAGE = 20
 
 export default async function SitePage({ 
   params,
   searchParams 
-}: { 
-  params: { slug: string }
-  searchParams: { page?: string }
-}) {
-  const currentPage = Number(searchParams.page) || 1
+}: PageProps) {
+  const { slug } = await params
+  const { page } = await searchParams
+  
+  const currentPage = Number(page) || 1
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
   
   const supabase = await createClient()
@@ -32,7 +40,7 @@ export default async function SitePage({
   const { data: site, error: siteError } = await supabase
     .from('content_site')
     .select('id, title, description, url, site_icon')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single()
 
   if (siteError || !site) {
@@ -128,7 +136,7 @@ export default async function SitePage({
         <div className="mt-8 flex justify-center gap-2">
           {currentPage > 1 && (
             <Link
-              href={`/sites/${params.slug}?page=${currentPage - 1}`}
+              href={`/sites/${slug}?page=${currentPage - 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               Previous
@@ -139,7 +147,7 @@ export default async function SitePage({
           </span>
           {currentPage < totalPages && (
             <Link
-              href={`/sites/${params.slug}?page=${currentPage + 1}`}
+              href={`/sites/${slug}?page=${currentPage + 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               Next
@@ -147,6 +155,6 @@ export default async function SitePage({
           )}
         </div>
       )}
-    </div>
+      </div>
   )
 }

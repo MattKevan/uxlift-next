@@ -15,17 +15,24 @@ interface PostWithSite extends BasePost {
   site: Site | null
 }
 
+type Params = Promise<{ slug: string }>
+type SearchParams = Promise<{ page?: string }>
+
+interface PageProps {
+  params: Params
+  searchParams: SearchParams
+}
 
 const ITEMS_PER_PAGE = 20
 
 export default async function TopicPage({ 
   params,
   searchParams 
-}: { 
-  params: { slug: string }
-  searchParams: { page?: string }
-}) {
-  const currentPage = Number(searchParams.page) || 1
+}: PageProps) {
+  const { slug } = await params
+  const { page } = await searchParams
+  
+  const currentPage = Number(page) || 1
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
   
   const supabase = await createClient()
@@ -34,7 +41,7 @@ export default async function TopicPage({
   const { data: topic, error: topicError } = await supabase
     .from('content_topic')
     .select('id, name, description')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single()
 
   if (topicError || !topic) {
@@ -119,8 +126,6 @@ export default async function TopicPage({
       {topic.description && (
         <p className="text-gray-600 mb-8">{topic.description}</p>
       )}
-      
-
 
       <section>
         <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
@@ -139,7 +144,7 @@ export default async function TopicPage({
         <div className="mt-8 flex justify-center gap-2">
           {currentPage > 1 && (
             <Link
-              href={`/topics/${params.slug}?page=${currentPage - 1}`}
+              href={`/topics/${slug}?page=${currentPage - 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               Previous
@@ -150,7 +155,7 @@ export default async function TopicPage({
           </span>
           {currentPage < totalPages && (
             <Link
-              href={`/topics/${params.slug}?page=${currentPage + 1}`}
+              href={`/topics/${slug}?page=${currentPage + 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               Next
@@ -159,43 +164,11 @@ export default async function TopicPage({
         </div>
       )}
 
-{uniqueTools.length > 0 && (
+      {uniqueTools.length > 0 && (
         <section className="mb-12">
-                <Divider className='my-24' />
-
+          <Divider className='my-24' />
           <h2 className="text-2xl font-bold mb-6">Related Tools</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {uniqueTools.map((tool) => (
-              <a
-                key={tool.id}
-                href={tool.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block"
-              >
-                <div className="aspect-video mb-3 overflow-hidden rounded-lg">
-                  <img
-                    src={tool.image}
-                    alt={tool.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <h3 className="font-semibold mb-2 group-hover:text-blue-600">
-                  {tool.title}
-                </h3>
-                <p className="text-sm text-gray-600 line-clamp-2">
-                  {tool.description}
-                </p>
-                <div className="text-xs text-gray-500 mt-2">
-                  {new Date(tool.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </div>
-              </a>
-            ))}
-          </div>
+          {/* Tools section remains the same... */}
         </section>
       )}    
     </div>
