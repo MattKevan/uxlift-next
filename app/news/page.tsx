@@ -27,7 +27,7 @@ export default async function NewsPage({
   searchParams,
 }: PageProps) {
   const { page } = await searchParams
-  await params // We need to await params even if we don't use it
+  await params 
 
   const currentPage = Number(page) || 1
   const pageSize = 20

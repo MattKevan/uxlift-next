@@ -1,15 +1,24 @@
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { Database } from '@/types/supabase'
 
-export default async function ProfilePage({ 
-  params: { username } 
-}: { 
-  params: { username: string } 
-}) {
-    const supabase = await createClient()
+type Params = Promise<{ username: string }>
+type SearchParams = Promise<{ page?: string }>
+
+interface PageProps {
+  params: Params
+  searchParams: SearchParams
+}
+
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: PageProps) {
+  const { username } = await params  // Await the params
+  const { page } = await searchParams  // Await the searchParams
   
+  const supabase = await createClient()
+
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('*')
@@ -19,6 +28,7 @@ export default async function ProfilePage({
   if (!profile) {
     notFound()
   }
+
 
   return (
     <div className="max-w-2xl mx-auto p-4">
