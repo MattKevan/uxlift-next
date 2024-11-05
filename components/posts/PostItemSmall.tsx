@@ -29,7 +29,7 @@ export function PostItemSmall({ post }: { post: PostWithSite }) {
               href={post.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-blue-600"
+              className="text-blue-600"
             >
               {post.title}
             </a>
@@ -42,7 +42,7 @@ export function PostItemSmall({ post }: { post: PostWithSite }) {
                 {post.site.slug ? (
                   <Link 
                     href={`/sites/${post.site.slug}`}
-                    className="hover:text-blue-600 mr-2"
+                    className="text-blue-600 mr-2"
                   >
                     {post.site.title}
                   </Link>

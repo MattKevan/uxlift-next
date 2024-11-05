@@ -1,6 +1,9 @@
+// /app/tools/page.tsx
+
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
+import { Divider } from '@/components/catalyst/divider'
 
 type Topic = Database['public']['Tables']['content_topic']['Row']
 type Tool = Database['public']['Tables']['content_tool']['Row']
@@ -41,27 +44,26 @@ export default async function ToolsPage() {
   const uniqueTopics = Array.from(new Map(topics?.map(topic => [topic.id, topic])).values())
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4">
+    <div className="max-w-7xl mx-auto py-8 px-4">
+      <h1 className='text-6xl font-bold'>Tools</h1>
+      <Divider className='my-12' />
       <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6">Topics</h2>
+        <h2 className="text-2xl font-bold mb-6">Explore tools</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {uniqueTopics.map((topic) => (
             <Link
               key={topic.id}
-              href={`/topics/${topic.slug}`}
-              className="block p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              href={`/topics/${topic.slug}#tools`}
+              className="block"
             >
-              <h3 className="font-semibold mb-1">{topic.name}</h3>
-              {topic.description && (
-                <p className="text-sm text-gray-600 line-clamp-2">
-                  {topic.description}
-                </p>
-              )}
+              <h4 className="mb-1 font-serif hover:underline text-lg">{topic.name}</h4>
+                
+            
             </Link>
           ))}
         </div>
       </section>
-
+          <Divider className='my-12' />
       <section>
         <h2 className="text-2xl font-bold mb-6">Latest Tools</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -49,8 +49,8 @@ export default async function RootLayout({
   const { slug } = await params
 
   return (
-    <html className={`${GeistSans.variable} ${gentiumPlus.className}`}>
-      <body className="bg-background text-foreground">
+    <html>
+      <body className={`bg-background text-foreground ${GeistSans.variable} ${gentiumPlus.className}`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

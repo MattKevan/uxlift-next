@@ -73,7 +73,7 @@ export type Database = {
           date_created: string
           date_published?: string | null
           description: string
-          id: number
+          id?: number
           image_path?: string | null
           indexed: boolean
           link: string
@@ -124,7 +124,7 @@ export type Database = {
           topic_id: number
         }
         Insert: {
-          id: number
+          id?: number
           post_id: number
           topic_id: number
         }

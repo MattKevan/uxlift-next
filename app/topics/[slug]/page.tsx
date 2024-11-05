@@ -1,9 +1,16 @@
+// /app/topics/[slug]/page.tsx
+
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { Divider } from '@/components/catalyst/divider'
-import { PostItem } from '@/components/posts/PostItem'
+import { PostItemSmall } from '@/components/posts/PostItemSmall'
+import type { Metadata } from 'next'
+import { CldImage } from 'next-cloudinary';
+import { ToolCard } from '@/components/ToolCards'
+import { PostGridItem } from '@/components/posts/PostGridItem'
+import { Pager } from '@/components/Pager'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -23,7 +30,55 @@ interface PageProps {
   searchParams: SearchParams
 }
 
-const ITEMS_PER_PAGE = 20
+const ITEMS_PER_PAGE = 21
+
+async function getTopicData(slug: string) {
+  const supabase = await createClient()
+  
+  // Get the topic details
+  const { data: topic, error: topicError } = await supabase
+    .from('content_topic')
+    .select('id, name, description')
+    .eq('slug', slug)
+    .single()
+
+  if (topicError || !topic) {
+    return null
+  }
+
+  return topic
+}
+
+type MetadataProps = {
+  params: Params
+  searchParams: SearchParams
+}
+
+export async function generateMetadata(
+  { params }: MetadataProps,
+): Promise<Metadata> {
+  const { slug } = await params
+  
+  // Reuse the same data fetching function
+  const topic = await getTopicData(slug)
+
+  return {
+    title: topic?.name ? `${topic.name} | UX Lift` : 'Topics - UX Lift',
+    description: topic?.description || 'Explore articles and resources on this topic',
+    openGraph: {
+      title: topic?.name ? `${topic.name} | UX Lift` : 'Topics | UX Lift',
+      description: topic?.description || 'Explore articles and resources on this topic',
+      url: `/topics/${slug}`,
+      siteName: 'UX Lift',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: topic?.name ? `${topic.name} | UX Lift` : 'Topics | UX Lift',
+      description: topic?.description || 'Explore articles and resources on this topic',
+    },
+  }
+}
 
 export default async function TopicPage({ 
   params,
@@ -35,18 +90,14 @@ export default async function TopicPage({
   const currentPage = Number(page) || 1
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
   
-  const supabase = await createClient()
-  
-  // First get the topic details
-  const { data: topic, error: topicError } = await supabase
-    .from('content_topic')
-    .select('id, name, description')
-    .eq('slug', slug)
-    .single()
+  // Reuse the same data fetching function
+  const topic = await getTopicData(slug)
 
-  if (topicError || !topic) {
+  if (!topic) {
     return notFound()
   }
+
+  const supabase = await createClient()
 
   // Get tools for this topic
   const { data: tools, error: toolsError } = await supabase
@@ -59,40 +110,63 @@ export default async function TopicPage({
     .eq('status', 'published')
     .order('date', { ascending: false })
 
-  // Get total count for pagination
-  const { count } = await supabase
-    .from('content_post_topics')
-    .select('*', { count: 'exact', head: true })
-    .eq('topic_id', topic.id)
 
-  // Then get paginated posts for this topic
-  const { data: posts, error: postsError } = await supabase
-    .from('content_post_topics')
-    .select(`
-      post:content_post (
+// Get total count for pagination
+const { count } = await supabase
+  .from('content_post_topics')
+  .select(`
+    post:content_post!inner (
+      id
+    )
+  `, { 
+    count: 'exact', 
+    head: true 
+  })
+  .eq('topic_id', topic.id)
+  .eq('post.status', 'published')
+
+// Then get paginated posts for this topic
+const { data: posts, error: postsError } = await supabase
+  .from('content_post_topics')
+  .select(`
+    post:content_post!inner (
+      id,
+      title,
+      description,
+      date_published,
+      date_created,
+      link,
+      image_path,
+      content,
+      indexed,
+      site_id,
+      status,
+      summary,
+      tags_list,
+      user_id,
+      site:content_site!left ( 
         id,
         title,
-        description,
-        date_published,
-        date_created,
-        link,
-        image_path,
-        content,
-        indexed,
-        site_id,
-        status,
-        summary,
-        tags_list,
-        user_id,
-        site:content_site (
-          title,
-          slug
-        )
+        slug,
+        url,
+        site_icon
       )
-    `)
-    .eq('topic_id', topic.id)
-    .order('date_published', { foreignTable: 'content_post', ascending: false })
-    .range(offset, offset + ITEMS_PER_PAGE - 1)
+    )
+  `)
+  .eq('topic_id', topic.id)
+  .eq('post.status', 'published')
+  .order('post(date_published)', { ascending: false })
+  .range(offset, offset + ITEMS_PER_PAGE - 1)
+
+// Update the post transformation
+const transformedPosts: PostWithSite[] = posts
+  ? posts
+      .map((item: any) => ({
+        ...item.post,
+        site: item.post.site || null
+      }))
+  : []
+
 
   if (postsError || toolsError) {
     console.error('Error fetching content:', postsError || toolsError)
@@ -101,39 +175,25 @@ export default async function TopicPage({
 
   const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
 
-  // Type assertion with unknown as intermediate step
-  const transformedPosts: PostWithSite[] = posts
-    ? posts
-        .map((item: any) => item.post)
-        .flat()
-        .map((post: any) => ({
-          ...post,
-          site: post.site?.[0] || null
-        }))
-        .sort((a, b) => {
-          const dateA = a.date_published ? new Date(a.date_published) : new Date(0)
-          const dateB = b.date_published ? new Date(b.date_published) : new Date(0)
-          return dateB.getTime() - dateA.getTime()
-        })
-    : []
-
   // Remove duplicate tools
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
 
   return (
-    <div className="py-8 px-4">
-      <h1 className="text-3xl font-bold mb-2">{topic.name}</h1>
+    <div className="py-8 px-4 max-w-6xl mx-auto">
+      <h1 className="text-6xl font-bold mb-6">{topic.name}</h1>
       {topic.description && (
-        <p className="text-gray-600 mb-8">{topic.description}</p>
+        <p className="text-gray-600 mb-12 text-2xl">{topic.description}</p>
       )}
-
+      <Divider className='my-12'/>
+      <div className=''>
       <section>
-        <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
+        <h2 className="text-3xl font-bold mb-6">Articles</h2>
         <div className="space-y-8">
+          <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
           {transformedPosts?.map((post) => (
-            <PostItem key={post.id} post={post} />
+            <PostGridItem key={post.id} post={post} />
           ))}
-
+          </div>
           {transformedPosts?.length === 0 && (
             <p className="text-gray-600">No posts found for this topic.</p>
           )}
@@ -141,36 +201,26 @@ export default async function TopicPage({
       </section>
 
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center gap-2">
-          {currentPage > 1 && (
-            <Link
-              href={`/topics/${slug}?page=${currentPage - 1}`}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Previous
-            </Link>
-          )}
-          <span className="px-4 py-2">
-            Page {currentPage} of {totalPages}
-          </span>
-          {currentPage < totalPages && (
-            <Link
-              href={`/topics/${slug}?page=${currentPage + 1}`}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Next
-            </Link>
-          )}
-        </div>
+        <Pager 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          baseUrl={`/topics/${slug}`}
+        />
       )}
+        </div>
 
-      {uniqueTools.length > 0 && (
-        <section className="mb-12">
-          <Divider className='my-24' />
-          <h2 className="text-2xl font-bold mb-6">Related Tools</h2>
-          {/* Tools section remains the same... */}
-        </section>
-      )}    
+{uniqueTools.length > 0 && (
+  <section className="mb-12 ">
+    <Divider className='my-24' />
+    <h2 className="text-3xl font-bold mb-6" id="tools">Tools</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {uniqueTools?.map((tool) => (
+        <ToolCard key={tool.id} tool={tool} />
+      ))}
     </div>
+  </section>
+)}
+
+      </div> 
   )
 }
