@@ -12,12 +12,30 @@ import { Sidebar } from '@/components/catalyst/sidebar'
 import { StackedLayout } from '@/components/catalyst/stacked-layout'
 import Header from "@/components/Header"
 import { Gentium_Plus } from 'next/font/google'
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
 
 const gentiumPlus = Gentium_Plus({
   weight: '400',
   subsets: ['latin'],
   style: ['normal', 'italic'],
   display: 'swap',
+  variable: '--gentium-plus'
+})
+
+const plexSans = IBM_Plex_Sans({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--ibm-plex-sans'
+})
+
+const plexMono = IBM_Plex_Mono({
+  weight: '400',
+  subsets: ['latin'],
+  style: ['normal'],
+  display: 'swap',
+  variable: '--ibm-plex-mono'
 })
 
 const defaultUrl = process.env.VERCEL_URL
@@ -50,7 +68,7 @@ export default async function RootLayout({
 
   return (
     <html>
-      <body className={`bg-background text-foreground ${GeistSans.variable} ${gentiumPlus.className}`}>
+      <body className={`bg-background text-foreground ${plexSans.variable} ${plexMono.variable} ${gentiumPlus.variable} font-serif`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -150,6 +150,13 @@ const { data: posts, error: postsError } = await supabase
         slug,
         url,
         site_icon
+      ),
+      content_post_topics!left (
+        topic:content_topic (
+          id,
+          name,
+          slug
+        )
       )
     )
   `)
@@ -158,15 +165,16 @@ const { data: posts, error: postsError } = await supabase
   .order('post(date_published)', { ascending: false })
   .range(offset, offset + ITEMS_PER_PAGE - 1)
 
-// Update the post transformation
+// Update the post transformation to include topics
 const transformedPosts: PostWithSite[] = posts
-  ? posts
-      .map((item: any) => ({
-        ...item.post,
-        site: item.post.site || null
-      }))
+  ? posts.map((item: any) => ({
+      ...item.post,
+      site: item.post.site || null,
+      topics: item.post.content_post_topics
+        ?.map((topicRef: any) => topicRef.topic)
+        .filter(Boolean) || []
+    }))
   : []
-
 
   if (postsError || toolsError) {
     console.error('Error fetching content:', postsError || toolsError)

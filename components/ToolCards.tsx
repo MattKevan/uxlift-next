@@ -20,7 +20,7 @@ export function ToolCard({ tool }: ToolCardProps) {
      
       <div className='flex flex-row gap-4'>
         <div className='flex-1'>
-        <h3 className="font-semibold mb-2 text-lg text-blue-600">
+        <h3 className="font-bold mb-2 text-xl text-blue-600">
       {tool.title}
       </h3><p className="line-clamp-3">
         {tool.description}

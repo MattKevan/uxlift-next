@@ -12,9 +12,9 @@ const config = {
   prefix: "",
   theme: {
     fontFamily: {
-      'sans': [ 'var(--font-geist-sans)', ...defaultTheme.fontFamily.sans],
-      'serif': ['var(--font-gentium-plus)', ...defaultTheme.fontFamily.sans],
-
+      'sans': [ 'var(--ibm-plex-sans)', ...defaultTheme.fontFamily.sans],
+      'serif': ['var(--gentium-plus)', ...defaultTheme.fontFamily.serif],
+      'mono': ['var(--ibm-plex-mono)', ...defaultTheme.fontFamily.mono],
     },
     
     extend: {

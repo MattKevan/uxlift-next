@@ -9,8 +9,15 @@ type Site = {
   slug: string | null
 }
 
+type Topic = {
+  id: number
+  name: string | null
+  slug: string | null
+}
+
 interface PostWithSite extends BasePost {
   site: Site | null
+  topics?: Topic[]
 }
 
 function truncateToWords(str: string, numWords: number) {
@@ -77,6 +84,22 @@ export function PostGridItem({ post }: { post: PostWithSite }) {
         <p className="mb-4 line-clamp-3">
           {post.description}
         </p>
+
+        {post.topics && post.topics.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2 font-mono">
+            {post.topics.map((topic) => (
+              topic.slug && (
+                <Link
+                  key={topic.id}
+                  href={`/topics/${topic.slug}`}
+                  className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors duration-200"
+                >
+                  {topic.name}
+                </Link>
+              )
+            ))}
+          </div>
+        )}
         <div className="mt-auto text-sm text-gray-500 flex items-center justify-between">
           <div className='flex gap-2'>
             <Button plain>
