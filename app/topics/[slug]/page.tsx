@@ -187,17 +187,17 @@ const transformedPosts: PostWithSite[] = posts
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
 
   return (
-    <div className="py-8 px-4 max-w-6xl mx-auto">
-      <h1 className="text-6xl font-bold mb-6">{topic.name}</h1>
+    <div className="py-8 max-w-6xl mx-auto">
+      <h1 className="text-4xl lg:text-6xl font-bold mb-6">{topic.name}</h1>
       {topic.description && (
-        <p className="text-gray-600 mb-12 text-2xl">{topic.description}</p>
+        <p className="text-gray-600 mb-12 text-xl lg:text-2xl">{topic.description}</p>
       )}
       <Divider className='my-12'/>
       <div className=''>
       <section>
         <h2 className="text-3xl font-bold mb-6">Articles</h2>
         <div className="space-y-8">
-          <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
           {transformedPosts?.map((post) => (
             <PostGridItem key={post.id} post={post} />
           ))}

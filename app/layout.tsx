@@ -13,6 +13,7 @@ import { StackedLayout } from '@/components/catalyst/stacked-layout'
 import Header from "@/components/Header"
 import { Gentium_Plus } from 'next/font/google'
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
+import MobileSidebar from "@/components/Sidebar"
 
 const gentiumPlus = Gentium_Plus({
   weight: '400',
@@ -77,7 +78,7 @@ export default async function RootLayout({
         >
           <StackedLayout
             navbar={<Navbar>{<Header/>}</Navbar>}
-            sidebar={<Sidebar>{/* Your sidebar content */}</Sidebar>}
+            sidebar={<MobileSidebar />}
           >
             {children}
             <ThemeSwitcher />

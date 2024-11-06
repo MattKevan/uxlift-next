@@ -13,11 +13,12 @@ import AuthButton from './header-auth'
 
 export default function Header() {
   return (
+
     <Navbar className='font-sans'>
       <Link href="/" aria-label="Home">
         <p className='font-bold text-lg'>UX Lift</p>
       </Link>
-      <NavbarSection>
+      <NavbarSection className='max-lg:hidden'>
         <NavbarItem href="/" current>
           Home
         </NavbarItem>
@@ -31,5 +32,6 @@ export default function Header() {
       
       <AuthButton/>
     </Navbar>
+
   )
 }

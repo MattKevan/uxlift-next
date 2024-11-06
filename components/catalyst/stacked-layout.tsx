@@ -59,17 +59,18 @@ export function StackedLayout({
       </MobileSidebar>
 
       {/* Navbar */}
-      <header className="flex items-center px-4">
+      <div className='grow p-6 lg:p-10'>
+      <header className="flex items-center px-4 max-w-6xl mx-auto ">
         <div className="py-2.5 lg:hidden">
           <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Open navigation">
             <OpenMenuIcon />
           </NavbarItem>
         </div>
-        <div className="min-w-0 flex-1">{navbar}</div>
+        <div className="">{navbar}</div>
       </header>
-
+    </div>
       {/* Content */}
-      <main className="flex flex-1 flex-col pb-2 lg:px-2">
+      <main className="flex flex-1 flex-col">
         <div className="grow p-6 lg:p-10 ">
           <div className="mx-auto ">{children}</div>
         </div>
