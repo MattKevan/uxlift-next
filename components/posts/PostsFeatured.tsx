@@ -19,59 +19,69 @@ function truncateToWords(str: string, numWords: number) {
 
 export function PostFeatured({ post }: { post: PostWithSite }) {
   return (
-    <article className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-      {post.image_path && (
-        <div className="relative aspect-[16/9]">
-          <img 
-            src={post.image_path} 
-            alt=""
-            className="object-cover w-full h-full"
-          />
-        </div>
-      )}
-      <div className="p-8">
-        <h2 className="text-2xl font-bold mb-4">
-          <a 
-            href={post.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-blue-600"
-          >
-            {post.title}
-          </a>
-        </h2>
-        <p className="text-gray-600 mb-6 text-lg">
-          {truncateToWords(post.description, 30)}
-        </p>
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <div>
-            {post.site?.title && (
-              <span className="font-medium">
-                {post.site.slug ? (
-                  <Link 
-                    href={`/sites/${post.site.slug}`}
-                    className="hover:text-blue-600"
-                  >
-                    {post.site.title}
-                  </Link>
-                ) : (
-                  post.site.title
-                )}
-              </span>
-            )}
+    <article className="bg-white rounded-lg border overflow-hidden shadow hover:shadow-lg transition-shadow duration-200">
+      <div className='grid grid-cols-1 md:grid-cols-3'>
+        {post.image_path ? (
+          <div className="relative aspect-[16/9] md:col-span-2">
+            <img 
+              src={post.image_path} 
+              alt=""
+              className="object-cover w-full h-full"
+            />
           </div>
-          {post.date_published && (
-            <time dateTime={post.date_published}>
-              {new Date(post.date_published).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                timeZone: 'Europe/London'
-              })}
-            </time>
-          )}
+        ): (
+          <div className="relative aspect-[16/9]  md:col-span-2 bg-blue-100">
+            </div>
+
+        )}
+
+        <div className="p-8 md:col-span-1">
+              <h2 className="text-2xl font-bold mb-4">
+                <a 
+                  href={post.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600"
+                >
+                  {post.title}
+                </a>
+              </h2>
+              <p className=" mb-6 text-lg line-clamp-3">
+                {post.description}
+              </p>
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <div>
+                  {post.site?.title && (
+                    <span className="font-medium">
+                      {post.site.slug ? (
+                        <Link 
+                          href={`/sites/${post.site.slug}`}
+                          className="hover:text-blue-600"
+                        >
+                          {post.site.title}
+                        </Link>
+                      ) : (
+                        post.site.title
+                      )}
+                    </span>
+                  )}
+                </div>
+                {post.date_published && (
+                  <time dateTime={post.date_published}>
+                    {new Date(post.date_published).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      timeZone: 'Europe/London'
+                    })}
+                  </time>
+                )}
+              </div>
         </div>
+
       </div>
+
+   
     </article>
   )
 }

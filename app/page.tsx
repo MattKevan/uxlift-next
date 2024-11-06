@@ -5,6 +5,7 @@ import { Layout1 } from '@/components/Layout1'
 import { Layout2 } from '@/components/Layout2'
 import { Layout3 } from '@/components/Layout3'
 import { Layout4 } from '@/components/Layout4'
+import { Divider } from '@/components/catalyst/divider'
 
 interface GroupedPosts {
   [key: string]: any[]
@@ -96,9 +97,15 @@ export default async function HomePage() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-12">
+    <main className="max-w-7xl mx-auto pb-12">
+      <div className='bg-blue-50 rounded-lg p-24 text-center'>
+      <h1 className="text-4xl lg:text-6xl font-bold mb-6">UX Lift</h1>
+      <p className="mb-12 text-xl lg:text-2xl">A collection of the best articles, resources, books and tools, covering every aspect of the UX and design process.</p>
+      </div>
+ 
+
       <div className="mb-12 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Latest Articles</h1>
+        <h2 className="text-3xl font-bold">Latest news</h2>
         <Link 
           href="/news" 
           className="text-blue-600 hover:text-blue-800"
@@ -114,12 +121,16 @@ export default async function HomePage() {
           if (postsForDay.length === 0) return null
           
           return (
+            <>
             <section key={dateKey} className="space-y-6">
               <h2 className="text-2xl font-semibold">
                 {formatDate(dateKey)}
               </h2>
               <PostLayout posts={postsForDay} />
             </section>
+                          <Divider className='my-12'/>
+                          </>
+
           )
         })}
       </div>

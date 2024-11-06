@@ -187,10 +187,10 @@ const transformedPosts: PostWithSite[] = posts
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
 
   return (
-    <div className="py-8 max-w-6xl mx-auto">
+    <div className="py-8 max-w-7xl mx-auto">
       <h1 className="text-4xl lg:text-6xl font-bold mb-6">{topic.name}</h1>
       {topic.description && (
-        <p className="text-gray-600 mb-12 text-xl lg:text-2xl">{topic.description}</p>
+        <p className="mb-12 text-xl lg:text-2xl">{topic.description}</p>
       )}
       <Divider className='my-12'/>
       <div className=''>

@@ -8,12 +8,11 @@ interface LayoutProps {
 export const Layout4 = ({ posts }: LayoutProps) => {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <PostFeatured post={posts[0]} />
-        <PostGridItem post={posts[1]} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {posts.slice(2).map(post => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {posts.slice(1).map(post => (
           <PostGridItem key={post.id} post={post} />
         ))}
       </div>

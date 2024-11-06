@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { Divider } from '@/components/catalyst/divider'
+import { ToolCard } from '@/components/ToolCards'
 
 type Topic = Database['public']['Tables']['content_topic']['Row']
 type Tool = Database['public']['Tables']['content_tool']['Row']
@@ -56,7 +57,7 @@ export default async function ToolsPage() {
               href={`/topics/${topic.slug}#tools`}
               className="block"
             >
-              <h4 className="mb-1 font-serif hover:underline text-lg">{topic.name}</h4>
+              <h4 className="mb-1 font-serif hover:underline text-lg text-blue-600">{topic.name}</h4>
                 
             
             </Link>
@@ -68,34 +69,8 @@ export default async function ToolsPage() {
         <h2 className="text-2xl font-bold mb-6">Latest Tools</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tools?.map((tool) => (
-            <a
-              key={tool.id}
-              href={tool.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block"
-            >
-              <div className="aspect-video mb-3 overflow-hidden rounded-lg">
-                <img
-                  src={tool.image}
-                  alt={tool.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <h3 className="font-semibold mb-2 group-hover:text-blue-600">
-                {tool.title}
-              </h3>
-              <p className="text-sm text-gray-600 line-clamp-2">
-                {tool.description}
-              </p>
-              <div className="text-xs text-gray-500 mt-2">
-                {new Date(tool.date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </div>
-            </a>
+                    <ToolCard key={tool.id} tool={tool} />
+
           ))}
         </div>
       </section>

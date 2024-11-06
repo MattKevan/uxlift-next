@@ -13,6 +13,8 @@ import { StackedLayout } from '@/components/catalyst/stacked-layout'
 import Header from "@/components/Header"
 import { Gentium_Plus } from 'next/font/google'
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
+import { Hanken_Grotesk } from "next/font/google"
+
 import MobileSidebar from "@/components/Sidebar"
 
 const gentiumPlus = Gentium_Plus({
@@ -22,6 +24,14 @@ const gentiumPlus = Gentium_Plus({
   display: 'swap',
   variable: '--gentium-plus'
 })
+const hanken = Hanken_Grotesk({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--hanken-grotesk'
+})
+
 
 const plexSans = IBM_Plex_Sans({
   weight: ['400', '700'],
@@ -69,7 +79,7 @@ export default async function RootLayout({
 
   return (
     <html>
-      <body className={`bg-background text-foreground ${plexSans.variable} ${plexMono.variable} ${gentiumPlus.variable} font-serif`}>
+      <body className={`bg-background text-foreground ${hanken.variable} ${plexMono.variable}  font-serif`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

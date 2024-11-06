@@ -19,9 +19,9 @@ function truncateToWords(str: string, numWords: number) {
 
 export function PostHorizontal({ post }: { post: PostWithSite }) {
   return (
-    <article className="flex bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+    <article className="flex border rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow duration-200">
       {post.image_path && (
-        <div className="relative w-1/3 min-w-[200px]">
+        <div className="relative w-1/2 min-w-[250px]">
           <img 
             src={post.image_path} 
             alt=""
@@ -30,38 +30,31 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
         </div>
       )}
       <div className="flex flex-col flex-grow p-6">
-        <h2 className="text-xl font-semibold mb-3 line-clamp-2">
+        <h2 className="text-xl font-semibold mb-3 l">
           <a 
             href={post.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-blue-600"
+            className="text-blue-600"
           >
             {post.title}
           </a>
         </h2>
         <p className="text-gray-600 mb-4 line-clamp-2">
-          {truncateToWords(post.description, 20)}
+          {post.description}
         </p>
-        <div className="mt-auto flex items-center justify-between text-sm text-gray-500">
-          <div>
-            {post.site?.title && (
-              <span>
-                {post.site.slug ? (
-                  <Link 
-                    href={`/sites/${post.site.slug}`}
-                    className="hover:text-blue-600"
-                  >
-                    {post.site.title}
-                  </Link>
-                ) : (
-                  post.site.title
-                )}
-              </span>
-            )}
-          </div>
+        <p className="text-sm font-mono my-3">
+          {post.site?.title && (
+            <span className='mr-1'>
+              {post.site.slug ? (
+                <Link href={`/sites/${post.site.slug}`} className='hover:underline'>{post.site.title} -</Link>
+              ) : (
+                post.site.title
+              )}
+            </span> 
+          )}
           {post.date_published && (
-            <time dateTime={post.date_published}>
+            <time dateTime={post.date_published} >
               {new Date(post.date_published).toLocaleDateString('en-GB', {
                 day: 'numeric',
                 month: 'short',
@@ -70,7 +63,8 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
               })}
             </time>
           )}
-        </div>
+        </p>
+        
       </div>
     </article>
   )

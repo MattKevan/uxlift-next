@@ -12,7 +12,7 @@ const config = {
   prefix: "",
   theme: {
     fontFamily: {
-      'sans': [ 'var(--ibm-plex-sans)', ...defaultTheme.fontFamily.sans],
+      'sans': [ 'var(--hanken-grotesk)', ...defaultTheme.fontFamily.sans],
       'serif': ['var(--gentium-plus)', ...defaultTheme.fontFamily.serif],
       'mono': ['var(--ibm-plex-mono)', ...defaultTheme.fontFamily.mono],
     },
