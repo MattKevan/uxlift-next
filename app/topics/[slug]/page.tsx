@@ -201,7 +201,7 @@ const transformedPosts: PostWithSite[] = posts
   
       
   <div className=' mb-32 border-b'>
-  <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Articles</h2>
+  <h2 id="articles" className="text-3xl md:text-4xl font-bold mb-6 ml-6 pt-4">Articles</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 border-y">
         {transformedPosts?.map((post) => (
@@ -227,7 +227,7 @@ const transformedPosts: PostWithSite[] = posts
 
 {uniqueTools.length > 0 && (
   <section className="mb-12 ">
-    <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Tools</h2>
+    <h2 id="tools" className="text-3xl md:text-4xl font-bold mb-6 ml-6 pt-4">Tools</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-y">
       {uniqueTools?.map((tool) => (
                                 <div className='border-b border-r p-6 last:border-b-0'>
@@ -238,9 +238,10 @@ const transformedPosts: PostWithSite[] = posts
     </div>
   </section>
 )}
-<div className='bg-white flex flex-row sticky bottom-[10px] shadow-lg w-[100px] mx-auto p-6'>
-<FileText /> 
-<Tool />
+<div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full  left-1/2 transform -translate-x-1/2 '>
+
+<a href="#articles" className='p-4 hover:bg-gray-200  rounded-full'><FileText className='size-6'/> </a>
+<a href="#tools" className='p-4 hover:bg-gray-200  rounded-full'><Tool  className='size-6' /></a>
 </div>
       </main>
   )

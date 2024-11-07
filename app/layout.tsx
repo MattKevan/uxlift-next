@@ -65,7 +65,7 @@ export default async function RootLayout({
                 <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mt-4 mx-auto" />
               </Link>
             </div>
-          <div className="flex-grow md:border-l lg:ml-[60px]">
+          <div className="flex-grow md:border-l lg:ml-[60px] pb-12">
             <Header/>
 
             {children}
