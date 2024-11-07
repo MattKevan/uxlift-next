@@ -188,11 +188,11 @@ const transformedPosts: PostWithSite[] = posts
 
   return (
     <main>
-    <div className='px-6 mb-32 mt-6'>
-      <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
+    <div className='px-6 mb-24 sm:mb-32  mt-6'>
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
         {topic.name}  
         {topic.description && (
-          <span className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight ml-3 text-gray-500">
+          <span className=" mb-6 md:w-3/4 lg:w-4/5 tracking-tight ml-3 text-gray-500">
             {topic.description}
           </span>
         )}
@@ -200,7 +200,7 @@ const transformedPosts: PostWithSite[] = posts
   </div>
   
       
-  <div className=' mb-32 border-b'>
+  <div className=' mb-24 sm:mb-32 border-b'>
   <h2 id="articles" className="text-3xl md:text-4xl font-bold mb-6 ml-6 pt-4">Articles</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 border-y">
