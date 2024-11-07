@@ -200,10 +200,10 @@ const transformedPosts: PostWithSite[] = posts
   </div>
   
       
-  <div className=' mb-10 sm:mb-18 border-b'>
-  <h2 id="articles" className="text-3xl md:text-4xl font-bold mb-6 ml-6 pt-20">Articles</h2>
+  <div className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{topic.name} articles</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 border-y">
+        <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
         {transformedPosts?.map((post) => (
                                           <div className='border-b border-r p-6 last:border-b-0'>
 
@@ -226,9 +226,9 @@ const transformedPosts: PostWithSite[] = posts
         </div>
 
 {uniqueTools.length > 0 && (
-  <section className="mb-12 ">
-    <h2 id="tools" className="text-3xl md:text-4xl font-bold mb-6 ml-6 pt-20">Tools</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-y">
+  <section className="mb-12 pt-12" id="tools">
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{topic.name} tools</h2>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b">
       {uniqueTools?.map((tool) => (
                                 <div className='border-b border-r p-6 last:border-b-0'>
 
