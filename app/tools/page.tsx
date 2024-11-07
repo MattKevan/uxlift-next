@@ -47,7 +47,7 @@ export default async function ToolsPage() {
   return (
     <main>
       <div className='px-6 mb-32 mt-6'>
-      <h1 className="text-3xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">Tools</h1>
+      <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">Tools</h1>
       </div>
 
       <div className='border-t grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>

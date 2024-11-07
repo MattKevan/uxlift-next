@@ -100,7 +100,7 @@ export default async function HomePage() {
   return (
     <main className="">
       <div className='px-6 mb-32 mt-6'>
-        <h1 className="text-3xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
+        <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
       </div>
 
       <div className='border-t grid grid-cols-3'>
