@@ -26,7 +26,7 @@ export default function MobileSidebar({ onClose }: MobileSidebarProps) {
           <a
             key={item.href}
             href={item.href}
-            className=" flex items-center px-5 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-b"
+            className=" flex items-center px-5 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900 dark:text-gray-300 hover:text-gray-900 border-b"
             onClick={handleItemClick}
           >
             {item.label}

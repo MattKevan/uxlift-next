@@ -19,17 +19,17 @@ export default async function Header() {
   }
 
   return (
-    <nav className="font-sans flex items-center  border-y pr-2 sticky top-0 bg-white/80 backdrop-blur-lg dark:bg-gray-900/80 z-50">
+    <nav className="font-sans flex items-center  border-y pr-2 sticky top-0 bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 z-50">
       <MobileMenuButton />
 
       <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 lg:hidden m-4"  />
 
       <ul className="max-lg:hidden flex flex-row  font-medium border-r">
-        <li><a href="/news" className='hover:bg-gray-50 p-4 block'>News</a></li>
-        <li><a href="/topics"  className='hover:bg-gray-50 p-4 block'>Topics</a></li>
-        <li><a href="/tools"  className='hover:bg-gray-50 p-4 block'>Tools</a></li>
-        <li><a href="/courses"  className='hover:bg-gray-50 p-4 block'>Courses</a></li>
-        <li><a href="/newsletter"  className='hover:bg-gray-50 p-4 block'>Newsletter</a></li>
+        <li><a href="/news" className='hover:bg-gray-50 dark:hover:bg-gray-900 p-4 block'>News</a></li>
+        <li><a href="/topics"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Topics</a></li>
+        <li><a href="/tools"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Tools</a></li>
+        <li><a href="/courses"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Courses</a></li>
+        <li><a href="/newsletter"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Newsletter</a></li>
       </ul>
       
       <div className="flex-1" />

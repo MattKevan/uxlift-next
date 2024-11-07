@@ -135,10 +135,7 @@ export default function AdminPosts() {
       
       const response = await fetch('/api/process-feeds', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET}`,
-          'Content-Type': 'application/json',
-        },
+        
       })
   
       const result = await response.json()

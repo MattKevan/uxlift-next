@@ -205,8 +205,8 @@ const transformedPosts: PostWithSite[] = posts
   </div>
   
       
-  <div className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalPostsCount} {topic.name} articles</h2>
+  <section className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalPostsCount} {topic.name} articles</h2>
 
         <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
         {transformedPosts?.map((post) => (
@@ -228,11 +228,11 @@ const transformedPosts: PostWithSite[] = posts
           baseUrl={`/topics/${slug}`}
         />
       )}
-        </div>
+        </section>
 
 {uniqueTools.length > 0 && (
   <section className="mb-12 pt-12" id="tools">
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalToolsCount} {topic.name} tools</h2>
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-30">{totalToolsCount} {topic.name} tools</h2>
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b">
       {uniqueTools?.map((tool) => (
                                 <div className='border-b border-r p-6 last:border-b-0'>
@@ -243,7 +243,7 @@ const transformedPosts: PostWithSite[] = posts
     </div>
   </section>
 )}
-<div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full  left-1/2 transform -translate-x-1/2 '>
+<div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full  left-1/2 transform -translate-x-1/2 z-50'>
 
 <a href="#articles" className='p-4 hover:bg-gray-200  rounded-full'><FileText className='size-6'/> </a>
 <a href="#tools" className='p-4 hover:bg-gray-200  rounded-full'><Tool  className='size-6' /></a>

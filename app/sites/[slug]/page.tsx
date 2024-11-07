@@ -3,11 +3,15 @@ import { notFound } from 'next/navigation'
 import { PostItem } from '@/components/posts/PostItem'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
+import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { Pager } from '@/components/Pager'
+import { Button } from '@/components/catalyst/button'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
   title: string | null
   slug: string | null
+  site_icon: string | null
 }
 
 interface PostWithSite extends BasePost {
@@ -60,15 +64,17 @@ export default async function SitePage({
     .select(`
       id,
       title,
-      description,
+      description, 
       date_published,
       date_created,
       link,
       image_path,
       content,
-      site:content_site (
+      site:content_site!left ( 
         title,
-        slug
+        slug,
+        url,
+        site_icon
       )
     `)
     .eq('site_id', site.id)
@@ -86,75 +92,58 @@ export default async function SitePage({
   // Transform posts to match PostItem component expectations
   const transformedPosts: PostWithSite[] = (posts || []).map((post: any) => ({
     ...post,
-    site: post.site?.[0] || null
+    site: post.site || null  // Remove the ?.[0] as site is now a single object
   }))
 
   return (
-    <div className="py-8 px-4 max-w-4xl mx-auto">
-      <header className="mb-12">
-        <div className="flex items-center gap-4 mb-4">
-          {site.site_icon && (
-            <img 
-              src={site.site_icon} 
-              alt="" 
-              className="w-16 h-16 rounded-lg"
-            />
-          )}
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{site.title}</h1>
-            {site.url && (
-              <a 
-                href={site.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                {new URL(site.url).hostname}
-              </a>
-            )}
-          </div>
-        </div>
-        {site.description && (
-          <p className="text-gray-600">{site.description}</p>
-        )}
-      </header>
+    <main>
+      <div className='px-6 mb-24 sm:mb-32 mt-6'>
+      <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
+      {site.title}
+      {site.description && (
 
-      <section>
-        <h2 className="text-2xl font-bold mb-6">Latest Posts</h2>
-        <div className="space-y-8">
-          {transformedPosts?.map((post) => (
-            <PostItem key={post.id} post={post} />
+        <span className="text-gray-500 ml-2">
+          {site.description}
+          </span>
+
+      )}
+      </h1>
+      <div className='flex gap-2'>
+      <Button outline>
+            <a href={site.url} target="_blank" rel="noopener noreferrer" >
+              Visit
+            </a>
+          </Button> 
+           <Button outline>Follow</Button>
+      </div>
+      </div>
+  
+      <section className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
+      <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{count} articles</h2>
+
+        <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
+        {transformedPosts?.map((post) => (
+            <div className='border-b border-r p-6 [&:nth-last-child(-n+2)]:border-b-0'>
+
+            <PostHorizontal key={post.id} post={post} />
+            </div>
           ))}
-
-          {transformedPosts?.length === 0 && (
-            <p className="text-gray-600">No posts found from this site.</p>
-          )}
         </div>
-      </section>
+         
+          {transformedPosts?.length === 0 && (
+            <p className="text-gray-600">No posts found for this topic.</p>
+          )}
 
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center gap-2">
-          {currentPage > 1 && (
-            <Link
-              href={`/sites/${slug}?page=${currentPage - 1}`}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Previous
-            </Link>
-          )}
-          <span className="px-4 py-2">
-            Page {currentPage} of {totalPages}
-          </span>
-          {currentPage < totalPages && (
-            <Link
-              href={`/sites/${slug}?page=${currentPage + 1}`}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Next
-            </Link>
-          )}
-        </div>
+        <Pager 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          baseUrl={`/topics/${slug}`}
+        />
       )}
-      </div>
+        </section>
+
+      
+      </main>
   )
 }

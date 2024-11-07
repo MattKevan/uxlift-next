@@ -2,6 +2,8 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
+import { Bookmark, Flag, Like } from '@mynaui/icons-react'
+import { Button } from '../catalyst/button'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -22,8 +24,16 @@ function truncateToWords(str: string, numWords: number) {
 
 export function PostHorizontal({ post }: { post: PostWithSite }) {
   return (
-    <article className="overflow-hidden grid grid-cols-3 gap-6">
+    <article className="overflow-hidden grid grid-cols-3 gap-6 group">
       
+      <a 
+            href={post.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+
+         
       <div className=" relative aspect-square :col-span-1 mb-0">
 
       {post.image_path && (
@@ -34,6 +44,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           />
       )}
               </div>
+              </a>    
 
       <div className="flex flex-col col-span-2 flex-grow">
         <h2 className="text-xl md:text-2xl font-bold mb-2 tracking-tight leading-tight md:leading-tight">
@@ -46,7 +57,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
             {post.title}
           </a>
         </h2>
-        <p className="text-gray-600 mb-2 line-clamp-2">
+        <p className="text-gray-500 mb-2 line-clamp-2">
           {post.description}
         </p>
         <p className="text-sm font-mono my-3 flex flex-row items-center gap-2">
@@ -57,7 +68,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
              alt={post.site?.title || 'Site icon'}
              width={70}
              height={70}
-             className="size-8 flex-none"
+             className="size-8 flex-none rounded-full"
            />
            
           )}
@@ -82,7 +93,24 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
             </time>
           )}
         </p>
-        
+        <div className="mt-auto text-sm text-gray-400 items-center justify-between flex">
+          <div className='flex gap-2'>
+<Button outline className='text-gray-500'>      
+   <Like />
+</Button>      
+<Button outline>      
+
+            <Bookmark />
+            </Button>
+          </div>
+          <div>
+          <Button outline>      
+
+            <Flag />
+            </Button>
+          </div>
+      
+        </div>
       </div>
     </article>
   )

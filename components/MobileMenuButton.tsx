@@ -12,7 +12,7 @@ export default function MobileMenuButton() {
     <>
       <button
         type="button"
-        className="lg:hidden inline-flex  items-center justify-center p-4 hover:bg-gray-100 border-r"
+        className="lg:hidden inline-flex  items-center justify-center p-4 hover:bg-gray-100 dark:hover:bg-gray-900 border-r"
         onClick={() => setSidebarOpen(true)}
 
       >
@@ -49,11 +49,11 @@ export default function MobileMenuButton() {
               leaveTo="-translate-x-full"
             >
               <Dialog.Panel className="relative flex w-full max-w-xs flex-1">
-                <div className="flex h-full flex-col overflow-y-auto bg-white pb-4 w-64">
+                <div className="flex h-full flex-col overflow-y-auto bg-white dark:bg-gray-950 pb-4 w-64">
                   <div className="flex items-center justify-between border-b">
                     <button
                       type="button"
-                      className="p-4 text-gray-700 hover:bg-gray-100 border-r"
+                      className="p-4  hover:bg-gray-100 dark:hover:bg-gray-900 border-r"
                       onClick={() => setSidebarOpen(false)}
                     >
                       <span className="sr-only">Close sidebar</span>

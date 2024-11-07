@@ -103,7 +103,7 @@ export default async function HomePage() {
       <div className='px-6 mb-32 mt-6'>
         <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
       </div>
-      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest articles</h2>
+      <h2 id="articles" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest articles</h2>
 
         <div className='grid grid-cols-1 md:grid-cols-2 border-b'>
           {posts?.map((post) => (
@@ -115,8 +115,8 @@ export default async function HomePage() {
         </div>
 
         <section className='mt-24'>
-      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest tools</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
+        <h2 id="tools" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
           {tools?.map((tool) => (
                         <div className='border-b last:border-b-0 border-r p-6'>
 
