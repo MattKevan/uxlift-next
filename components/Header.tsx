@@ -19,7 +19,7 @@ export default async function Header() {
   }
 
   return (
-    <nav className="font-sans flex items-center  border-b pr-2">
+    <nav className="font-sans flex items-center  border-y pr-2">
       <MobileMenuButton />
 
       <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 lg:hidden m-4"  />
