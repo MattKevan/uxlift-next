@@ -30,7 +30,7 @@ interface PageProps {
   searchParams: SearchParams
 }
 
-const ITEMS_PER_PAGE = 21
+const ITEMS_PER_PAGE = 22
 
 async function getTopicData(slug: string) {
   const supabase = await createClient()
@@ -111,8 +111,8 @@ export default async function TopicPage({
     .order('date', { ascending: false })
 
 
-// Get total count for pagination
-const { count } = await supabase
+// Get total counts for both posts and tools
+const { count: totalPostsCount } = await supabase
   .from('content_post_topics')
   .select(`
     post:content_post!inner (
@@ -124,6 +124,11 @@ const { count } = await supabase
   })
   .eq('topic_id', topic.id)
   .eq('post.status', 'published')
+
+const { count: totalToolsCount } = await supabase
+  .from('content_tool_topics')
+  .select('*', { count: 'exact', head: true })
+  .eq('topic_id', topic.id)
 
 // Then get paginated posts for this topic
 const { data: posts, error: postsError } = await supabase
@@ -181,7 +186,7 @@ const transformedPosts: PostWithSite[] = posts
     return <div>Error loading content</div>
   }
 
-  const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
+  const totalPages = totalPostsCount ? Math.ceil(totalPostsCount / ITEMS_PER_PAGE) : 0
 
   // Remove duplicate tools
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
@@ -201,11 +206,11 @@ const transformedPosts: PostWithSite[] = posts
   
       
   <div className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{topic.name} articles</h2>
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalPostsCount} {topic.name} articles</h2>
 
         <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
         {transformedPosts?.map((post) => (
-                                          <div className='border-b border-r p-6 last:border-b-0'>
+            <div className='border-b border-r p-6 [&:nth-last-child(-n+2)]:border-b-0'>
 
             <PostHorizontal key={post.id} post={post} />
             </div>
@@ -227,7 +232,7 @@ const transformedPosts: PostWithSite[] = posts
 
 {uniqueTools.length > 0 && (
   <section className="mb-12 pt-12" id="tools">
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{topic.name} tools</h2>
+  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/70 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalToolsCount} {topic.name} tools</h2>
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b">
       {uniqueTools?.map((tool) => (
                                 <div className='border-b border-r p-6 last:border-b-0'>
