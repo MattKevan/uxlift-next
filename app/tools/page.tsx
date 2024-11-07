@@ -46,19 +46,19 @@ export default async function ToolsPage() {
 
   return (
     <main>
-      <div className='px-6 mb-32 mt-6'>
+      <div className='px-6 mb-24 sm:mb-32 mt-6'>
       <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">Tools</h1>
       </div>
 
       <div className='border-t grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
           {uniqueTopics.map((topic) => (
             <div key={topic.id} 
-            className="inline-block text-xl md:text-2xl font-semibold border-b border-r tracking-tight"
+            className="inline-block text-md sm:text-xl font-semibold border-b border-r tracking-tight"
           >
             <Link
               key={topic.id}
               href={`/topics/${topic.slug}#tools`}
-              className="dark:hover:text-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 p-6 dark:hover:bg-gray-900 transition-all duration-200 block"
+              className="dark:hover:text-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 p-4 sm:p-6 dark:hover:bg-gray-900 transition-all duration-200 block"
 
             >
             {topic.name}
@@ -69,7 +69,7 @@ export default async function ToolsPage() {
           ))}
         </div>
       <section className='mt-24'>
-      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest tools</h2>
+      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest tools</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
           {tools?.map((tool) => (
                         <div className='border-b border-r p-6'>
