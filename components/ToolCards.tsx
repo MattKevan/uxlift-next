@@ -15,14 +15,14 @@ export function ToolCard({ tool }: ToolCardProps) {
       href={tool.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block border p-6 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+      className="group block transition-all duration-200"
     >
      
       <div className='flex flex-row gap-4'>
         <div className='flex-1'>
-        <h3 className="font-bold mb-2 text-xl text-blue-600">
+        <h3 className="font-bold mb-2 text-xl tracking-tight">
       {tool.title}
-      </h3><p className="line-clamp-3">
+      </h3><p className="line-clamp-3 text-gray-500">
         {tool.description}
       </p></div>
       

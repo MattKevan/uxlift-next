@@ -28,17 +28,17 @@ export default async function Header() {
   }
 
   return (
-    <Navbar className='font-sans'>
-      <Link href="/" aria-label="Home">
-        <p className='font-bold text-lg text-blue-600'>UX Lift</p>
-      </Link>
-      
-      <NavbarSection className='max-lg:hidden'>
-        <NavbarItem href="/" current>Home</NavbarItem>
-        <NavbarItem href="/news">News</NavbarItem>
-        <NavbarItem href="/topics">Topics</NavbarItem>
-        <NavbarItem href="/tools">Tools</NavbarItem>
-      </NavbarSection>
+    <nav className='font-sans flex items-center py-2 border-b pl-6 pr-2'>
+      <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mx-auto lg:hidden" />
+
+      <ul className='max-lg:hidden flex flex-row gap-6'>
+        <li> <a href="/news">News</a></li>
+        <li> <a href="/topics">Topics</a></li>
+        <li> <a href="/tools">Tools</a></li>
+        <li> <a href="/tools">Courses</a></li>
+        <li> <a href="/tools">Newsletter</a></li>
+
+      </ul>
       
       <NavbarSpacer />
       
@@ -74,6 +74,6 @@ export default async function Header() {
       ) : (
         <LoginRegisterButtons />
       )}
-    </Navbar>
+    </nav>
   )
 }

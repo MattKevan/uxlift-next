@@ -4,18 +4,17 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
-import { Divider } from '@/components/catalyst/divider'
-import { PostItemSmall } from '@/components/posts/PostItemSmall'
 import type { Metadata } from 'next'
-import { CldImage } from 'next-cloudinary';
 import { ToolCard } from '@/components/ToolCards'
-import { PostGridItem } from '@/components/posts/PostGridItem'
 import { Pager } from '@/components/Pager'
+import { PostHorizontal } from '@/components/posts/PostsHorizontal'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
+
 type Site = {
   title: string | null
   slug: string | null
+  site_icon: string | null
 }
 
 interface PostWithSite extends BasePost {
@@ -187,26 +186,34 @@ const transformedPosts: PostWithSite[] = posts
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
 
   return (
-    <div className="py-8 max-w-7xl mx-auto">
-      <h1 className="text-4xl lg:text-6xl font-bold mb-6">{topic.name}</h1>
-      {topic.description && (
-        <p className="mb-12 text-xl lg:text-2xl">{topic.description}</p>
-      )}
-      <Divider className='my-12'/>
-      <div className=''>
-      <section>
-        <h2 className="text-3xl font-bold mb-6">Articles</h2>
-        <div className="space-y-8">
-          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
-          {transformedPosts?.map((post) => (
-            <PostGridItem key={post.id} post={post} />
+    <main>
+    <div className='px-6 mb-32 mt-6'>
+      <h1 className="text-3xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
+        {topic.name}  
+        {topic.description && (
+          <span className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight ml-3 text-gray-500">
+            {topic.description}
+          </span>
+        )}
+      </h1>
+  </div>
+  
+      
+  <div className=' mb-32 border-b'>
+  <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Articles</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 border-y">
+        {transformedPosts?.map((post) => (
+                                          <div className='border-b border-r p-6 last:border-b-0'>
+
+            <PostHorizontal key={post.id} post={post} />
+            </div>
           ))}
-          </div>
+        </div>
+         
           {transformedPosts?.length === 0 && (
             <p className="text-gray-600">No posts found for this topic.</p>
           )}
-        </div>
-      </section>
 
       {totalPages > 1 && (
         <Pager 
@@ -219,16 +226,18 @@ const transformedPosts: PostWithSite[] = posts
 
 {uniqueTools.length > 0 && (
   <section className="mb-12 ">
-    <Divider className='my-24' />
-    <h2 className="text-3xl font-bold mb-6" id="tools">Tools</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Tools</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-y">
       {uniqueTools?.map((tool) => (
+                                <div className='border-b border-r p-6 last:border-b-0'>
+
         <ToolCard key={tool.id} tool={tool} />
+        </div>
       ))}
     </div>
   </section>
 )}
 
-      </div> 
+      </main>
   )
 }

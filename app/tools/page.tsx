@@ -45,35 +45,41 @@ export default async function ToolsPage() {
   const uniqueTopics = Array.from(new Map(topics?.map(topic => [topic.id, topic])).values())
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
-      <h1 className='text-6xl font-bold'>Tools</h1>
-      <Divider className='my-12' />
-      <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6">Explore tools</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <main>
+      <div className='px-6 mb-32 mt-6'>
+      <h1 className="text-3xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">Tools</h1>
+      </div>
+
+      <div className='border-t grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
           {uniqueTopics.map((topic) => (
+            <div key={topic.id} 
+            className="inline-block text-xl md:text-2xl font-semibold border-b border-r tracking-tight"
+          >
             <Link
               key={topic.id}
               href={`/topics/${topic.slug}#tools`}
-              className="block"
+              className="dark:hover:text-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 p-6 dark:hover:bg-gray-900 transition-all duration-200 block"
+
             >
-              <h4 className="mb-1 font-serif hover:underline text-lg text-blue-600">{topic.name}</h4>
+            {topic.name}
                 
             
             </Link>
+            </div>
           ))}
         </div>
-      </section>
-          <Divider className='my-12' />
-      <section>
-        <h2 className="text-2xl font-bold mb-6">Latest Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section className='mt-24'>
+        <h2 className="text-gray-500 text-lg font-semibold mb-6 pl-6">Latest tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
           {tools?.map((tool) => (
+                        <div className='border-b border-r p-6'>
+
                     <ToolCard key={tool.id} tool={tool} />
+                    </div>
 
           ))}
         </div>
       </section>
-    </div>
+    </main>
   )
 }

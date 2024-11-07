@@ -6,6 +6,7 @@ import { Layout2 } from '@/components/Layout2'
 import { Layout3 } from '@/components/Layout3'
 import { Layout4 } from '@/components/Layout4'
 import { Divider } from '@/components/catalyst/divider'
+import { PostHorizontal } from '@/components/posts/PostsHorizontal'
 
 interface GroupedPosts {
   [key: string]: any[]
@@ -97,47 +98,27 @@ export default async function HomePage() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto pb-12">
-      <div className='bg-blue-50 rounded-lg p-24 text-center'>
-      <h1 className="text-4xl lg:text-6xl font-bold mb-6">UX Lift</h1>
-      <p className="mb-12 text-xl lg:text-2xl">A collection of the best articles, resources, books and tools, covering every aspect of the UX and design process.</p>
+    <main className="">
+      <div className='px-6 mb-32 mt-6'>
+        <h1 className="text-3xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
       </div>
+
+      <div className='border-t grid grid-cols-3'>
+        <div className='col-span-2'>
+          {posts?.map((post) => (
+            <div className='border-b p-6'>
+
+              <PostHorizontal key={post.id} post={post} />
+            </div>
+          ))}
+        </div>
+        <div className='border-l'>
+        </div>
+
+  </div>
+    
  
-
-      <div className="mb-12 flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Latest news</h2>
-        <Link 
-          href="/news" 
-          className="text-blue-600 hover:text-blue-800"
-        >
-          View all articles →
-        </Link>
-      </div>
-
-      <div className="space-y-16">
-        {lastSevenDays.map(dateKey => {
-          const postsForDay = groupedPosts[dateKey] || []
-          
-          if (postsForDay.length === 0) return null
-          
-          return (
-            <>
-            <section key={dateKey} className="space-y-6">
-              <h2 className="text-2xl font-semibold">
-                {formatDate(dateKey)}
-              </h2>
-              <PostLayout posts={postsForDay} />
-            </section>
-                          <Divider className='my-12'/>
-                          </>
-
-          )
-        })}
-      </div>
-
-      {Object.keys(groupedPosts).length === 0 && (
-        <p className="text-gray-600 text-center py-12">No posts found from the last 7 days.</p>
-      )}
+      
     </main>
   )
 }

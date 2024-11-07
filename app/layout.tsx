@@ -13,40 +13,13 @@ import { StackedLayout } from '@/components/catalyst/stacked-layout'
 import Header from "@/components/Header"
 import { Gentium_Plus } from 'next/font/google'
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
-import { Hanken_Grotesk } from "next/font/google"
+import { Inter } from "next/font/google"
 
 import MobileSidebar from "@/components/Sidebar"
 
-const gentiumPlus = Gentium_Plus({
-  weight: '400',
+const inter = Inter({
   subsets: ['latin'],
-  style: ['normal', 'italic'],
-  display: 'swap',
-  variable: '--gentium-plus'
-})
-const hanken = Hanken_Grotesk({
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--hanken-grotesk'
-})
-
-
-const plexSans = IBM_Plex_Sans({
-  weight: ['400', '700'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--ibm-plex-sans'
-})
-
-const plexMono = IBM_Plex_Mono({
-  weight: '400',
-  subsets: ['latin'],
-  style: ['normal'],
-  display: 'swap',
-  variable: '--ibm-plex-mono'
+  variable: '--font-inter',
 })
 
 const defaultUrl = process.env.VERCEL_URL
@@ -79,20 +52,31 @@ export default async function RootLayout({
 
   return (
     <html>
-      <body className={`bg-background text-foreground ${hanken.variable} ${plexMono.variable}  font-serif`}>
+      <body className={`bg-background text-foreground ${inter.variable} font-serif`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <StackedLayout
-            navbar={<Navbar>{<Header/>}</Navbar>}
-            sidebar={<MobileSidebar />}
-          >
+          <div className="relative isolate flex min-h-svh w-full">
+            <div className=" w-[60px] fixed top-0 h-full max-lg:hidden">
+              <Link href='/'>
+                <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mt-4 mx-auto" />
+              </Link>
+            </div>
+          <div className="flex-grow md:border-l lg:ml-[60px]">
+            <Header/>
+
             {children}
-            <ThemeSwitcher />
-          </StackedLayout>
+
+          
+
+          </div>
+
+
+          </div>
+          
         </ThemeProvider>
       </body>
     </html>
