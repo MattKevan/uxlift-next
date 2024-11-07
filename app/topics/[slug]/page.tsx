@@ -8,6 +8,7 @@ import type { Metadata } from 'next'
 import { ToolCard } from '@/components/ToolCards'
 import { Pager } from '@/components/Pager'
 import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { FileText, Tool } from '@mynaui/icons-react'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 
@@ -237,7 +238,10 @@ const transformedPosts: PostWithSite[] = posts
     </div>
   </section>
 )}
-
+<div className='bg-white flex flex-row sticky bottom-[10px] shadow-lg w-[100px] mx-auto p-6'>
+<FileText /> 
+<Tool />
+</div>
       </main>
   )
 }

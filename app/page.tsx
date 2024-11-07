@@ -7,6 +7,7 @@ import { Layout3 } from '@/components/Layout3'
 import { Layout4 } from '@/components/Layout4'
 import { Divider } from '@/components/catalyst/divider'
 import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { ToolCard } from '@/components/ToolCards'
 
 interface GroupedPosts {
   [key: string]: any[]
@@ -81,42 +82,50 @@ export default async function HomePage() {
     site: post.site?.[0] || null
   })) || []
 
+  const { data: tools, error: toolsError } = await supabase
+    .from('content_tool')
+    .select()
+    .eq('status', 'published')
+    .order('date', { ascending: false })
+    .limit(9)
+
+  if (toolsError) {
+    console.error('Error fetching tools:', toolsError)
+    return <div>Error loading tools</div>
+  }
+
+
   const groupedPosts = groupPostsByDate(transformedPosts)
   const lastSevenDays = getLastSevenDays()
-
-  const PostLayout = ({ posts }: { posts: any[] }) => {
-    switch (posts.length) {
-      case 1:
-        return <Layout1 posts={posts} />;
-      case 2:
-        return <Layout2 posts={posts} />;
-      case 3:
-        return <Layout3 posts={posts} />;
-      default: // 4 or more posts
-        return <Layout4 posts={posts.slice(0, 4)} />;
-    }
-  };
 
   return (
     <main className="">
       <div className='px-6 mb-32 mt-6'>
         <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
       </div>
+      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest articles</h2>
 
-      <div className='border-t grid grid-cols-3'>
-        <div className='col-span-2'>
+        <div className='grid grid-cols-1 md:grid-cols-2 border-b'>
           {posts?.map((post) => (
-            <div className='border-b p-6'>
+            <div className='border-t md:odd:border-r p-6 last:border-b-0'>
 
               <PostHorizontal key={post.id} post={post} />
             </div>
           ))}
         </div>
-        <div className='border-l'>
-        </div>
 
-  </div>
-    
+        <section className='mt-24'>
+      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest tools</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
+          {tools?.map((tool) => (
+                        <div className='border-b last:border-b-0 border-r p-6'>
+
+                    <ToolCard key={tool.id} tool={tool} />
+                    </div>
+
+          ))}
+        </div>
+      </section>
  
       
     </main>

@@ -69,8 +69,8 @@ export default async function ToolsPage() {
           ))}
         </div>
       <section className='mt-24'>
-        <h2 className="text-gray-500 text-lg font-semibold mb-6 pl-6">Latest tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
+      <h2 className="text-3xl md:text-4xl font-bold mb-6 ml-6" id="tools">Latest tools</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
           {tools?.map((tool) => (
                         <div className='border-b border-r p-6'>
 

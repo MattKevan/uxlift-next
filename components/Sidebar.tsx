@@ -1,33 +1,38 @@
-import { Sidebar, SidebarBody, SidebarHeader, SidebarItem, SidebarLabel, SidebarSection } from '@/components/catalyst/sidebar'
-import {
-    Dropdown,
-    DropdownButton,
-    DropdownDivider,
-    DropdownItem,
-    DropdownLabel,
-    DropdownMenu,
-  } from '@/components/catalyst/dropdown'
-import { Avatar } from './catalyst/avatar'
-import { ChevronDoubleDownIcon } from '@heroicons/react/16/solid'
+import { SidebarItem } from '@/components/catalyst/sidebar'
 
-export default function MobileSidebar() {
-    return (
-<Sidebar>
-<SidebarHeader>
-  
-</SidebarHeader>
-<SidebarBody>
-  <SidebarSection>
-  <SidebarItem href="/">
-          Home
-        </SidebarItem>
-        <SidebarItem href="/news">News</SidebarItem>
-
-        <SidebarItem href="/topics">Topics</SidebarItem>
-        <SidebarItem href="/tools">Tools</SidebarItem>
-  </SidebarSection>
-</SidebarBody>
-</Sidebar>
-    )
+interface MobileSidebarProps {
+  onClose?: () => void
 }
 
+export default function MobileSidebar({ onClose }: MobileSidebarProps) {
+  const handleItemClick = () => {
+    // Close sidebar when a navigation item is clicked
+    if (onClose) {
+      onClose()
+    }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <nav className=" ">
+        {[
+          { href: '/', label: 'Home' },
+          { href: '/news', label: 'News' },
+          { href: '/topics', label: 'Topics' },
+          { href: '/tools', label: 'Tools' },
+          { href: '/courses', label: 'Courses' },
+          { href: '/newsletter', label: 'Newsletter' },
+        ].map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className=" flex items-center px-5 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-b"
+            onClick={handleItemClick}
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  )
+}

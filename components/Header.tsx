@@ -1,16 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
-import { Link } from './catalyst/link'
-import { Dropdown, DropdownDivider, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/catalyst/dropdown'
-import { Navbar, NavbarItem, NavbarSpacer, NavbarSection } from '@/components/catalyst/navbar'
-import {
-  Cog8ToothIcon,
-  LightBulbIcon,
-  ShieldCheckIcon,
-  UserIcon,
-  CommandLineIcon
-} from '@heroicons/react/16/solid'
-import ClientAvatarButton from '@/components/ClientAvatarButton'
-import LogoutButton from '@/components/LogoutButton'
+import { headers } from 'next/headers'
+import MobileMenuButton from '@/components/MobileMenuButton'
+import UserMenuButton from '@/components//UserMenuButton'
 import LoginRegisterButtons from '@/components/LoginRegisterButtons'
 
 export default async function Header() {
@@ -28,49 +19,23 @@ export default async function Header() {
   }
 
   return (
-    <nav className='font-sans flex items-center py-2 border-b pl-6 pr-2'>
-      <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mx-auto lg:hidden" />
+    <nav className="font-sans flex items-center  border-b pr-2">
+      <MobileMenuButton />
 
-      <ul className='max-lg:hidden flex flex-row gap-6'>
-        <li> <a href="/news">News</a></li>
-        <li> <a href="/topics">Topics</a></li>
-        <li> <a href="/tools">Tools</a></li>
-        <li> <a href="/tools">Courses</a></li>
-        <li> <a href="/tools">Newsletter</a></li>
+      <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 lg:hidden m-4"  />
 
+      <ul className="max-lg:hidden flex flex-row  font-medium border-r">
+        <li><a href="/news" className='hover:bg-gray-50 p-4 block'>News</a></li>
+        <li><a href="/topics"  className='hover:bg-gray-50 p-4 block'>Topics</a></li>
+        <li><a href="/tools"  className='hover:bg-gray-50 p-4 block'>Tools</a></li>
+        <li><a href="/courses"  className='hover:bg-gray-50 p-4 block'>Courses</a></li>
+        <li><a href="/newsletter"  className='hover:bg-gray-50 p-4 block'>Newsletter</a></li>
       </ul>
       
-      <NavbarSpacer />
+      <div className="flex-1" />
       
       {user && profile ? (
-        <Dropdown>
-        <ClientAvatarButton
-            src={profile.avatar_url || '/default-avatar.png'}
-            initials={profile.username ? profile.username[0].toUpperCase() : 'U'}
-            alt="Account options"
-          />          <DropdownMenu className="min-w-64" anchor="bottom end">
-            <DropdownItem href={`/profile/${profile.username}`}>
-              <UserIcon />
-              <DropdownLabel>My profile</DropdownLabel>
-            </DropdownItem>
-            <DropdownItem href="/settings">
-              <Cog8ToothIcon />
-              <DropdownLabel>Settings</DropdownLabel>
-            </DropdownItem>
-            {profile.is_admin && (
-              <>
-                <DropdownDivider />
-                <DropdownItem href="/admin/posts">
-                  <CommandLineIcon />
-                  <DropdownLabel>Admin</DropdownLabel>
-                </DropdownItem>
-              </>
-            )}
-           
-            <DropdownDivider />
-            <LogoutButton />
-          </DropdownMenu>
-        </Dropdown>
+        <UserMenuButton user={user} profile={profile} />
       ) : (
         <LoginRegisterButtons />
       )}
