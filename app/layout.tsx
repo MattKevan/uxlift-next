@@ -1,21 +1,10 @@
-import DeployButton from "@/components/deploy-button"
-import { EnvVarWarning } from "@/components/env-var-warning"
-import HeaderAuth from "@/components/header-auth"
-import { ThemeSwitcher } from "@/components/theme-switcher"
-import { hasEnvVars } from "@/utils/supabase/check-env-vars"
-import { GeistSans } from "geist/font/sans"
 import { ThemeProvider } from "next-themes"
 import Link from "next/link"
 import "./globals.css"
-import { Navbar } from '@/components/catalyst/navbar'
-import { Sidebar } from '@/components/catalyst/sidebar'
-import { StackedLayout } from '@/components/catalyst/stacked-layout'
-import Header from "@/components/Header"
-import { Gentium_Plus } from 'next/font/google'
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
-import { Inter } from "next/font/google"
 
-import MobileSidebar from "@/components/Sidebar"
+import Header from "@/components/Header"
+
+import { Inter } from "next/font/google"
 
 const inter = Inter({
   subsets: ['latin'],
@@ -52,7 +41,7 @@ export default async function RootLayout({
 
   return (
     <html>
-      <body className={`bg-background text-foreground ${inter.variable} font-serif`}>
+      <body className={`bg-background text-foreground ${inter.variable} font-sans`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

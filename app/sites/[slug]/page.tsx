@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { PostItem } from '@/components/posts/PostItem'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
-import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Pager } from '@/components/Pager'
 import { Button } from '@/components/catalyst/button'
 

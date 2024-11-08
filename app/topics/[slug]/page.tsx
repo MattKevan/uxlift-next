@@ -7,7 +7,7 @@ import { Database } from '@/types/supabase'
 import type { Metadata } from 'next'
 import { ToolCard } from '@/components/ToolCards'
 import { Pager } from '@/components/Pager'
-import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { FileText, Tool } from '@mynaui/icons-react'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
