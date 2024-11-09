@@ -1,11 +1,40 @@
 import { ThemeProvider } from "next-themes"
 import Link from "next/link"
 import "./globals.css"
-
+import localFont from 'next/font/local'
 import Header from "@/components/Header"
 
 import { Inter } from "next/font/google"
+import PrelineScript from "@/components/PrelineScript"
 
+const mona = localFont({
+  src: [
+    {
+      path: './fonts/MonaSans-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './fonts/MonaSans-Bold.woff2',
+      weight: '800',
+      style: 'normal',
+    },
+   
+  ],
+  variable: '--font-mona',
+})
+
+const monaCondensed = localFont({
+  src: [
+    {
+      path: './fonts/MonaSansCondensed-Bold.woff2',
+      weight: '800',
+      style: 'normal',
+    },
+   
+  ],
+  variable: '--font-mona-condensed',
+})
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
@@ -41,21 +70,22 @@ export default async function RootLayout({
 
   return (
     <html>
-      <body className={`bg-background text-foreground ${inter.variable} font-sans`}>
+      <body className={`bg-background text-foreground  ${inter.variable} font-sans`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative isolate flex min-h-svh w-full">
-            <div className=" w-[60px] fixed top-0 h-full max-lg:hidden">
+          <div className="relative isolate flex flex-col min-h-svh w-full">
+            <div className=" w-[60px] fixed top-0 h-full max-lg:hidden md:border-r ">
               <Link href='/'>
                 <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mt-4 mx-auto" />
               </Link>
             </div>
-          <div className="flex-grow md:border-l lg:ml-[60px] pb-12">
             <Header/>
+
+          <div className="flex-grow  lg:ml-[60px] pb-12">
 
             {children}
 
@@ -68,6 +98,8 @@ export default async function RootLayout({
           
         </ThemeProvider>
       </body>
+      <PrelineScript />
+
     </html>
   )
 }

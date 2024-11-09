@@ -10,7 +10,7 @@ import {
   PaginationPage,
   PaginationGap,
 } from '@/components/catalyst/pagination'
-import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

@@ -6,7 +6,7 @@ import { Layout2 } from '@/components/Layout2'
 import { Layout3 } from '@/components/Layout3'
 import { Layout4 } from '@/components/Layout4'
 import { Divider } from '@/components/catalyst/divider'
-import { PostHorizontal } from '@/components/posts/PostsHorizontal'
+import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { ToolCard } from '@/components/ToolCards'
 
 interface GroupedPosts {
@@ -100,14 +100,14 @@ export default async function HomePage() {
 
   return (
     <main className="">
-      <div className='px-6 mb-32 mt-6'>
+      <div className='px-4 sm:px-6 mb-32 mt-6'>
         <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">UX Lift <span className="text-gray-500">is the place to discover and share UX articles, news and resources.</span></h1>
       </div>
       <h2 id="articles" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest articles</h2>
 
         <div className='grid grid-cols-1 md:grid-cols-2 border-b'>
           {posts?.map((post) => (
-            <div className='border-t md:odd:border-r p-6 last:border-b-0'>
+            <div className='border-t md:odd:border-r px-4 sm:px-6 py-6 last:border-b-0'>
 
               <PostHorizontal key={post.id} post={post} />
             </div>

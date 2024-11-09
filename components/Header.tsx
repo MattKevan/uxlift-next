@@ -1,8 +1,34 @@
 import { createClient } from '@/utils/supabase/server'
-import { headers } from 'next/headers'
-import MobileMenuButton from '@/components/MobileMenuButton'
-import UserMenuButton from '@/components//UserMenuButton'
-import LoginRegisterButtons from '@/components/LoginRegisterButtons'
+import Link from 'next/link'
+import { Avatar } from '@/components/catalyst/avatar'
+import { MobileNav } from '@/components/MobileNav'
+import UserMenuButton from './UserMenuButton'
+import LoginRegisterButtons from './LoginRegisterButtons'
+
+const menuItems = [
+  { href: '/news', label: 'News' },
+  { href: '/topics', label: 'Topics' },
+  { href: '/tools', label: 'Tools' },
+  { href: '/newsletter', label: 'Newsletter' },
+]
+
+const moreItems = [
+  {
+    href: '/books',
+    label: 'Books',
+    description: 'Curated collection of UX and design books.'
+  },
+  {
+    href: '/publications',
+    label: 'Publications',
+    description: 'Leading UX and design publications.'
+  },
+  {
+    href: '/team',
+    label: 'Team Account',
+    description: 'Collaborate and share resources with your team.'
+  },
+]
 
 export default async function Header() {
   const supabase = await createClient()
@@ -19,26 +45,62 @@ export default async function Header() {
   }
 
   return (
-    <nav className="font-sans flex items-center  border-y pr-2 sticky top-0 bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 z-50">
-      <MobileMenuButton />
+    <header className="lg:ml-[60px] border-y bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 sticky top-0 z-50">
+      <nav className="flex items-center  ">
+        {/* Mobile Navigation */}
+        <div className="lg:hidden flex items-center">
+          <MobileNav items={menuItems} moreItems={moreItems} />
+          <Link href="/" className="p-4">
+            <img src="/uxlift-logo.svg" alt="UX Lift logo" className="h-6 w-6" />
+          </Link>
+        </div>
 
-      <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 lg:hidden m-4"  />
+        {/* Desktop Navigation */}
+        <ul className="hidden lg:flex items-center">
+          {menuItems.map((item) => (
+            <li key={item.href}>
+              <Link 
+                href={item.href} 
+                className="p-4  inline-block  hover:bg-accent transition-colors"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+          <li className="relative group">
+            <button 
+              className="p-4  hover:bg-accent transition-colors flex items-center gap-1"
+            >
+              More
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <div className="absolute hidden group-hover:block w-[200px] top-full left-0 bg-background border shadow-lg">
+              <div className="grid grid-cols-1">
+                {moreItems.map((item) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href} 
+                    className="block px-4 py-3 hover:bg-accent"
+                  >
+                    <div className="">{item.label}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </li>
+        </ul>
 
-      <ul className="max-lg:hidden flex flex-row  font-medium border-r">
-        <li><a href="/news" className='hover:bg-gray-50 dark:hover:bg-gray-900 p-4 block'>News</a></li>
-        <li><a href="/topics"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Topics</a></li>
-        <li><a href="/tools"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Tools</a></li>
-        <li><a href="/courses"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Courses</a></li>
-        <li><a href="/newsletter"  className='hover:bg-gray-50  dark:hover:bg-gray-900  p-4 block'>Newsletter</a></li>
-      </ul>
-      
-      <div className="flex-1" />
-      
-      {user && profile ? (
+        {/* User Navigation */}
+        <div className="ml-auto flex items-center gap-4">
+        {user && profile ? (
         <UserMenuButton user={user} profile={profile} />
       ) : (
         <LoginRegisterButtons />
       )}
-    </nav>
+        </div>
+      </nav>
+    </header>
   )
 }

@@ -47,7 +47,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
               </a>    
 
       <div className="flex flex-col col-span-2 flex-grow">
-        <h2 className="text-xl md:text-2xl font-bold mb-2 tracking-tight leading-tight md:leading-tight">
+        <h2 className="text-xl md:text-2xl font-bold mb-2 tracking-tight leading-tight md:leading-tight font-condensed">
           <a 
             href={post.link}
             target="_blank"

@@ -5,7 +5,7 @@ import Link from "next/link"
 
 export default function LoginRegisterButtons() {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 mr-4">
       <Button asChild size="sm" variant="outline">
         <Link href="/sign-in">Sign in</Link>
       </Button>
