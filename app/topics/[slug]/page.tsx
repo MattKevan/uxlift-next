@@ -164,6 +164,7 @@ export default async function TopicPage({
     .select(`
       post:content_post!inner (
         id,
+        slug,
         title,
         description,
         date_published,

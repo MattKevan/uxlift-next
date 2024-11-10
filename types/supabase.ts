@@ -143,6 +143,7 @@ export type Database = {
           indexed: boolean
           link: string
           site_id: number | null
+          slug: string | null
           status: string
           summary: string
           tags_list: string | null
@@ -159,6 +160,7 @@ export type Database = {
           indexed: boolean
           link: string
           site_id?: number | null
+          slug?: string | null
           status: string
           summary: string
           tags_list?: string | null
@@ -175,6 +177,7 @@ export type Database = {
           indexed?: boolean
           link?: string
           site_id?: number | null
+          slug?: string | null
           status?: string
           summary?: string
           tags_list?: string | null

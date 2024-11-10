@@ -57,13 +57,13 @@ interface PostTopic {
 
 type Props = {
   params: {
-    id: string
+    slug: string
   }
   searchParams: { [key: string]: string | string[] | undefined }
 }
 
 
-async function getPostData(id: string) {
+async function getPostData(slug: string) {
   const supabase = await createClient()
   
   const { data: post, error } = await supabase
@@ -83,7 +83,7 @@ async function getPostData(id: string) {
         )
       )
     `)
-    .eq('id', id)
+    .eq('slug', slug)
     .eq('status', 'published')
     .single()
 
@@ -103,7 +103,9 @@ async function getPostData(id: string) {
 
   return transformedPost
 }
-type Params = Promise<{ id: string }>
+
+
+type Params = Promise<{ slug: string }>
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 interface PageProps {
@@ -120,8 +122,8 @@ export async function generateMetadata(
   { params }: MetadataProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const { id } = await params
-  const post = await getPostData(id)
+  const { slug } = await params
+  const post = await getPostData(slug)
 
   if (!post) {
     return {
@@ -135,7 +137,7 @@ export async function generateMetadata(
     openGraph: {
       title: post.title,
       description: post.description,
-      url: `/articles/${id}`,
+      url: `/articles/${slug}`,
       siteName: 'UX Lift',
       type: 'article',
       images: post.image_path ? [post.image_path] : [],
@@ -152,8 +154,8 @@ export default async function PostPage({
   params,
   searchParams 
 }: PageProps) {
-  const { id } = await params
-  const post = await getPostData(id)
+  const { slug } = await params
+  const post = await getPostData(slug)
   
   if (!post) {
     return notFound()
@@ -204,6 +206,7 @@ export default async function PostPage({
       content: post.content,
       tags_list: post.tags_list,
       user_id: post.user_id,
+      slug:post.slug,
       site: {
         title: post.site?.title || null,
         slug: post.site?.slug || null,

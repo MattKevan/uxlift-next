@@ -33,7 +33,6 @@ function truncateToWords(str: string, numWords: number) {
 
 
 export function PostHorizontal({ post }: { post: PostWithSite }) {
-  console.log('Generated link:', `/articles/{post.id}`)
 
   return (
     
@@ -80,7 +79,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           </div>
           <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-2 tracking-tight leading-tight md:leading-tight">
             <a 
-              href={`/articles/${post.id}`}
+              href={`/articles/${post.slug}`}
        
             >
               {post.title}
