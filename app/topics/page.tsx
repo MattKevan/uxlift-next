@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import Link from 'next/link'
 
 export default async function TopicsPage() {
   const supabase = await createClient()
@@ -24,12 +25,12 @@ export default async function TopicsPage() {
           <div key={topic.id} 
             className="inline-block text-md sm:text-xl  font-semibold border-b border-r tracking-tight"
           >
-            <a 
+            <Link 
               href={`/topics/${topic.slug}`}
-              className="dark:hover:text-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 p-4 sm:p-6 dark:hover:bg-gray-900 transition-all duration-200 block"
+              className="hover:bg-gray-100  p-4 dark:hover:bg-gray-900 transition-all duration-200 block"
             >
               {topic.name}
-            </a>
+            </Link>
           </div>
         ))}
       </div>

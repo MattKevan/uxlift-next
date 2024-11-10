@@ -38,6 +38,12 @@ export default async function AdminLayout({
                 <a href="/admin/posts" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
                   Posts
                 </a>
+                <a href="/admin/sites" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
+                  Sites
+                </a>
+                <a href="/admin/books" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
+                  Books
+                </a>
                 {/* Add more admin navigation items here */}
               </div>
             </div>
@@ -45,7 +51,7 @@ export default async function AdminLayout({
         </div>
       </nav>
       
-      <main className="">
+      <main className="p-4">
         {children}
       </main>
     </div>

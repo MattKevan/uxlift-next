@@ -129,35 +129,41 @@ export default function AdminPosts() {
     if (!dateString) return 'Not published'
     return format(parseISO(dateString), 'dd/MM/yyyy')
   }
-  const handleRefreshFeeds = async () => {
-    try {
-      setRefreshing(true)
-      
-      const response = await fetch('/api/process-feeds', {
-        method: 'GET',
-        
-      })
-  
-      const result = await response.json()
-  
-      if (!response.ok) {
-        throw new Error(result.details || result.error || 'Failed to refresh feeds')
-      }
-  
-      if (result.success) {
-        alert(`Feeds refreshed successfully! Processed ${result.processed} items with ${result.errors} errors.`)
-        // Refresh the posts list
-        await fetchPosts()
-      }
-  
-    } catch (error) {
-      console.error('Error refreshing feeds:', error)
-      alert(error instanceof Error ? error.message : 'Failed to refresh feeds')
-    } finally {
-      setRefreshing(false)
-    }
-  }
 
+  const handleRefreshFeeds = async () => {
+  try {
+    setRefreshing(true)
+    
+    // Get the session
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    const response = await fetch('/api/process-feeds', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.details || result.error || 'Failed to refresh feeds')
+    }
+
+    if (result.success) {
+      alert(`Feeds refreshed successfully! Processed ${result.processed} items with ${result.errors} errors.`)
+      // Refresh the posts list
+      await fetchPosts()
+    }
+
+  } catch (error) {
+    console.error('Error refreshing feeds:', error)
+    alert(error instanceof Error ? error.message : 'Failed to refresh feeds')
+  } finally {
+    setRefreshing(false)
+  }
+}
   const handleAutoTag = async (postId: number) => {
     try {
       setTagging(postId)
@@ -311,15 +317,15 @@ export default function AdminPosts() {
                     ))}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    post.status === 'published' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    post.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                  }`}>
-                    {post.status}
-                  </span>
-                </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      post.status === 'published' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      post.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                    }`}>
+                      {post.status}
+                    </span>
+                  </td>
                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                   {formatPublishedDate(post.date_published)}
                 </td>

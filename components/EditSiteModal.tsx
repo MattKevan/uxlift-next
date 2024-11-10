@@ -76,7 +76,7 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
     e.preventDefault()
     setIsLoading(true)
     setError('')
-
+  
     try {
       // Update site
       const { data: updatedSite, error: updateError } = await supabase
@@ -87,31 +87,33 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
         .eq('id', site.id)
         .select()
         .single()
-
+  
       if (updateError) throw updateError
-
+  
       // Delete existing site type relationships
       const { error: deleteError } = await supabase
         .from('content_site_site_type')
         .delete()
         .eq('site_id', site.id)
-
+  
       if (deleteError) throw deleteError
-
+  
       // Insert new site type relationships
       if (selectedSiteTypes.length > 0) {
+        // Generate unique IDs for each relationship
+        const siteTypeRelations = selectedSiteTypes.map(siteTypeId => ({
+          id: Math.floor(Math.random() * 1000000), // Generate a random ID
+          site_id: site.id,
+          sitetype_id: siteTypeId
+        }))
+  
         const { error: insertError } = await supabase
           .from('content_site_site_type')
-          .insert(
-            selectedSiteTypes.map(siteTypeId => ({
-              site_id: site.id,
-              sitetype_id: siteTypeId
-            }))
-          )
-
+          .insert(siteTypeRelations)
+  
         if (insertError) throw insertError
       }
-
+  
       // Fetch the updated site with all relations
       const { data: finalSite, error: fetchError } = await supabase
         .from('content_site')
@@ -123,9 +125,9 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
         `)
         .eq('id', site.id)
         .single()
-
+  
       if (fetchError) throw fetchError
-
+  
       onUpdate(finalSite as SiteWithRelations)
       onClose()
     } catch (err) {
@@ -215,19 +217,19 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Status
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </label>
-            </div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Status
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+              >
+                <option value="P">Published</option>
+                <option value="D">Draft</option>
+              </select>
+            </label>
+          </div>
 
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-200">

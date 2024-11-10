@@ -83,7 +83,7 @@ export default function AdminSites() {
 
   return (
     <div className="">
-      <h1 className="text-2xl font-bold mb-6">Manage Sites</h1>
+      <h1 className="text-2xl font-bold mb-6">Manage sites</h1>
       
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700 font-sans">
@@ -148,11 +148,11 @@ export default function AdminSites() {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    site.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    site.status === 'inactive' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                    site.status === 'P' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    site.status === 'D' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                   }`}>
-                    {site.status}
+                    {site.status === 'P' ? 'Published' : 'Draft'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
