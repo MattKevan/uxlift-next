@@ -48,7 +48,7 @@ export function Pager({ currentPage, totalPages, baseUrl }: PagerProps) {
   const pageRange = createPageRange()
 
   return (
-    <Pagination className="p-6 font-sans">
+    <Pagination className="p-6 font-sans border-b">
       <PaginationPrevious 
         href={currentPage > 1 ? `${baseUrl}?page=${currentPage - 1}` : null}
       />

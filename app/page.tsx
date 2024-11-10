@@ -107,10 +107,8 @@ export default async function HomePage() {
 
         <div className='grid grid-cols-1 md:grid-cols-2 border-b'>
           {posts?.map((post) => (
-            <div className='border-t md:odd:border-r px-4 sm:px-6 py-6 last:border-b-0'>
 
               <PostHorizontal key={post.id} post={post} />
-            </div>
           ))}
         </div>
 

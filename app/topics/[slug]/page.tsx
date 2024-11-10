@@ -193,7 +193,7 @@ const transformedPosts: PostWithSite[] = posts
 
   return (
     <main>
-    <div className='px-6 mb-10 sm:mb-18  mt-6'>
+    <div className='px-4 mb-10 sm:mb-18  mt-6'>
       <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
         {topic.name}  
         {topic.description && (
@@ -205,20 +205,18 @@ const transformedPosts: PostWithSite[] = posts
   </div>
   
       
-  <section className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{totalPostsCount} {topic.name} articles</h2>
+  <section className=' mb-10 sm:mb-18 pt-12' id="articles" >
+  <h2  className="font-bold px-4 py-3 md:py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-40">{totalPostsCount} {topic.name} articles</h2>
 
-        <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
+        <div  className="grid grid-cols-1 md:grid-cols-2">
         {transformedPosts?.map((post) => (
-            <div className='border-b border-r p-6 [&:nth-last-child(-n+2)]:border-b-0'>
 
             <PostHorizontal key={post.id} post={post} />
-            </div>
           ))}
         </div>
          
           {transformedPosts?.length === 0 && (
-            <p className="text-gray-600">No posts found for this topic.</p>
+            <p className="text-gray-600 p-4">No posts found for this topic.</p>
           )}
 
       {totalPages > 1 && (
@@ -232,15 +230,13 @@ const transformedPosts: PostWithSite[] = posts
 
 {uniqueTools.length > 0 && (
   <section className="mb-12 pt-12" id="tools">
-  <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-30">{totalToolsCount} {topic.name} tools</h2>
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b">
-      {uniqueTools?.map((tool) => (
-                                <div className='border-b border-r p-6 last:border-b-0'>
+  <h2  className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">{totalToolsCount} {topic.name} tools</h2>
+ <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ">
+  {uniqueTools?.map((tool) => (
 
-        <ToolCard key={tool.id} tool={tool} />
-        </div>
-      ))}
-    </div>
+      <ToolCard tool={tool} />
+  ))}
+</div>
   </section>
 )}
 <div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full  left-1/2 transform -translate-x-1/2 z-50'>

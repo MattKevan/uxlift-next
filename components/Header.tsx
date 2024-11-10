@@ -23,11 +23,7 @@ const moreItems = [
     label: 'Publications',
     description: 'Leading UX and design publications.'
   },
-  {
-    href: '/team',
-    label: 'Team Account',
-    description: 'Collaborate and share resources with your team.'
-  },
+  
 ]
 
 export default async function Header() {

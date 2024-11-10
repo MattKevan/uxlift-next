@@ -123,10 +123,8 @@ export default async function SitePage({
 
         <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
         {transformedPosts?.map((post) => (
-            <div className='border-b border-r p-6 [&:nth-last-child(-n+2)]:border-b-0'>
 
             <PostHorizontal key={post.id} post={post} />
-            </div>
           ))}
         </div>
          

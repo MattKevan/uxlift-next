@@ -1,16 +1,16 @@
-// /app/news/page.tsx
+// /app/books/page.tsx
 
 import { createClient } from '@/utils/supabase/server'
-import { PostItemSmall } from '@/components/posts/PostItemSmall'
 import {
   Pagination,
-  PaginationPrevious,
+  PaginationPrevious, 
   PaginationNext,
   PaginationList,
   PaginationPage,
   PaginationGap,
 } from '@/components/catalyst/pagination'
-import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
+import { CldImage } from 'next-cloudinary'
+import { BookCard } from '@/components/BookCards'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,30 +23,48 @@ interface PageProps {
   searchParams: SearchParams
 }
 
-export default async function NewsPage({
+interface Book {
+  id: number
+  title: string
+  description: string
+  image_path: string | null
+  link: string
+  date_created: string
+  date_published: string | null
+  free: boolean
+  status: string
+  authors: string
+  publisher: string
+  summary: string | null
+}
+
+export default async function BooksPage({
   params,
   searchParams,
 }: PageProps) {
   const { page } = await searchParams
-  await params 
+  await params
 
   const currentPage = Number(page) || 1
-  const pageSize = 20
+  const pageSize = 24
   const startIndex = (currentPage - 1) * pageSize
 
   const supabase = await createClient()
 
-  const { data: posts, count } = await supabase
-    .from('content_post')
+  const { data: books, count } = await supabase
+    .from('content_book')
     .select(`
       *,
-      site:site_id (
-        title,
-        slug
+      topics:content_book_topics(
+        topic:topic_id(
+        id,
+          name,
+          slug
+        )
       )
     `, { count: 'exact' })
     .eq('status', 'published')
-    .order('date_published', { ascending: false })
+    .order('title', { ascending: true }) // Changed from date_published to title
     .range(startIndex, startIndex + pageSize - 1)
 
   const totalPages = count ? Math.ceil(count / pageSize) : 0
@@ -77,24 +95,26 @@ export default async function NewsPage({
 
   return (
     <main>
-
-    <div className='px-6 mb-24 sm:mb-32 mt-6'>
-      <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">Latest news,  <span className="text-gray-500">updated daily.</span></h1>
+      <div className='px-6 mb-24 sm:mb-32 mt-6'>
+        <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
+          UX Books <span className="text-gray-500">library</span>
+        </h1>
       </div>
-      <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{count} UX articles</h2>
-      <div className='grid grid-cols-1 md:grid-cols-2 border-b -mb-[2px]'>
-          {posts?.map((post) => (
 
-              <PostHorizontal key={post.id} post={post} />
-          ))}
-        </div>
-    
-    
+      <h2 className=" font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">
+        {count} books
+      </h2>
+
+      <div className='grid grid-cols-1 md:grid-cols-2  '>
+  {books?.map((book) => (
+    <BookCard key={book.id} book={book} />
+  ))}
+</div>
 
       {totalPages > 1 && (
         <Pagination className="p-4 border-b">
           <PaginationPrevious 
-            href={currentPage > 1 ? `/news?page=${currentPage - 1}` : null} 
+            href={currentPage > 1 ? `/books?page=${currentPage - 1}` : null} 
           />
           
           <PaginationList>
@@ -104,7 +124,7 @@ export default async function NewsPage({
               ) : (
                 <PaginationPage
                   key={pageNum}
-                  href={`/news?page=${pageNum}`}
+                  href={`/books?page=${pageNum}`}
                   current={pageNum === currentPage}
                 >
                   {pageNum}
@@ -114,7 +134,7 @@ export default async function NewsPage({
           </PaginationList>
 
           <PaginationNext 
-            href={currentPage < totalPages ? `/news?page=${currentPage + 1}` : null}
+            href={currentPage < totalPages ? `/books?page=${currentPage + 1}` : null}
           />
         </Pagination>
       )}

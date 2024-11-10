@@ -26,16 +26,16 @@ function truncateToWords(str: string, numWords: number) {
 export function PostHorizontal({ post }: { post: PostWithSite }) {
   return (
     <article className={clsx(
-      "overflow-hidden grid gap-6 group",
-      post.image_path ? "grid-cols-3" : "grid-cols-1"
+      "overflow-hidden grid gap-6 group hover:bg-gray-50 p-4 md:odd:border-r border-b transition duration-200",
+      post.image_path ? "grid-cols-5" : "grid-cols-1"
     )}>
       <div className={clsx(
         "flex flex-col flex-grow justify-between",
-        post.image_path ? "col-span-2" : "col-span-1"
+        post.image_path ? "col-span-3" : "col-span-1"
       )}>
         <div>
           <div className='flex flex-row justify-between items-center mb-2'>
-            <p className="text-sm font-mono flex flex-row items-center gap-2">
+            <p className="text-sm font-mono flex flex-row items-center gap-1">
               {post.site?.site_icon && (
                 <CldImage
                   src={post.site.site_icon || '/default-avatar.png'}
@@ -71,20 +71,20 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
               href={post.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline"
+              className=""
             >
               {post.title}
             </a>
           </h2>
         </div>
-        <div className="mt-auto text-sm text-gray-400 items-center gap-2 flex">
+        <div className="mt-auto pt-4 text-sm text-gray-400 items-center gap-2 flex">
           <Like />
           <Bookmark />
         </div>
       </div>
 
       {post.image_path && (
-        <div className="relative aspect-square col-span-1 mb-0">
+        <div className="relative aspect-square col-span-2 mb-0">
           <a 
             href={post.link}
             target="_blank"

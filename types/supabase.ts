@@ -51,6 +51,87 @@ export type Database = {
         }
         Relationships: []
       }
+      content_book: {
+        Row: {
+          authors: string
+          body: string | null
+          date_created: string
+          date_published: string | null
+          description: string
+          free: boolean
+          id: number
+          image_path: string | null
+          link: string
+          publisher: string
+          status: string
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          authors: string
+          body?: string | null
+          date_created: string
+          date_published?: string | null
+          description: string
+          free?: boolean
+          id?: number
+          image_path?: string | null
+          link: string
+          publisher: string
+          status?: string
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          authors?: string
+          body?: string | null
+          date_created?: string
+          date_published?: string | null
+          description?: string
+          free?: boolean
+          id?: number
+          image_path?: string | null
+          link?: string
+          publisher?: string
+          status?: string
+          summary?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      content_book_topics: {
+        Row: {
+          book_id: number
+          id: number
+          topic_id: number
+        }
+        Insert: {
+          book_id: number
+          id?: number
+          topic_id: number
+        }
+        Update: {
+          book_id?: number
+          id?: number
+          topic_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_book_topics_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "content_book"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_book_topics_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "content_topic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_post: {
         Row: {
           content: string | null
