@@ -1,14 +1,14 @@
 // /app/topics/[slug]/page.tsx
-
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import type { Metadata } from 'next'
 import { ToolCard } from '@/components/ToolCards'
 import { Pager } from '@/components/Pager'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
-import { FileText, Tool } from '@mynaui/icons-react'
+import { Book, FileText, Tool } from '@mynaui/icons-react'
+import { BookCard } from '@/components/BookCards'
+import { BookWithTopics } from '@/components/BookCards'  // Import the interface
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 
@@ -25,6 +25,8 @@ interface PostWithSite extends BasePost {
 type Params = Promise<{ slug: string }>
 type SearchParams = Promise<{ page?: string }>
 
+
+
 interface PageProps {
   params: Params
   searchParams: SearchParams
@@ -35,7 +37,6 @@ const ITEMS_PER_PAGE = 22
 async function getTopicData(slug: string) {
   const supabase = await createClient()
   
-  // Get the topic details
   const { data: topic, error: topicError } = await supabase
     .from('content_topic')
     .select('id, name, description')
@@ -58,8 +59,6 @@ export async function generateMetadata(
   { params }: MetadataProps,
 ): Promise<Metadata> {
   const { slug } = await params
-  
-  // Reuse the same data fetching function
   const topic = await getTopicData(slug)
 
   return {
@@ -90,7 +89,6 @@ export default async function TopicPage({
   const currentPage = Number(page) || 1
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
   
-  // Reuse the same data fetching function
   const topic = await getTopicData(slug)
 
   if (!topic) {
@@ -110,76 +108,105 @@ export default async function TopicPage({
     .eq('status', 'published')
     .order('date', { ascending: false })
 
+  // Get total counts
+  const { count: totalPostsCount } = await supabase
+    .from('content_post_topics')
+    .select(`
+      post:content_post!inner (
+        id
+      )
+    `, { 
+      count: 'exact', 
+      head: true 
+    })
+    .eq('topic_id', topic.id)
+    .eq('post.status', 'published')
 
-// Get total counts for both posts and tools
-const { count: totalPostsCount } = await supabase
-  .from('content_post_topics')
-  .select(`
-    post:content_post!inner (
-      id
-    )
-  `, { 
-    count: 'exact', 
-    head: true 
-  })
-  .eq('topic_id', topic.id)
-  .eq('post.status', 'published')
+  const { count: totalToolsCount } = await supabase
+    .from('content_tool_topics')
+    .select('*', { count: 'exact', head: true })
+    .eq('topic_id', topic.id)
 
-const { count: totalToolsCount } = await supabase
-  .from('content_tool_topics')
-  .select('*', { count: 'exact', head: true })
-  .eq('topic_id', topic.id)
+  // Get books for this topic
+  const { data: booksData, count: totalBooksCount } = await supabase
+    .from('content_book')
+    .select(`
+      *,
+      topics:content_book_topics!inner(
+        topic:topic_id(*)
+      )
+    `, { count: 'exact' })
+    .eq('content_book_topics.topic_id', topic.id)
+    .eq('status', 'published')
+    .order('title', { ascending: true })
 
-// Then get paginated posts for this topic
-const { data: posts, error: postsError } = await supabase
-  .from('content_post_topics')
-  .select(`
-    post:content_post!inner (
-      id,
-      title,
-      description,
-      date_published,
-      date_created,
-      link,
-      image_path,
-      content,
-      indexed,
-      site_id,
-      status,
-      summary,
-      tags_list,
-      user_id,
-      site:content_site!left ( 
+  // Transform books data
+  const books: BookWithTopics[] = booksData?.map(book => ({
+    id: book.id,
+    title: book.title,
+    description: book.description,
+    authors: book.authors,
+    publisher: book.publisher,
+    link: book.link,
+    image_path: book.image_path,
+    date_created: book.date_created,
+    date_published: book.date_published,
+    free: book.free,
+    status: book.status,
+    summary: book.summary,
+    body: book.body,
+    topics: book.topics
+  })) || []
+
+  // Get paginated posts
+  const { data: posts, error: postsError } = await supabase
+    .from('content_post_topics')
+    .select(`
+      post:content_post!inner (
         id,
         title,
-        slug,
-        url,
-        site_icon
-      ),
-      content_post_topics!left (
-        topic:content_topic (
+        description,
+        date_published,
+        date_created,
+        link,
+        image_path,
+        content,
+        indexed,
+        site_id,
+        status,
+        summary,
+        tags_list,
+        user_id,
+        site:content_site!left ( 
           id,
-          name,
-          slug
+          title,
+          slug,
+          url,
+          site_icon
+        ),
+        content_post_topics!left (
+          topic:content_topic (
+            id,
+            name,
+            slug
+          )
         )
       )
-    )
-  `)
-  .eq('topic_id', topic.id)
-  .eq('post.status', 'published')
-  .order('post(date_published)', { ascending: false })
-  .range(offset, offset + ITEMS_PER_PAGE - 1)
+    `)
+    .eq('topic_id', topic.id)
+    .eq('post.status', 'published')
+    .order('post(date_published)', { ascending: false })
+    .range(offset, offset + ITEMS_PER_PAGE - 1)
 
-// Update the post transformation to include topics
-const transformedPosts: PostWithSite[] = posts
-  ? posts.map((item: any) => ({
-      ...item.post,
-      site: item.post.site || null,
-      topics: item.post.content_post_topics
-        ?.map((topicRef: any) => topicRef.topic)
-        .filter(Boolean) || []
-    }))
-  : []
+  const transformedPosts: PostWithSite[] = posts
+    ? posts.map((item: any) => ({
+        ...item.post,
+        site: item.post.site || null,
+        topics: item.post.content_post_topics
+          ?.map((topicRef: any) => topicRef.topic)
+          .filter(Boolean) || []
+      }))
+    : []
 
   if (postsError || toolsError) {
     console.error('Error fetching content:', postsError || toolsError)
@@ -187,63 +214,89 @@ const transformedPosts: PostWithSite[] = posts
   }
 
   const totalPages = totalPostsCount ? Math.ceil(totalPostsCount / ITEMS_PER_PAGE) : 0
-
-  // Remove duplicate tools
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
 
   return (
     <main>
-    <div className='px-4 mb-10 sm:mb-18  mt-6'>
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
-        {topic.name}  
-        {topic.description && (
-          <span className=" mb-6 md:w-3/4 lg:w-4/5 tracking-tight ml-3 text-gray-500">
-            {topic.description}
-          </span>
-        )}
-      </h1>
-  </div>
-  
+      <div className='px-4 mb-10 sm:mb-18 mt-6'>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
+          {topic.name}  
+          {topic.description && (
+            <span className="mb-6 md:w-3/4 lg:w-4/5 tracking-tight ml-3 text-gray-500">
+              {topic.description}
+            </span>
+          )}
+        </h1>
+      </div>
       
-  <section className=' mb-10 sm:mb-18 pt-12' id="articles" >
-  <h2  className="font-bold px-4 py-3 md:py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-40">{totalPostsCount} {topic.name} articles</h2>
+      <section className='mb-10 sm:mb-18 pt-12' id="articles">
+        <h2 className="font-bold px-4 py-3 md:py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-40">
+          {totalPostsCount} {topic.name} articles
+        </h2>
 
-        <div  className="grid grid-cols-1 md:grid-cols-2">
-        {transformedPosts?.map((post) => (
-
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {transformedPosts?.map((post) => (
             <PostHorizontal key={post.id} post={post} />
           ))}
         </div>
          
-          {transformedPosts?.length === 0 && (
-            <p className="text-gray-600 p-4">No posts found for this topic.</p>
-          )}
+        {transformedPosts?.length === 0 && (
+          <p className="text-gray-600 p-4">No posts found for this topic.</p>
+        )}
 
-      {totalPages > 1 && (
-        <Pager 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          baseUrl={`/topics/${slug}`}
-        />
-      )}
+        {totalPages > 1 && (
+          <Pager 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            baseUrl={`/topics/${slug}`}
+          />
+        )}
+      </section>
+
+      {uniqueTools.length > 0 && (
+        <section className="mb-12 pt-12" id="tools">
+          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">
+            {totalToolsCount} {topic.name} tools
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {uniqueTools?.map((tool) => (
+              <ToolCard key={tool.id} tool={tool} />
+            ))}
+          </div>
         </section>
+      )}
 
-{uniqueTools.length > 0 && (
-  <section className="mb-12 pt-12" id="tools">
-  <h2  className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">{totalToolsCount} {topic.name} tools</h2>
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ">
-  {uniqueTools?.map((tool) => (
+      {books && books.length > 0 && (
+        <section className="mb-12 pt-12" id="books">
+          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">
+            {totalBooksCount} {topic.name} books
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 border-b -mb-[2px]">
+            {books.map((book) => (
+              <BookCard key={book.id} book={book} />
+            ))}
+          </div>
+        </section>
+      )}
 
-      <ToolCard tool={tool} />
-  ))}
-</div>
-  </section>
-)}
-<div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full  left-1/2 transform -translate-x-1/2 z-50'>
+      
 
-<a href="#articles" className='p-4 hover:bg-gray-200  rounded-full'><FileText className='size-6'/> </a>
-<a href="#tools" className='p-4 hover:bg-gray-200  rounded-full'><Tool  className='size-6' /></a>
-</div>
-      </main>
+      <div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full left-1/2 transform -translate-x-1/2 z-50'>
+        <a href="#articles" className='p-4 hover:bg-gray-200 rounded-full'>
+          <FileText className='size-6'/>
+        </a>
+      
+        {uniqueTools.length > 0 && (
+          <a href="#tools" className='p-4 hover:bg-gray-200 rounded-full'>
+            <Tool className='size-6'/>
+          </a>
+        )}
+          {books && books.length > 0 && (
+          <a href="#books" className='p-4 hover:bg-gray-200 rounded-full'>
+            <Book className='size-6'/>
+          </a>
+        )}
+      </div>
+    </main>
   )
 }

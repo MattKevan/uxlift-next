@@ -6,6 +6,7 @@ import { Database } from '@/types/supabase'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Pager } from '@/components/Pager'
 import { Button } from '@/components/catalyst/button'
+import { ExternalLink } from '@mynaui/icons-react'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -109,9 +110,10 @@ export default async function SitePage({
       )}
       </h1>
       <div className='flex gap-2'>
-      <Button outline>
+      <Button >
+        <ExternalLink/>
             <a href={site.url} target="_blank" rel="noopener noreferrer" >
-              Visit
+              Go to site
             </a>
           </Button> 
            <Button outline>Follow</Button>

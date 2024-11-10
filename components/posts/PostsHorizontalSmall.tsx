@@ -2,9 +2,16 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
-import { Bookmark, Flag, Like } from '@mynaui/icons-react'
+import { Bookmark, ExternalLink, Flag, Like, LinkOne } from '@mynaui/icons-react'
 import { Button } from '../catalyst/button'
 import clsx from 'clsx'
+import { slugify } from '@/utils/slugify'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -23,8 +30,13 @@ function truncateToWords(str: string, numWords: number) {
   return words.slice(0, numWords).join(' ') + '...'
 }
 
+
+
 export function PostHorizontal({ post }: { post: PostWithSite }) {
+  console.log('Generated link:', `/articles/{post.id}`)
+
   return (
+    
     <article className={clsx(
       "overflow-hidden grid gap-6 group hover:bg-gray-50 p-4 md:odd:border-r border-b transition duration-200",
       post.image_path ? "grid-cols-5" : "grid-cols-1"
@@ -68,17 +80,30 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           </div>
           <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-2 tracking-tight leading-tight md:leading-tight">
             <a 
-              href={post.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className=""
+              href={`/articles/${post.id}`}
+       
             >
               {post.title}
             </a>
+
           </h2>
         </div>
         <div className="mt-auto pt-4 text-sm text-gray-400 items-center gap-2 flex">
-          <Like />
+          <div>
+        <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger>
+        <Link href={post.link}  target="_blank" rel="noopener noreferrer" className='text-primary hover:text-gray-500'><ExternalLink/>
+            </Link>
+          
+          </TooltipTrigger>
+    <TooltipContent>
+      <p>Read the full article</p>
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+</div>
+<Like />
           <Bookmark />
         </div>
       </div>

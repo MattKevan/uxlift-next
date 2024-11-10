@@ -4,10 +4,27 @@
 import { CldImage } from 'next-cloudinary'
 import type { Database } from '@/types/supabase'
 
+// Use exact types from the database
 type Book = Database['public']['Tables']['content_book']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
 
-interface BookWithTopics extends Book {
+// Define the interface to exactly match what we get from the query
+export interface BookWithTopics {
+  // Book properties from the database
+  id: number
+  title: string
+  description: string
+  authors: string
+  publisher: string
+  link: string
+  image_path: string | null
+  date_created: string
+  date_published: string | null
+  free: boolean
+  status: string
+  summary: string | null
+  body: string | null
+  // Topics relationship
   topics: {
     topic: Topic
   }[]
@@ -50,13 +67,13 @@ export function BookCard({ book }: BookCardProps) {
             ))}
           </div>
 
-          {/*<div className="flex items-center mt-3">
+          <div className="flex items-center mt-3">
             {book.free ? (
               <span className="text-green-600 text-sm font-medium">Free</span>
             ) : (
               <span className="text-gray-500 text-sm">Paid</span>
             )}
-          </div>*/}
+          </div>
         </div>
 
         {book.image_path && (

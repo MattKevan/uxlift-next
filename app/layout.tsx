@@ -71,12 +71,7 @@ export default async function RootLayout({
   return (
     <html>
       <body className={`bg-background text-foreground  ${inter.variable} font-sans`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        
           <div className="relative isolate flex flex-col min-h-svh w-full">
             <div className=" w-[60px] fixed top-0 h-full max-lg:hidden md:border-r ">
               <Link href='/'>
@@ -96,9 +91,7 @@ export default async function RootLayout({
 
           </div>
           
-        </ThemeProvider>
       </body>
-      <PrelineScript />
 
     </html>
   )
