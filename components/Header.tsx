@@ -4,12 +4,15 @@ import { Avatar } from '@/components/catalyst/avatar'
 import { MobileNav } from '@/components/MobileNav'
 import UserMenuButton from './UserMenuButton'
 import LoginRegisterButtons from './LoginRegisterButtons'
+import { Bookmark, FilePlus, Lightning, Search } from '@mynaui/icons-react'
+import { Button } from './catalyst/button'
 
 const menuItems = [
   { href: '/news', label: 'News' },
   { href: '/topics', label: 'Topics' },
   { href: '/tools', label: 'Tools' },
-  { href: '/newsletter', label: 'Newsletter' },
+  { href: 'https://uxlift.beehiiv.com/', label: 'Newsletter' },
+  { href: '/search', label: 'Search' },
 ]
 
 const moreItems = [
@@ -89,11 +92,27 @@ export default async function Header() {
         </ul>
 
         {/* User Navigation */}
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center ">
         {user && profile ? (
+          <>
+          <Button className='mr-4' color='white'>
+            Submit content
+          </Button>
+
+  
+          <Link className='border-l p-4  hover:bg-accent transition-colors text-gray-500' href='/feed'>
+        <Lightning/>
+        </Link>
+        <Link className='border-l p-4  hover:bg-accent transition-colors text-gray-500' href='/feed'>
+        <Bookmark/>
+        </Link>
         <UserMenuButton user={user} profile={profile} />
+        </>
       ) : (
+        <>
+        
         <LoginRegisterButtons />
+        </>
       )}
         </div>
       </nav>

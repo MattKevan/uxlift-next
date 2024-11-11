@@ -425,10 +425,47 @@ export type Database = {
         }
         Relationships: []
       }
+      content_user_topics: {
+        Row: {
+          created_at: string
+          id: number
+          topic_id: number
+          user_profile_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          topic_id: number
+          user_profile_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          topic_id?: number
+          user_profile_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_user_topics_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "content_topic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_user_topics_user_profile_id_fkey"
+            columns: ["user_profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           created_at: string
           id: number
+          image_url: string | null
           is_admin: boolean
           name: string | null
           user_id: string | null
@@ -437,6 +474,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: number
+          image_url?: string | null
           is_admin?: boolean
           name?: string | null
           user_id?: string | null
@@ -445,6 +483,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: number
+          image_url?: string | null
           is_admin?: boolean
           name?: string | null
           user_id?: string | null
@@ -457,7 +496,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_unique_slug: {
+        Args: {
+          title: string
+        }
+        Returns: string
+      }
+      unaccent: {
+        Args: {
+          "": string
+        }
+        Returns: string
+      }
+      unaccent_init: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
     }
     Enums: {
       [_ in never]: never

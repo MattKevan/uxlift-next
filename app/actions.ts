@@ -9,27 +9,41 @@ export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
   const supabase = await createClient();
-  const origin = (await headers()).get("origin");
 
   if (!email || !password) {
     return { error: "Email and password are required" };
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Sign up without email verification
+  const { data: authData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-    },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return redirect("/protected");
+  if (signUpError) {
+    return encodedRedirect("error", "/sign-up", signUpError.message);
   }
+
+  if (authData?.user) {
+    // Check if user already has a profile
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('username')
+      .eq('user_id', authData.user.id)
+      .single();
+
+    if (!profile?.username) {
+      // Redirect to profile creation if no username
+      return redirect("/profile/create");
+    }
+    
+    // If they already have a profile, go to their feed
+    return redirect("/feed");
+  }
+
+  return redirect("/sign-in");
 };
+
 
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;
