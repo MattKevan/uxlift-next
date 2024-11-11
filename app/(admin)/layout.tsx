@@ -38,6 +38,9 @@ export default async function AdminLayout({
                 <a href="/admin/posts" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
                   Posts
                 </a>
+                <a href="/admin/tools" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
+                  Tools
+                </a>
                 <a href="/admin/sites" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
                   Sites
                 </a>

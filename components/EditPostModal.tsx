@@ -37,7 +37,9 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     summary: post.summary,
     tags_list: post.tags_list,
     title: post.title,
-    user_id: post.user_id
+    user_id: post.user_id,
+    slug: post.slug 
+
   })
   const [selectedTopics, setSelectedTopics] = useState<number[]>(
     post.content_post_topics.map(pt => pt.content_topic.id)
