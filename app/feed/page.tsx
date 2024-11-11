@@ -121,6 +121,7 @@ export default async function FeedPage({ searchParams }: PageProps) {
         summary,
         tags_list,
         user_id,
+        slug,
         site:content_site!left ( 
           title,
           slug,

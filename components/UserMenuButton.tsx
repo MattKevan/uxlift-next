@@ -16,7 +16,7 @@ interface UserMenuButtonProps {
 export default function UserMenuButton({ user, profile }: UserMenuButtonProps) {
   return (
     <div className="relative group">
-      <button className="py-[12px] px-4 border-l flex items-center gap-2 hover:bg-accent transition-colors">
+      <button className="py-[12px] px-4 flex items-center gap-2 hover:bg-accent transition-colors">
         <Avatar
           src="/default-avatar.png"
           alt={profile.name || profile.username}

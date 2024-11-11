@@ -6,6 +6,13 @@ import UserMenuButton from './UserMenuButton'
 import LoginRegisterButtons from './LoginRegisterButtons'
 import { Bookmark, FilePlus, Lightning, Search } from '@mynaui/icons-react'
 import { Button } from './catalyst/button'
+import { AuthModals } from './HeaderModals'
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 const menuItems = [
   { href: '/news', label: 'News' },
@@ -44,7 +51,7 @@ export default async function Header() {
   }
 
   return (
-    <header className="lg:ml-[60px] border-y bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 sticky top-0 z-50">
+    <header className="lg:ml-[60px] border-b bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 sticky top-0 z-50">
       <nav className="flex items-center  ">
         {/* Mobile Navigation */}
         <div className="lg:hidden flex items-center">
@@ -92,29 +99,37 @@ export default async function Header() {
         </ul>
 
         {/* User Navigation */}
-        <div className="ml-auto flex items-center ">
+         {/* User Navigation */}
+      <div className="ml-auto flex items-center ">
+        <Button className='mr-4' color='white'>
+          Submit content
+        </Button>
+
         {user && profile ? (
           <>
-          <Button className='mr-4' color='white'>
-            Submit content
-          </Button>
+            <Link className='border-l p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
+              <Lightning/>
+            </Link>
+            <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
+              <Bookmark/>
+            </Link>
+            <UserMenuButton user={user} profile={profile} />
+          </>
+        ) : (
+          <>
+          <Popover>
+            <PopoverTrigger className='p-4 border-l'><Lightning/></PopoverTrigger>
+            <PopoverContent className='text-sm'>Sign in or sign up to create a personalised feed of UX articles and news.</PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger className='p-4 border-x'><Bookmark/></PopoverTrigger>
+            <PopoverContent className='text-sm'>Save your favourite articles to read later.</PopoverContent>
+          </Popover>
 
-  
-          <Link className='border-l p-4  hover:bg-accent transition-colors text-gray-500' href='/feed'>
-        <Lightning/>
-        </Link>
-        <Link className='border-l p-4  hover:bg-accent transition-colors text-gray-500' href='/feed'>
-        <Bookmark/>
-        </Link>
-        <UserMenuButton user={user} profile={profile} />
-        </>
-      ) : (
-        <>
-        
-        <LoginRegisterButtons />
-        </>
-      )}
-        </div>
+            <LoginRegisterButtons />
+          </>
+        )}
+      </div>
       </nav>
     </header>
   )
