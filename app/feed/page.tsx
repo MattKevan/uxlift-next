@@ -27,14 +27,23 @@ type UserTopicWithDetails = {
 
 const ITEMS_PER_PAGE = 20
 
-type SearchParams = { page?: string }
 
 interface PageProps {
-  searchParams: SearchParams 
+  params: Params
+  searchParams: SearchParams
 }
 
-export default async function FeedPage({ searchParams }: PageProps) {
-  const { page } = searchParams
+type Params = Promise<{ slug: string }>
+type SearchParams = Promise<{ page?: string }>
+
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: PageProps) {
+  const { page } = await searchParams
+  await params
+
+
   const currentPage = Number(page) || 1
   const offset = (currentPage - 1) * ITEMS_PER_PAGE
 
