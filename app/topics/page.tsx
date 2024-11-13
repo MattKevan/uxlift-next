@@ -22,13 +22,16 @@ export default async function TopicsPage() {
 
       <div className='border-t grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
         {topics?.map((topic) => (
-         
-            <Link key={topic.id} 
+          <div key={topic.id} 
+            className="inline-block text-md sm:text-xl  font-semibold border-b border-r tracking-tight"
+          >
+            <Link 
               href={`/topics/${topic.slug}`}
               className="hover:bg-gray-100  p-4 dark:hover:bg-gray-900 transition-all duration-200 block"
             >
               {topic.name}
             </Link>
+          </div>
         ))}
       </div>
     </main>
