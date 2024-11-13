@@ -1,4 +1,3 @@
-import { ThemeProvider } from "next-themes"
 import Link from "next/link"
 import "./globals.css"
 import localFont from 'next/font/local'
@@ -6,6 +5,7 @@ import Header from "@/components/Header"
 
 import { Inter } from "next/font/google"
 import PrelineScript from "@/components/PrelineScript"
+import Footer from "@/components/Footer"
 
 const mona = localFont({
   src: [
@@ -85,12 +85,12 @@ export default async function RootLayout({
             {children}
 
           
+            <Footer/>
 
           </div>
 
 
           </div>
-          
       </body>
 
     </html>

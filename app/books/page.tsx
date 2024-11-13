@@ -105,7 +105,7 @@ export default async function BooksPage({
         {count} books
       </h2>
 
-      <div className='grid grid-cols-1 md:grid-cols-2  '>
+      <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 '>
   {books?.map((book) => (
     <BookCard key={book.id} book={book} />
   ))}

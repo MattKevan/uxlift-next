@@ -113,13 +113,11 @@ export default async function HomePage() {
         </div>
 
         <section className='mt-24'>
-        <h2 id="tools" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t">
+        <h2 id="tools" className="text-lg font-bold pl-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {tools?.map((tool) => (
-                        <div className='border-b last:border-b-0 border-r p-6'>
 
                     <ToolCard key={tool.id} tool={tool} />
-                    </div>
 
           ))}
         </div>
