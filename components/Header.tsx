@@ -5,7 +5,7 @@ import { MobileNav } from '@/components/MobileNav'
 import UserMenuButton from './UserMenuButton'
 import LoginRegisterButtons from './LoginRegisterButtons'
 import { Bookmark, FilePlus, Lightning, Search } from '@mynaui/icons-react'
-import { Button } from './catalyst/button'
+import { Button } from '@/components/ui/button'
 import { AuthModals } from './HeaderModals'
 
 import {
@@ -101,30 +101,25 @@ export default async function Header() {
         {/* User Navigation */}
          {/* User Navigation */}
       <div className="ml-auto flex items-center ">
-        <Button className='mr-4' color='white'>
+        <Button className='mr-4' size='sm' variant='outline'>
           Submit content
         </Button>
 
         {user && profile ? (
           <>
-            <Link className='border-l p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
+            <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
               <Lightning/>
             </Link>
-            <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
-              <Bookmark/>
-            </Link>
+     
             <UserMenuButton user={user} profile={profile} />
           </>
         ) : (
           <>
           <Popover>
-            <PopoverTrigger className='p-4 border-l'><Lightning/></PopoverTrigger>
+            <PopoverTrigger className='p-4 border-x'><Lightning/></PopoverTrigger>
             <PopoverContent className='text-sm'>Sign in or sign up to create a personalised feed of UX articles and news.</PopoverContent>
           </Popover>
-          <Popover>
-            <PopoverTrigger className='p-4 border-x'><Bookmark/></PopoverTrigger>
-            <PopoverContent className='text-sm'>Save your favourite articles to read later.</PopoverContent>
-          </Popover>
+      
 
             <LoginRegisterButtons />
           </>
