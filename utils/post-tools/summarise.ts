@@ -51,7 +51,7 @@ export async function summarisePost(postId: number, supabase: SupabaseClient): P
           content: `Please summarize the following article: ${post.content}`
         }
       ],
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
     })
 
     const summary = completion.choices[0].message.content

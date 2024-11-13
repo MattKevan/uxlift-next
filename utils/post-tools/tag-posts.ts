@@ -117,7 +117,7 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
             content: `Please categorize this article:\n${contentToAnalyze}`
           }
         ],
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
       })
 
       const suggestedTopics = completion.choices[0].message.content

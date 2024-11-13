@@ -20,17 +20,6 @@ type PostWithRelations = Post & {
   }[]
 }
 
-interface AutoTagError {
-  error: string;
-  details?: string;
-}
-
-interface AutoTagResponse {
-  success: boolean;
-  post: PostWithRelations;
-  suggestedTopics: string[];
-}
-
 const POSTS_PER_PAGE = 50
 
 export default function AdminPosts() {
@@ -43,6 +32,20 @@ export default function AdminPosts() {
   const [summarising, setSummarising] = useState<number | null>(null)
   const [tagging, setTagging] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [batchTagging, setBatchTagging] = useState(false)
+  const [batchProgress, setBatchProgress] = useState({
+    total: 0,
+    processed: 0,
+    succeeded: 0,
+    failed: 0,
+    currentPost: null as { id: number; title?: string } | null
+  })
+  const [batchErrors, setBatchErrors] = useState<Array<{
+    postId: number;
+    error: string;
+    details?: string;
+  }>>([])
+  const [showErrors, setShowErrors] = useState(false)
 
   const fetchPosts = async () => {
     const { data: postsData, count: totalCount } = await supabase
@@ -242,6 +245,78 @@ export default function AdminPosts() {
       setSummarising(null)
     }
   }
+  const handleBatchTag = async () => {
+    if (!confirm('This will re-tag all posts in the database. This may take several minutes. Continue?')) {
+      return;
+    }
+
+    try {
+      setBatchTagging(true);
+      setBatchErrors([]);
+      setBatchProgress({
+        total: 0,
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        currentPost: null
+      });
+      
+      const response = await fetch('/api/tag-all-posts', {
+        method: 'POST',
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Failed to initialize stream reader');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+
+            switch (data.type) {
+              case 'progress':
+                setBatchProgress({
+                  total: data.total,
+                  processed: data.processed,
+                  succeeded: data.succeeded,
+                  failed: data.failed,
+                  currentPost: data.currentPost
+                });
+                break;
+
+              case 'error':
+                setBatchErrors(prev => [...prev, {
+                  postId: data.postId,
+                  error: data.error,
+                  details: data.details
+                }]);
+                break;
+
+              case 'complete':
+                await fetchPosts();
+                break;
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error batch tagging posts:', error);
+      alert(error instanceof Error ? error.message : 'Failed to process posts');
+    } finally {
+      setBatchTagging(false);
+    }
+  };
 
   const totalPages = Math.ceil(count / POSTS_PER_PAGE)
   const handlePostCreated = (newPost: PostWithRelations) => {
@@ -252,7 +327,8 @@ export default function AdminPosts() {
     <div className="">
       <h1 className="text-2xl font-bold mb-6">Manage posts</h1>
       
-      <button
+      <div className="flex space-x-4 mb-6">
+        <button
           onClick={handleRefreshFeeds}
           disabled={refreshing}
           className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors
@@ -261,6 +337,64 @@ export default function AdminPosts() {
           {refreshing ? 'Refreshing feeds...' : 'Refresh feeds'}
         </button>
 
+        <button
+          onClick={handleBatchTag}
+          disabled={batchTagging}
+          className={`px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors
+            ${batchTagging ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {batchTagging ? 'Processing all posts...' : 'Re-tag all posts'}
+        </button>
+      </div>
+
+      {batchTagging && (
+        <div className="mb-8 space-y-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+              style={{ width: `${(batchProgress.processed / batchProgress.total) * 100}%` }}
+            ></div>
+          </div>
+          
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            <div className="flex justify-between">
+              <span>Processing: {batchProgress.processed} / {batchProgress.total} posts</span>
+              <span>
+                Success: <span className="text-green-600">{batchProgress.succeeded}</span> | 
+                Failed: <span className="text-red-600">{batchProgress.failed}</span>
+              </span>
+            </div>
+            {batchProgress.currentPost && (
+              <div className="text-xs text-gray-500 mt-1">
+                Current: {batchProgress.currentPost.title || `Post ${batchProgress.currentPost.id}`}
+              </div>
+            )}
+          </div>
+
+          {batchErrors.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowErrors(!showErrors)}
+                className="text-red-600 text-sm hover:underline"
+              >
+                {showErrors ? 'Hide' : 'Show'} Errors ({batchErrors.length})
+              </button>
+              
+              {showErrors && (
+                <div className="mt-2 max-h-40 overflow-y-auto text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded">
+                  {batchErrors.map((error, index) => (
+                    <div key={index} className="mb-2 text-red-600 dark:text-red-400">
+                      <div>Post ID: {error.postId}</div>
+                      <div>Error: {error.error}</div>
+                      {error.details && <div>Details: {error.details}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <FetchUrlForm onSuccess={handlePostCreated} />
 
       <div className="overflow-x-auto">
