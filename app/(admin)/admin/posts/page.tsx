@@ -38,14 +38,186 @@ export default function AdminPosts() {
     processed: 0,
     succeeded: 0,
     failed: 0,
-    currentPost: null as { id: number; title?: string } | null
-  })
+    currentPost: null as { id: number; title?: string } | null,
+    processType: null as 'tagging' | 'embedding' | null // Add this
+  });
   const [batchErrors, setBatchErrors] = useState<Array<{
     postId: number;
     error: string;
     details?: string;
   }>>([])
   const [showErrors, setShowErrors] = useState(false)
+  const [embedding, setEmbedding] = useState<number | null>(null);
+  const [batchEmbedding, setBatchEmbedding] = useState(false);
+  const handleResetIndexStatus = async () => {
+    if (!confirm('Are you sure you want to reset the index status for all posts? This will mark all posts as unindexed.')) {
+      return;
+    }
+  
+    try {
+      const response = await fetch('/api/reset-index-status', {
+        method: 'POST',
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to reset index status');
+      }
+  
+      alert('Successfully reset index status for all posts');
+    } catch (error) {
+      console.error('Error resetting index status:', error);
+      alert('Failed to reset index status');
+    }
+  };
+
+  const handleResetAllEmbeddings = async () => {
+    if (!confirm('WARNING: This will delete ALL embeddings and reset ALL posts to unindexed. Are you sure?')) {
+      return;
+    }
+  
+    if (!confirm('This action cannot be undone. Are you really sure?')) {
+      return;
+    }
+  
+    try {
+      const response = await fetch('/api/reset-embeddings', {
+        method: 'POST',
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset embeddings');
+      }
+  
+      alert(`Success! Deleted ${data.deletedCount} embeddings. All posts have been reset to unindexed.`);
+      // Refresh your UI as needed
+      
+    } catch (error) {
+      console.error('Error resetting embeddings:', error);
+      alert(error instanceof Error ? error.message : 'Failed to reset embeddings');
+    }
+  };
+  
+  const handleEmbed = async (postId: number) => {
+    try {
+      setEmbedding(postId);
+      
+      const response = await fetch('/api/embed-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ postId }),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(result.details || result.error || 'Failed to embed post');
+      }
+  
+      if (result.success) {
+        // Update the post in the UI to show it's been indexed
+        setPosts(currentPosts => 
+          currentPosts.map(post => 
+            post.id === postId 
+              ? { ...post, indexed: true } 
+              : post
+          )
+        );
+        alert(`Post successfully embedded with ${result.chunks} chunks`);
+      }
+  
+    } catch (error) {
+      console.error('Error embedding post:', error);
+      alert(error instanceof Error ? error.message : 'Failed to embed post');
+    } finally {
+      setEmbedding(null);
+    }
+  };
+
+
+  const handleBatchEmbed = async () => {
+    if (!confirm('This will re-embed all posts in the database. This process may take several hours. Continue?')) {
+      return;
+    }
+  
+    try {
+      setBatchEmbedding(true);
+      setBatchErrors([]);
+      setBatchProgress({
+        total: 0,
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        currentPost: null,
+        processType: 'embedding'
+      });
+      
+      const response = await fetch('/api/embed-all-posts', {
+        method: 'POST',
+      });
+  
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+  
+      if (!reader) {
+        throw new Error('Failed to initialize stream reader');
+      }
+  
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+  
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+  
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+  
+            switch (data.type) {
+              case 'progress':
+                setBatchProgress(prev => ({
+                  ...prev,
+                  total: data.total,
+                  processed: data.processed,
+                  succeeded: data.succeeded,
+                  failed: data.failed,
+                  currentPost: data.currentPost,
+                  processType: 'embedding'
+                }));
+                break;
+  
+              case 'error':
+                setBatchErrors(prev => [...prev, {
+                  postId: data.postId,
+                  error: data.error,
+                  details: data.details
+                }]);
+                break;
+  
+              case 'complete':
+                alert(`Embedding complete!\nProcessed: ${data.total}\nSucceeded: ${data.succeeded}\nFailed: ${data.failed}`);
+                await fetchPosts();
+                break;
+            }
+          }
+        }
+      }
+  
+    } catch (error) {
+      console.error('Error batch embedding posts:', error);
+      alert(error instanceof Error ? error.message : 'Failed to process posts');
+    } finally {
+      setBatchEmbedding(false);
+      setBatchProgress(prev => ({
+        ...prev,
+        processType: null
+      }));
+    }
+  };
 
   const fetchPosts = async () => {
     const { data: postsData, count: totalCount } = await supabase
@@ -258,7 +430,8 @@ export default function AdminPosts() {
         processed: 0,
         succeeded: 0,
         failed: 0,
-        currentPost: null
+        currentPost: null,
+        processType: 'tagging'
       });
       
       const response = await fetch('/api/tag-all-posts', {
@@ -285,13 +458,14 @@ export default function AdminPosts() {
 
             switch (data.type) {
               case 'progress':
-                setBatchProgress({
-                  total: data.total,
-                  processed: data.processed,
-                  succeeded: data.succeeded,
-                  failed: data.failed,
-                  currentPost: data.currentPost
-                });
+            setBatchProgress({
+  total: 0,
+  processed: 0,
+  succeeded: 0,
+  failed: 0,
+  currentPost: null,
+  processType: 'tagging'
+});
                 break;
 
               case 'error':
@@ -315,7 +489,10 @@ export default function AdminPosts() {
       alert(error instanceof Error ? error.message : 'Failed to process posts');
     } finally {
       setBatchTagging(false);
-    }
+      setBatchProgress(prev => ({
+        ...prev,
+        processType: null
+      }));    }
   };
 
   const totalPages = Math.ceil(count / POSTS_PER_PAGE)
@@ -345,56 +522,87 @@ export default function AdminPosts() {
         >
           {batchTagging ? 'Processing all posts...' : 'Re-tag all posts'}
         </button>
+        <button
+  onClick={handleResetIndexStatus}
+  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+>
+  Reset All Index Status
+</button>
+        <button
+  onClick={handleBatchEmbed}
+  disabled={batchEmbedding || batchTagging}
+  className={`px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors
+    ${(batchEmbedding || batchTagging) ? 'opacity-50 cursor-not-allowed' : ''}`}
+>
+  {batchEmbedding 
+    ? `Embedding: ${batchProgress.processed}/${batchProgress.total}`
+    : 'Re-embed all posts'}
+</button>
+<button
+  onClick={handleResetAllEmbeddings}
+  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+>
+  Reset All Embeddings
+</button>
       </div>
 
-      {batchTagging && (
-        <div className="mb-8 space-y-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-            <div 
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-              style={{ width: `${(batchProgress.processed / batchProgress.total) * 100}%` }}
-            ></div>
-          </div>
-          
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            <div className="flex justify-between">
-              <span>Processing: {batchProgress.processed} / {batchProgress.total} posts</span>
-              <span>
-                Success: <span className="text-green-600">{batchProgress.succeeded}</span> | 
-                Failed: <span className="text-red-600">{batchProgress.failed}</span>
-              </span>
-            </div>
-            {batchProgress.currentPost && (
-              <div className="text-xs text-gray-500 mt-1">
-                Current: {batchProgress.currentPost.title || `Post ${batchProgress.currentPost.id}`}
-              </div>
-            )}
-          </div>
-
-          {batchErrors.length > 0 && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowErrors(!showErrors)}
-                className="text-red-600 text-sm hover:underline"
-              >
-                {showErrors ? 'Hide' : 'Show'} Errors ({batchErrors.length})
-              </button>
-              
-              {showErrors && (
-                <div className="mt-2 max-h-40 overflow-y-auto text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded">
-                  {batchErrors.map((error, index) => (
-                    <div key={index} className="mb-2 text-red-600 dark:text-red-400">
-                      <div>Post ID: {error.postId}</div>
-                      <div>Error: {error.error}</div>
-                      {error.details && <div>Details: {error.details}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+      {(batchTagging || batchEmbedding) && (
+  <div className="mb-8 space-y-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+      <div 
+        className={`h-2.5 rounded-full transition-all duration-500 ${
+          batchTagging ? 'bg-purple-600' : 'bg-green-600'
+        }`}
+        style={{ width: `${(batchProgress.processed / batchProgress.total) * 100}%` }}
+      ></div>
+    </div>
+    
+    <div className="text-sm text-gray-600 dark:text-gray-300">
+      <div className="flex justify-between">
+        <span>
+          {batchTagging ? 'Tagging' : 'Embedding'}: {batchProgress.processed} / {batchProgress.total} posts
+        </span>
+        <span>
+          Success: <span className="text-green-600">{batchProgress.succeeded}</span> | 
+          Failed: <span className="text-red-600">{batchProgress.failed}</span>
+        </span>
+      </div>
+      {batchProgress.currentPost && (
+        <div className="text-xs text-gray-500 mt-1">
+          Current: {batchProgress.currentPost.title || `Post ${batchProgress.currentPost.id}`}
         </div>
       )}
+    </div>
+
+    {batchErrors.length > 0 && (
+      <div className="mt-4">
+        <button
+          onClick={() => setShowErrors(!showErrors)}
+          className="text-red-600 text-sm hover:underline"
+        >
+          {showErrors ? 'Hide' : 'Show'} Errors ({batchErrors.length})
+        </button>
+        
+        {showErrors && (
+          <div className="mt-2 max-h-40 overflow-y-auto text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded">
+            {batchErrors.map((error, index) => (
+              <div key={index} className="mb-2 text-red-600 dark:text-red-400">
+                <div>Post ID: {error.postId}</div>
+                <div>Error: {error.error}</div>
+                {error.details && <div>Details: {error.details}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+    
+    <div className="mt-4 text-xs text-gray-500">
+      <div>Processing {batchTagging ? 'tags' : 'embeddings'} in batches to avoid rate limits.</div>
+      <div>This may take several minutes to complete.</div>
+    </div>
+  </div>
+)}
       <FetchUrlForm onSuccess={handlePostCreated} />
 
       <div className="overflow-x-auto">
@@ -403,10 +611,10 @@ export default function AdminPosts() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Summary</th>
-
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topics</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Embedded</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Published</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -460,6 +668,17 @@ export default function AdminPosts() {
                       {post.status}
                     </span>
                   </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      post.indexed === true ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      post.indexed === false ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                    }`}>
+                      {post.indexed === true ? ('True'):
+
+                      ('False') }
+                    </span>
+                  </td>
                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                   {formatPublishedDate(post.date_published)}
                 </td>
@@ -488,6 +707,15 @@ export default function AdminPosts() {
         >
           {tagging === post.id ? 'Tagging...' : 'Auto-tag'}
         </button>
+        <button
+  onClick={() => handleEmbed(post.id)}
+  disabled={embedding === post.id}
+  className={`text-green-600 hover:underline dark:text-green-400 ${
+    embedding === post.id ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+>
+  {embedding === post.id ? 'Embedding...' : 'Embed'}
+</button>
         <button
     onClick={() => handleDelete(post.id)}
     className="text-red-600 hover:underline dark:text-red-400"
