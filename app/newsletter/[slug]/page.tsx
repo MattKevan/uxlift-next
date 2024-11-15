@@ -61,7 +61,7 @@ export default async function NewsletterPost({ params }: PageProps) {
   const cleanedContent = webContent ? cleanHtml(webContent) : ''
 
   return (
-    <main className="max-w-5xl  px-4 pt-6">
+    <main className="max-w-6xl  px-4 pt-6">
       {/* Header */}
       <header className="mb-12">
         

@@ -10,7 +10,7 @@ export function NewsletterPost({ post }: { post: NewsletterPost }) {
       <div className="space-y-4">
         {post.thumbnail_url && (
           <Link href={`/newsletter/${post.slug}`}>
-            <div className="aspect-[1.91/1] overflow-hidden rounded-lg">
+            <div className="aspect-[1.91/1] overflow-hidden">
               <img
                 src={post.thumbnail_url}
                 alt={post.title}
@@ -22,9 +22,13 @@ export function NewsletterPost({ post }: { post: NewsletterPost }) {
         
         <div className="space-y-2">
         <Link href={`/newsletter/${post.slug}`} className="group">
-        <h2 className="text-xl font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400">
-              {post.title}
+        <h2 className="text-2xl font-bold group-hover:underline ">
+        <time dateTime={post.publish_date}>
+            {format(parseISO(post.publish_date), 'MMMM d, yyyy')}
+          </time>
             </h2>
+            <h3 className='font-bold group-hover:underline'>          {post.title}
+            </h3>
           </Link>
 
           {post.subtitle && (
@@ -36,9 +40,7 @@ export function NewsletterPost({ post }: { post: NewsletterPost }) {
         </div>
 
         <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
-          <time dateTime={post.publish_date}>
-            {format(parseISO(post.publish_date), 'MMMM d, yyyy')}
-          </time>
+        
          
         </div>
       </div>

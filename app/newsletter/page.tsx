@@ -28,7 +28,7 @@ export default async function NewsletterPage({
   await params
 
   const currentPage = Number(page) || 1
-  const pageSize = 20
+  const pageSize = 24
   const startIndex = (currentPage - 1) * pageSize
 
   const supabase = await createClient()
@@ -78,7 +78,7 @@ export default async function NewsletterPage({
         {count} editions
       </h2>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 border-b -mb-[2px]'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3  -mb-[2px]'>
         {posts?.map((post) => (
           <NewsletterPost key={post.id} post={post} />
         ))}

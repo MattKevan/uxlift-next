@@ -6,6 +6,7 @@ import Header from "@/components/Header"
 import { Inter } from "next/font/google"
 import PrelineScript from "@/components/PrelineScript"
 import Footer from "@/components/Footer"
+import { Analytics } from "@vercel/analytics/react"
 
 const mona = localFont({
   src: [
@@ -91,6 +92,7 @@ export default async function RootLayout({
 
 
           </div>
+          <Analytics/>
       </body>
 
     </html>
