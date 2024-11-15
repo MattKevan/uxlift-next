@@ -18,7 +18,7 @@ const menuItems = [
   { href: '/news', label: 'News' },
   { href: '/topics', label: 'Topics' },
   { href: '/tools', label: 'Tools' },
-  { href: 'https://uxlift.beehiiv.com/', label: 'Newsletter' },
+  { href: '/newsletter', label: 'Newsletter' },
   { href: '/search', label: 'Search' },
 ]
 

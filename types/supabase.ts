@@ -482,6 +482,72 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_posts: {
+        Row: {
+          audience: string
+          authors: string[]
+          beehiiv_id: string
+          content: Json
+          created_at: string
+          displayed_date: string
+          id: string
+          meta_default_description: string | null
+          meta_default_title: string | null
+          preview_text: string | null
+          publish_date: string
+          slug: string
+          stats: Json | null
+          status: string
+          subtitle: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          web_url: string
+        }
+        Insert: {
+          audience: string
+          authors: string[]
+          beehiiv_id: string
+          content: Json
+          created_at?: string
+          displayed_date: string
+          id?: string
+          meta_default_description?: string | null
+          meta_default_title?: string | null
+          preview_text?: string | null
+          publish_date: string
+          slug: string
+          stats?: Json | null
+          status: string
+          subtitle?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          web_url: string
+        }
+        Update: {
+          audience?: string
+          authors?: string[]
+          beehiiv_id?: string
+          content?: Json
+          created_at?: string
+          displayed_date?: string
+          id?: string
+          meta_default_description?: string | null
+          meta_default_title?: string | null
+          preview_text?: string | null
+          publish_date?: string
+          slug?: string
+          stats?: Json | null
+          status?: string
+          subtitle?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          web_url?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           created_at: string
@@ -634,19 +700,52 @@ export type Database = {
             }
             Returns: unknown
           }
-      match_documents: {
+      match_documents:
+        | {
+            Args: {
+              query_embedding: string
+              match_count?: number
+              filter?: Json
+            }
+            Returns: {
+              id: number
+              content: string
+              metadata: Json
+              embedding: Json
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              query_embedding: string
+              match_threshold?: number
+              match_count?: number
+            }
+            Returns: {
+              id: number
+              content: string
+              metadata: Json
+              similarity: number
+            }[]
+          }
+      match_documents_optimized: {
         Args: {
           query_embedding: string
+          similarity_threshold?: number
           match_count?: number
-          filter?: Json
         }
         Returns: {
           id: number
           content: string
           metadata: Json
-          embedding: Json
           similarity: number
         }[]
+      }
+      set_statement_timeout: {
+        Args: {
+          milliseconds: number
+        }
+        Returns: undefined
       }
       sparsevec_out: {
         Args: {

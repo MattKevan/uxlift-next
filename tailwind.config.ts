@@ -77,6 +77,8 @@ const config = {
   plugins: [
     require("tailwindcss-animate"),
     require('preline/plugin'),
+    require('@tailwindcss/typography'),
+
     ],
 } satisfies Config;
 
