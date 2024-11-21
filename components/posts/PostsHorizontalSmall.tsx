@@ -3,9 +3,7 @@ import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
 import { Bookmark, ExternalLink, Flag, Like, LinkOne } from '@mynaui/icons-react'
-import { Button } from '../catalyst/button'
 import clsx from 'clsx'
-import { slugify } from '@/utils/slugify'
 import {
   Tooltip,
   TooltipContent,

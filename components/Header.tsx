@@ -6,7 +6,8 @@ import UserMenuButton from './UserMenuButton'
 import LoginRegisterButtons from './LoginRegisterButtons'
 import { Bookmark, FilePlus, Lightning, Search } from '@mynaui/icons-react'
 import { Button } from '@/components/ui/button'
-import { AuthModals } from './HeaderModals'
+import SubmitContentButton from '@/components/SubmitContentButton'
+import { buttonVariants } from "@/components/ui/button"
 
 import {
   Popover,
@@ -101,12 +102,13 @@ export default async function Header() {
         {/* User Navigation */}
          {/* User Navigation */}
       <div className="ml-auto flex items-center ">
-        <Button className='mr-4' size='sm' variant='outline'>
-          Submit content
-        </Button>
+       
 
         {user && profile ? (
+
           <>
+                                  <SubmitContentButton user={user} profile={profile} />
+
             <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
               <Lightning/>
             </Link>
@@ -115,6 +117,9 @@ export default async function Header() {
           </>
         ) : (
           <>
+<Button variant='outline' className='mr-4' asChild>
+  <Link href="/sign-in">Submit content</Link>
+</Button>
           <Popover>
             <PopoverTrigger className='p-4 border-x'><Lightning/></PopoverTrigger>
             <PopoverContent className='text-sm'>Sign in or sign up to create a personalised feed of UX articles and news.</PopoverContent>

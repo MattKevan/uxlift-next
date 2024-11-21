@@ -1,7 +1,22 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient as createServerClient } from '@/utils/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { processFeedItems } from '@/utils/post-tools/process-feeds'
 import type { Database } from '@/types/supabase'
+
+// Create a service role client for automated operations
+const createServiceClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleSecret = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  
+  return createClient<Database>(supabaseUrl, serviceRoleSecret, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+}
 
 // Verify the request is either from Vercel Cron or an authenticated admin
 const validateRequest = async (request: Request) => {
@@ -12,11 +27,11 @@ const validateRequest = async (request: Request) => {
     return true;
   }
 
-  // If it's an admin request, verify the session
-  const supabase = await createClient();
-  const { data: { session }, error } = await supabase.auth.getSession();
+  // If it's an admin request, verify the user
+  const supabase = await createServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (error || !session) {
+  if (error || !user) {
     throw new Error('Unauthorized');
   }
 
@@ -24,7 +39,7 @@ const validateRequest = async (request: Request) => {
   const { data: userProfile, error: profileError } = await supabase
     .from('user_profiles')
     .select('is_admin')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single();
 
   if (profileError || !userProfile || !userProfile.is_admin) {
@@ -39,8 +54,8 @@ export async function GET(request: Request) {
     // Validate the request (either cron or admin)
     await validateRequest(request)
 
-    // Initialize Supabase client using your server setup
-    const supabase = await createClient()
+    // Initialize Supabase client with service role for automated operations
+    const supabase = createServiceClient()
 
     // Process the feeds
     const result = await processFeedItems(supabase)

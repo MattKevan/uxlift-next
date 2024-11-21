@@ -1,41 +1,13 @@
 import Link from "next/link"
 import "./globals.css"
-import localFont from 'next/font/local'
 import Header from "@/components/Header"
 
 import { Inter } from "next/font/google"
-import PrelineScript from "@/components/PrelineScript"
 import Footer from "@/components/Footer"
 import { Analytics } from "@vercel/analytics/react"
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import Notification from '@/components/Notification';
 
-const mona = localFont({
-  src: [
-    {
-      path: './fonts/MonaSans-Regular.woff2',
-      weight: '400',
-      style: 'normal',
-    },
-    {
-      path: './fonts/MonaSans-Bold.woff2',
-      weight: '800',
-      style: 'normal',
-    },
-   
-  ],
-  variable: '--font-mona',
-})
-
-const monaCondensed = localFont({
-  src: [
-    {
-      path: './fonts/MonaSansCondensed-Bold.woff2',
-      weight: '800',
-      style: 'normal',
-    },
-   
-  ],
-  variable: '--font-mona-condensed',
-})
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
@@ -56,7 +28,7 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(defaultUrl),
     title: "UX Lift",
-    description: "The fastest way to build apps with Next.js and Supabase",
+    description: "The place to discover and share UX articles, news and resources.",
   }
 }
 
@@ -71,30 +43,30 @@ export default async function RootLayout({
 
   return (
     <html>
+
       <body className={`bg-background text-foreground  ${inter.variable} font-sans`}>
-        
-          <div className="relative isolate flex flex-col min-h-svh w-full">
-            <div className=" w-[60px] fixed top-0 h-full max-lg:hidden md:border-r ">
-              <Link href='/'>
-                <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mt-4 mx-auto" />
-              </Link>
-            </div>
-            <Header/>
+      <NotificationProvider>
+      <Notification />
+
+        <div className="relative isolate flex flex-col min-h-svh w-full">
+          
+          <div className=" w-[60px] fixed top-0 h-full max-lg:hidden md:border-r ">
+            <Link href='/'>
+              <img src="/uxlift-logo.svg" alt="UX Lift logo" className="size-6 mt-4 mx-auto" />
+            </Link>
+          </div>
+          
+          <Header/>
 
           <div className="flex-grow  lg:ml-[60px] pb-12">
-
             {children}
-
-          
             <Footer/>
-
           </div>
 
-
-          </div>
-          <Analytics/>
+        </div>
+        </NotificationProvider>
+        <Analytics/>
       </body>
-
     </html>
   )
 }

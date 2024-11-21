@@ -6,17 +6,17 @@ import ProfileForm from '@/components/ProfileForm'
 export default async function CreateProfilePage() {
   const supabase = await createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
   
-  if (!session?.user) {
-    redirect('/login')
+  if (error || !user) {
+    redirect('/sign-in')
   }
 
   // Check if user already has a profile
   const { data: existingProfile } = await supabase
     .from('user_profiles')
     .select()
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (existingProfile) {
@@ -26,7 +26,7 @@ export default async function CreateProfilePage() {
   return (
     <div className="max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Create Profile</h1>
-      <ProfileForm userId={session.user.id} />
+      <ProfileForm userId={user.id} />
     </div>
   )
 }

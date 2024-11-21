@@ -5,9 +5,54 @@ import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+async function subscribeToNewsletter(email: string, userId: string) {
+  const BEEHIIV_API_KEY = process.env.BEEHIIV_API_KEY;
+  const BEEHIIV_PUBLICATION_ID = process.env.BEEHIIV_PUBLICATION_ID;
+
+  try {
+    const response = await fetch(
+      `https://api.beehiiv.com/v2/publications/${BEEHIIV_PUBLICATION_ID}/subscriptions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${BEEHIIV_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          reactivate_existing: false,
+          send_welcome_email: true,
+          utm_source: 'UX Lift',
+          utm_medium: 'organic',
+          utm_campaign: 'website_signup',
+          referring_site: 'www.uxlift.org',
+          custom_fields: [
+            {
+              name: 'User ID',
+              value: userId
+            }
+          ]
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to subscribe to newsletter:', await response.text());
+      return false;
+    }
+
+    const data = await response.json();
+    return data.data.status === 'active' || data.data.status === 'validating';
+  } catch (error) {
+    console.error('Error subscribing to newsletter:', error);
+    return false;
+  }
+}
+
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const newsletterSubscription = formData.get("newsletter") === "on";
   const supabase = await createClient();
 
   if (!email || !password) {
@@ -25,6 +70,28 @@ export const signUpAction = async (formData: FormData) => {
   }
 
   if (authData?.user) {
+    let newsletterStatus = false;
+
+    // Subscribe to newsletter if checkbox was checked
+    if (newsletterSubscription) {
+      newsletterStatus = await subscribeToNewsletter(email, authData.user.id);
+    }
+
+    // Create or update user profile with newsletter status
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .upsert({
+        user_id: authData.user.id,
+        newsletter_subscriber: newsletterStatus,
+        // Include other required fields if necessary
+        username: email.split('@')[0], // temporary username, you might want to handle this differently
+        created_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      console.error('Error updating user profile:', profileError);
+    }
+
     // Check if user already has a profile
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -38,12 +105,11 @@ export const signUpAction = async (formData: FormData) => {
     }
     
     // If they already have a profile, go to their feed
-    return redirect("/feed");
+    return redirect("/profile/edit");
   }
 
   return redirect("/sign-in");
 };
-
 
 export const signInAction = async (formData: FormData) => {
   const email = formData.get("email") as string;

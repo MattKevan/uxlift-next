@@ -32,7 +32,6 @@ interface RelatedPostResponse {
     summary: string
     content: string | null
     tags_list: string | null
-    user_id: number | null
     site: {
       title: string | null
       slug: string | null

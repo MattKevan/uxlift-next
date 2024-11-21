@@ -1,10 +1,11 @@
+// components/UserMenuButton.tsx
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 import Link from 'next/link'
-import { CommandLineIcon, Cog8ToothIcon, UserIcon } from '@heroicons/react/16/solid'
 import { Avatar } from '@/components/catalyst/avatar'
 import LogoutButton from './LogoutButton'
 import { Cog, Command, UserCircle } from '@mynaui/icons-react'
+import { CustomImage } from './Image'
 
 type Profile = Database['public']['Tables']['user_profiles']['Row']
 
@@ -17,13 +18,20 @@ export default function UserMenuButton({ user, profile }: UserMenuButtonProps) {
   return (
     <div className="relative group">
       <button className="py-[12px] px-4 flex items-center gap-2 hover:bg-accent transition-colors">
-        <Avatar
-          src="/default-avatar.png"
-          alt={profile.name || profile.username}
-          className="size-8"
-        >
-          <span>{profile.name ? profile.name[0].toUpperCase() : profile.username[0].toUpperCase()}</span>
-        </Avatar>
+      <CustomImage
+  src={profile.image_url}
+  alt={profile.name || profile.username}
+  width={32}
+  height={32}
+  className="rounded-full aspect-square"
+  fallback="/default-avatar.png"
+  provider="cloudinary"
+  options={{
+    crop: "fill",
+    gravity: "face",
+    aspectRatio: "1:1"
+  }}
+/>
       </button>
       <div className="absolute hidden group-hover:block w-[200px] top-full right-0 bg-background border shadow-lg divide-y divide-border">
         <div className="p-4">

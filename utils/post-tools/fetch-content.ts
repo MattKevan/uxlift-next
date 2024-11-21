@@ -5,17 +5,31 @@ import { Readability } from '@mozilla/readability'
 import { JSDOM } from 'jsdom'
 import { summarisePost } from './summarise'
 import { tagPost } from './tag-posts'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 
 function validateAndFormatUrl(urlString: string): string {
-  const url = new URL(urlString)
-  if (!['http:', 'https:'].includes(url.protocol)) {
-    throw new Error('URL must use HTTP or HTTPS protocol')
+  try {
+    const url = new URL(urlString)
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('URL must use HTTP or HTTPS protocol')
+    }
+    return url.toString()
+  } catch (error) {
+    throw new Error(`Invalid URL: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-  return url.toString()
 }
 
-export async function fetchAndProcessContent(rawUrl: string, supabase: any) {
+export async function fetchAndProcessContent(
+  rawUrl: string, 
+  supabase: SupabaseClient<Database>,
+  options?: {
+    user_id?: number;
+    status?: string;
+  }
+) {
   try {
+    console.log('Starting content fetch for URL:', rawUrl)
     const validUrl = validateAndFormatUrl(rawUrl)
 
     const response = await fetch(validUrl, {
@@ -53,8 +67,11 @@ export async function fetchAndProcessContent(rawUrl: string, supabase: any) {
       const article = reader.parse()
       content = article ? article.textContent : ''
     } catch (readabilityError) {
+      console.error('Readability error:', readabilityError)
       content = $('body').text().trim()
     }
+
+    console.log('Attempting to insert post with user_id:', options?.user_id)
 
     // Create post
     const { data: post, error: postError } = await supabase
@@ -67,14 +84,16 @@ export async function fetchAndProcessContent(rawUrl: string, supabase: any) {
         link: validUrl,
         date_created: new Date().toISOString(),
         date_published: new Date().toISOString(),
-        status: 'draft',
+        status: options?.status || 'draft',
         indexed: false,
-        summary: ''
+        summary: '',
+        user_id: options?.user_id || null
       })
       .select()
       .single()
 
     if (postError) {
+      console.error('Post insertion error:', postError)
       throw postError
     }
 
@@ -83,7 +102,8 @@ export async function fetchAndProcessContent(rawUrl: string, supabase: any) {
       await summarisePost(post.id, supabase)
       await tagPost(post.id, supabase)
     } catch (processingError) {
-      console.error('Processing error:', processingError)
+      console.error('Post processing error:', processingError)
+      // Continue despite processing errors
     }
 
     // Fetch final post
@@ -103,12 +123,13 @@ export async function fetchAndProcessContent(rawUrl: string, supabase: any) {
       .single()
 
     if (fetchError) {
+      console.error('Final post fetch error:', fetchError)
       throw fetchError
     }
 
     return finalPost
   } catch (error) {
     console.error('Content fetching error:', error)
-    throw error
+    throw new Error(error instanceof Error ? error.message : 'Failed to process content')
   }
 }

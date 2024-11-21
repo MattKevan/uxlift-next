@@ -1,9 +1,16 @@
+// components/Image.tsx
 'use client'
 
 import { CldImage } from 'next-cloudinary'
 import { useState } from 'react'
 import Image from 'next/image'
 import clsx from 'clsx'
+
+type CloudinaryTransformation = {
+  crop?: "auto" | "crop" | "fill" | "fill_pad" | "fit" | "imagga_crop" | "imagga_scale" | "lfill" | "limit" | "lpad" | "mfit" | "mpad" | "pad" | "scale" | "thumb"
+  gravity?: "auto" | "custom" | "auto_content_aware" | "center" | "east" | "face" | "face_center" | "multi_face" | "north" | "north_east" | "north_west" | "south" | "south_east" | "south_west" | "west"
+  aspectRatio?: string | number
+}
 
 interface ImageProps {
   src: string | null
@@ -19,6 +26,7 @@ interface ImageProps {
   quality?: number
   placeholder?: 'blur' | 'empty'
   blurDataURL?: string
+  options?: CloudinaryTransformation
 }
 
 export function CustomImage({ 
@@ -27,14 +35,15 @@ export function CustomImage({
   width, 
   height, 
   className = '', 
-  fallback = '/images/default-avatar.png',
+  fallback = '/default-avatar.png',
   provider = 'cloudinary',
   priority = false,
   loading,
   sizes,
   quality = 75,
   placeholder,
-  blurDataURL
+  blurDataURL,
+  options
 }: ImageProps) {
   const [error, setError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -73,6 +82,7 @@ export function CustomImage({
         priority={priority}
         loading={loading}
         sizes={sizes}
+        {...options}
       />
     )
   }

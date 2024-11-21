@@ -1,11 +1,4 @@
 import { createClient } from '@/utils/supabase/server'
-import { PostGridItem } from '@/components/posts/PostGridItem'
-import Link from 'next/link'
-import { Layout1 } from '@/components/Layout1'
-import { Layout2 } from '@/components/Layout2'
-import { Layout3 } from '@/components/Layout3'
-import { Layout4 } from '@/components/Layout4'
-import { Divider } from '@/components/catalyst/divider'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { ToolCard } from '@/components/ToolCards'
 
@@ -55,32 +48,22 @@ function getLastSevenDays(): string[] {
 export default async function HomePage() {
   const supabase = await createClient()
 
-  // Get the date 7 days ago
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
   const { data: posts, error: postsError } = await supabase
-    .from('content_post')
-    .select(`
-      *,
-      site:content_site (
-        title,
-        slug
-      )
-    `)
-    .eq('status', 'published')
-    .gte('date_published', sevenDaysAgo.toISOString())
-    .order('date_published', { ascending: false })
+  .from('content_post')
+  .select(`
+    *,
+    site:site_id (
+   id,
+          title,
+          slug,
+          url,
+          site_icon
+    )
+  `, { count: 'exact' })
+  .eq('status', 'published')
+  .order('date_published', { ascending: false })
+  .limit(12)
 
-  if (postsError) {
-    console.error('Error fetching posts:', postsError)
-    return <div>Error loading posts</div>
-  }
-
-  const transformedPosts = posts?.map(post => ({
-    ...post,
-    site: post.site?.[0] || null
-  })) || []
 
   const { data: tools, error: toolsError } = await supabase
     .from('content_tool')
@@ -94,9 +77,6 @@ export default async function HomePage() {
     return <div>Error loading tools</div>
   }
 
-
-  const groupedPosts = groupPostsByDate(transformedPosts)
-  const lastSevenDays = getLastSevenDays()
 
   return (
     <main className="">

@@ -1,3 +1,4 @@
+// app/profile/edit/page.tsx
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import ProfileForm from '@/components/ProfileForm'
@@ -13,9 +14,9 @@ type ProfileWithTopics = Profile & {
 export default async function EditProfilePage() {
   const supabase = await createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
   
-  if (!session?.user) {
+  if (error || !user) {
     redirect('/sign-in')
   }
 
@@ -28,7 +29,7 @@ export default async function EditProfilePage() {
         topic_id
       )
     `)
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single() as { data: ProfileWithTopics | null }
 
   if (!profile) {
@@ -42,13 +43,15 @@ export default async function EditProfilePage() {
     <main>
       <div className='px-6 mb-24 sm:mb-32 mt-6'>
         <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
-          Edit Profile
+          Edit your profile
         </h1>
       </div>
-      <div className="max-w-2xl mx-auto px-6">
+      <h2 id="details" className="text-lg font-bold px-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">About you</h2>
+
+      <div className="">
         <ProfileForm 
           profile={profile} 
-          userId={session.user.id}
+          userId={user.id}
           initialTopics={selectedTopics}
         />
       </div>

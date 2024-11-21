@@ -8,6 +8,7 @@ const publicApiRoutes: string[] = [
   // Add any public API routes here
   // '/api/public-route',
   '/api/search',
+  '/api/fetch-url'
 ];
 
 

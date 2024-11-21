@@ -32,7 +32,6 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
     slug: site.slug,
     status: site.status,
     include_in_newsfeed: site.include_in_newsfeed,
-    user_id: site.user_id
   })
   const [selectedSiteTypes, setSelectedSiteTypes] = useState<number[]>(
     site.content_site_site_type.map(st => st.content_sitetype.id)

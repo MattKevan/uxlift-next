@@ -9,48 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      accounts_customuser: {
-        Row: {
-          date_joined: string
-          email: string
-          first_name: string
-          id: number
-          is_active: boolean
-          is_staff: boolean
-          is_superuser: boolean
-          last_login: string | null
-          last_name: string
-          password: string
-          username: string
-        }
-        Insert: {
-          date_joined: string
-          email: string
-          first_name: string
-          id: number
-          is_active: boolean
-          is_staff: boolean
-          is_superuser: boolean
-          last_login?: string | null
-          last_name: string
-          password: string
-          username: string
-        }
-        Update: {
-          date_joined?: string
-          email?: string
-          first_name?: string
-          id?: number
-          is_active?: boolean
-          is_staff?: boolean
-          is_superuser?: boolean
-          last_login?: string | null
-          last_name?: string
-          password?: string
-          username?: string
-        }
-        Relationships: []
-      }
       content_book: {
         Row: {
           authors: string
@@ -196,7 +154,7 @@ export type Database = {
             foreignKeyName: "content_post_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "accounts_customuser"
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -246,7 +204,6 @@ export type Database = {
           status: string
           title: string
           url: string
-          user_id: number | null
         }
         Insert: {
           content?: string | null
@@ -259,7 +216,6 @@ export type Database = {
           status: string
           title: string
           url: string
-          user_id?: number | null
         }
         Update: {
           content?: string | null
@@ -272,17 +228,8 @@ export type Database = {
           status?: string
           title?: string
           url?: string
-          user_id?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "content_site_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "accounts_customuser"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       content_site_site_type: {
         Row: {
@@ -346,6 +293,7 @@ export type Database = {
           slug: string
           status: string
           title: string
+          user_id: number | null
         }
         Insert: {
           body?: string | null
@@ -357,6 +305,7 @@ export type Database = {
           slug: string
           status: string
           title: string
+          user_id?: number | null
         }
         Update: {
           body?: string | null
@@ -368,8 +317,17 @@ export type Database = {
           slug?: string
           status?: string
           title?: string
+          user_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_tool_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_tool_topics: {
         Row: {
@@ -506,9 +464,9 @@ export type Database = {
         }
         Insert: {
           audience: string
-          authors: string[]
+          authors?: string[]
           beehiiv_id: string
-          content: Json
+          content?: Json
           created_at?: string
           displayed_date: string
           id?: string
@@ -550,31 +508,49 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          biography: string | null
+          bluesky: string | null
           created_at: string
           id: number
           image_url: string | null
           is_admin: boolean
+          linkedin: string | null
           name: string | null
+          newsletter_subscriber: boolean | null
+          role: string | null
           user_id: string | null
           username: string
+          website: string | null
         }
         Insert: {
+          biography?: string | null
+          bluesky?: string | null
           created_at?: string
           id?: number
           image_url?: string | null
           is_admin?: boolean
+          linkedin?: string | null
           name?: string | null
+          newsletter_subscriber?: boolean | null
+          role?: string | null
           user_id?: string | null
           username: string
+          website?: string | null
         }
         Update: {
+          biography?: string | null
+          bluesky?: string | null
           created_at?: string
           id?: number
           image_url?: string | null
           is_admin?: boolean
+          linkedin?: string | null
           name?: string | null
+          newsletter_subscriber?: boolean | null
+          role?: string | null
           user_id?: string | null
           username?: string
+          website?: string | null
         }
         Relationships: []
       }

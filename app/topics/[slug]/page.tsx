@@ -177,7 +177,6 @@ export default async function TopicPage({
         status,
         summary,
         tags_list,
-        user_id,
         site:content_site!left ( 
           id,
           title,
