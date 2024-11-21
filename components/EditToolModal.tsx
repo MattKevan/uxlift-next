@@ -31,7 +31,8 @@ export default function EditToolModal({ tool, isOpen, onClose, onUpdate }: EditT
     image: tool.image,
     status: tool.status,
     date: tool.date,
-    slug: tool.slug
+    slug: tool.slug,
+    user_id: tool.user_id 
   })
   const [selectedTopics, setSelectedTopics] = useState<number[]>(
     tool.content_tool_topics.map(tt => tt.content_topic.id)
