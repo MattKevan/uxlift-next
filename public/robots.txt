@@ -1,0 +1,14 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /api/*
+Disallow: /admin/*
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+
+# Host
+Host: https://www.uxlift.org
+
+# Sitemaps
+Sitemap: https://www.uxlift.org/sitemap.xml
