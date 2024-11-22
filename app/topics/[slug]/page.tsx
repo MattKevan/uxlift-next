@@ -241,7 +241,7 @@ export default async function TopicPage({
       </div>
       
       <section className='mb-10 sm:mb-18 pt-12' id="articles">
-        <h2 className="font-bold px-4 py-3 md:py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-40">
+        <h2 className="font-bold px-4 py-3 md:py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-40">
           {totalPostsCount} {topic.name} articles
         </h2>
 
@@ -266,7 +266,7 @@ export default async function TopicPage({
 
       {uniqueTools.length > 0 && (
         <section className="mb-12 pt-12" id="tools">
-          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">
+          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
             {totalToolsCount} {topic.name} tools
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -279,7 +279,7 @@ export default async function TopicPage({
 
       {books && books.length > 0 && (
         <section className="mb-12 pt-12" id="books">
-          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">
+          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
             {totalBooksCount} {topic.name} books
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 border-b -mb-[2px]">

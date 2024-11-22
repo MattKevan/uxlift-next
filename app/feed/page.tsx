@@ -190,7 +190,7 @@ export default async function ProfilePage({
             Customise feed
           </Button>
       </div>
-      <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">
+      <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
             Articles
           </h2>
       <section className="grid grid-cols-1 md:grid-cols-2">

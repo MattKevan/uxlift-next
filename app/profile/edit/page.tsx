@@ -46,7 +46,7 @@ export default async function EditProfilePage() {
           Edit your profile
         </h1>
       </div>
-      <h2 id="details" className="text-lg font-bold px-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">About you</h2>
+      <h2 id="details" className="text-lg font-bold px-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">About you</h2>
 
       <div className="">
         <ProfileForm 

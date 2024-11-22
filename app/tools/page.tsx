@@ -69,7 +69,7 @@ export default async function ToolsPage() {
           ))}
         </div>
       <section className='mt-24'>
-      <h2  className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] border-b z-30">Latest tools</h2>
+      <h2  className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">Latest tools</h2>
       <div className=" grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid ">
           {tools?.map((tool) => (
                     <ToolCard key={tool.id} tool={tool} />

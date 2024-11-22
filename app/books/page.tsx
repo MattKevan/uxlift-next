@@ -101,7 +101,7 @@ export default async function BooksPage({
         </h1>
       </div>
 
-      <h2 className=" font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">
+      <h2 className=" font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
         {count} books
       </h2>
 

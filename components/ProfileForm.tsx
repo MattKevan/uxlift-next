@@ -296,7 +296,7 @@ export default function ProfileForm({ profile, userId, initialTopics = [] }: Pro
         </div>
       </div>
 
-      <h2 id="interests" className="text-lg font-bold px-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">
+      <h2 id="interests" className="text-lg font-bold px-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
         Your interests
       </h2>
 

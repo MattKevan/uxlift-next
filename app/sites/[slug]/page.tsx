@@ -141,7 +141,7 @@ export default async function SitePage({
       </div>
   
       <section className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
-      <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">{count} articles</h2>
+      <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">{count} articles</h2>
 
         <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
         {transformedPosts?.map((post) => (
