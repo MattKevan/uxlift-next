@@ -85,7 +85,7 @@ export default async function HomePage() {
       </div>
       <h2 id="articles" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[58px] pb-4 border-b z-40">Latest articles</h2>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 border-b'>
+        <div className='grid grid-cols-1 md:grid-cols-2'>
           {posts?.map((post) => (
 
               <PostHorizontal key={post.id} post={post} />

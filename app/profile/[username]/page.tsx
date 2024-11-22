@@ -72,12 +72,15 @@ export default async function ProfilePage({
           </p>
       )}
       <p className="text-gray-500 text-4xl md:text-5xl font-bold tracking-tight flex gap-3 mb-4 lg:mb-0">
-      
-      <a href={profile.website} target="_blank" className='hover:underline'>Website</a>
-      <a href={profile.linkedin} target="_blank" className='hover:underline'>LinkedIn</a>
-      <a href={`https://bsky.app/profile/${profile.bluesky}`} target="_blank"  className='hover:underline'>Bluesky</a>
-
-
+      { profile.website && (
+        <a href={profile.website} target="_blank" className='hover:underline'>Website</a>
+      )}
+      { profile.linkedin && (
+        <a href={profile.linkedin} target="_blank" className='hover:underline'>LinkedIn</a>
+      )}
+      { profile.bluesky && (
+        <a href={`https://bsky.app/profile/${profile.bluesky}`} target="_blank"  className='hover:underline'>Bluesky</a>
+      )}
       </p>
       </div>
       <div>

@@ -154,7 +154,7 @@ interface SearchResponse {
 }
 
   return (
-    <main className="min-h-screen">
+    <main className="">
       <div className='px-4 mb-10 sm:mb-18 mt-6'>
       <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
         Search

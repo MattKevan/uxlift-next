@@ -292,7 +292,7 @@ export default async function TopicPage({
 
       
 
-      <div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg p-1 rounded-full left-1/2 transform -translate-x-1/2 z-50'>
+      <div className='bg-gray-100/70 backdrop-blur-lg dark:bg-gray-900/70 flex flex-row fixed bottom-[10px] shadow-lg  rounded-full left-1/2 transform -translate-x-1/2 z-50'>
         <a href="#articles" className='p-4 hover:bg-gray-200 rounded-full'>
           <FileText className='size-6'/>
         </a>

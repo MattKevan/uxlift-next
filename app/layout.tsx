@@ -48,7 +48,7 @@ export default async function RootLayout({
       <NotificationProvider>
       <Notification />
 
-        <div className="relative isolate flex flex-col min-h-svh w-full">
+        <div className="relative isolate flex flex-col min-h-screen w-full">
           
           <div className=" w-[60px] fixed top-0 h-full max-lg:hidden md:border-r ">
             <Link href='/'>
@@ -58,10 +58,11 @@ export default async function RootLayout({
           
           <Header/>
 
-          <div className="flex-grow  lg:ml-[60px] pb-12">
+          <div className="flex-grow  lg:ml-[60px]">
             {children}
-            <Footer/>
+
           </div>
+          <Footer/>
 
         </div>
         </NotificationProvider>
