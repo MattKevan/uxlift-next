@@ -10,13 +10,26 @@ import { ExternalLink } from '@mynaui/icons-react'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
+  id: number
   title: string | null
   slug: string | null
+  url: string | null
   site_icon: string | null
+}
+
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+
+type PostTopic = {
+  topic: Topic
 }
 
 interface PostWithSite extends BasePost {
   site: Site | null
+  content_post_topics: PostTopic[]
 }
 
 type Params = Promise<{ slug: string }>
@@ -76,6 +89,13 @@ export default async function SitePage({
         slug,
         url,
         site_icon
+      ),
+      content_post_topics!left (
+        topic:content_topic (
+          id,
+          name,
+          slug
+        )
       )
     `)
     .eq('site_id', site.id)

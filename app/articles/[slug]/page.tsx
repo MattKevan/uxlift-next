@@ -13,9 +13,26 @@ import { Bookmark, ExternalLink, Like } from '@mynaui/icons-react'
 // Types from PostHorizontalSmall to ensure compatibility
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
+  id: number
   title: string | null
   slug: string | null
+  url: string | null
   site_icon: string | null
+}
+
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+
+type PostTopic = {
+  topic: Topic
+}
+
+interface PostWithSite extends BasePost {
+  site: Site | null
+  content_post_topics: PostTopic[]
 }
 interface RelatedPostResponse {
   post: {
@@ -44,15 +61,6 @@ interface PostWithSite extends BasePost {
   topics?: Topic[]
 }
 
-interface Topic {
-  id: number
-  name: string
-  slug: string
-}
-
-interface PostTopic {
-  topic: Topic
-}
 
 type Props = {
   params: {
@@ -205,19 +213,30 @@ export default async function PostPage({
       content: post.content,
       tags_list: post.tags_list,
       user_id: post.user_id,
-      slug:post.slug,
+      slug: post.slug,
       site: {
         title: post.site?.title || null,
         slug: post.site?.slug || null,
-        site_icon: post.site?.site_icon || null
-      }
+        site_icon: post.site?.site_icon || null,
+        id: post.site?.id,
+        url: post.site?.url
+      },
+      // Add the required content_post_topics field
+      content_post_topics: post.content_post_topics?.map((pt: any) => ({
+        topic: {
+          id: pt.topic.id,
+          name: pt.topic.name,
+          slug: pt.topic.slug
+        }
+      })) || []
     }
   }
+  
   
 
   // Get related posts with same topics
   const topicIds = post.topics?.map(topic => topic.id) || []
-const { data: relatedPosts } = await supabase
+  const { data: relatedPosts } = await supabase
   .from('content_post_topics')
   .select(`
     post:content_post (
@@ -225,7 +244,16 @@ const { data: relatedPosts } = await supabase
       site:content_site (
         title,
         slug,
-        site_icon
+        site_icon,
+        id,
+        url
+      ),
+      content_post_topics!left (
+        topic:content_topic (
+          id,
+          name,
+          slug
+        )
       )
     )
   `)

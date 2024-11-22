@@ -11,17 +11,28 @@ import { BookCard } from '@/components/BookCards'
 import { BookWithTopics } from '@/components/BookCards'  // Import the interface
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
-
 type Site = {
+  id: number
   title: string | null
   slug: string | null
+  url: string | null
   site_icon: string | null
+}
+
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+
+type PostTopic = {
+  topic: Topic
 }
 
 interface PostWithSite extends BasePost {
   site: Site | null
+  content_post_topics: PostTopic[]
 }
-
 type Params = Promise<{ slug: string }>
 type SearchParams = Promise<{ page?: string }>
 

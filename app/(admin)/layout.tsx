@@ -8,9 +8,9 @@ export default async function AdminLayout({
 }) {
   const supabase = await createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
   
-  if (!session?.user) {
+  if (!user) {
     redirect('/sign-in')
   }
 
@@ -18,7 +18,7 @@ export default async function AdminLayout({
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('is_admin')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (!profile?.is_admin) {

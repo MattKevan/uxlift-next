@@ -17,11 +17,19 @@ type Site = {
   slug: string | null
   site_icon: string | null
 }
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+type PostTopic = {
+  topic: Topic
+}
 
 interface PostWithSite extends BasePost {
   site: Site | null
+  content_post_topics: PostTopic[]
 }
-
 function truncateToWords(str: string, numWords: number) {
   const words = str.trim().split(/\s+/)
   if (words.length <= numWords) return str
@@ -75,7 +83,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
               </time>
             )}
           </div>
-          <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-2 tracking-tight leading-tight md:leading-tight">
+          <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-3 tracking-tight leading-tight md:leading-tight">
             <a 
               href={`/articles/${post.slug}`}
        
@@ -84,6 +92,19 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
             </a>
 
           </h2>
+          {post.content_post_topics && post.content_post_topics.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {post.content_post_topics.map(({ topic }) => (
+                <Link
+                  key={topic.id}
+                  href={`/topics/${topic.slug}`}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {topic.name}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-auto pt-4 text-sm text-gray-400 items-center gap-2 flex">
           <div>
@@ -100,8 +121,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
   </Tooltip>
 </TooltipProvider>
 </div>
-<Like />
-          <Bookmark />
+
         </div>
       </div>
 

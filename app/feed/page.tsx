@@ -9,17 +9,30 @@ import { Button } from '@/components/catalyst/button'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
+  id: number
   title: string | null
   slug: string | null
+  url: string | null
   site_icon: string | null
+}
+
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+
+type PostTopic = {
+  topic: Topic
 }
 
 interface PostWithSite extends BasePost {
   site: Site | null
+  content_post_topics: PostTopic[]
 }
 
+
 // Add types for the topics
-type Topic = Database['public']['Tables']['content_topic']['Row']
 type UserTopicWithDetails = {
   topic_id: number
   topic: Topic
@@ -49,9 +62,9 @@ export default async function ProfilePage({
 
   const supabase = await createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
   
-  if (!session) {
+  if (!user) {
     redirect('/sign-in')
   }
 
@@ -59,7 +72,7 @@ export default async function ProfilePage({
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('id')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (!profile) {

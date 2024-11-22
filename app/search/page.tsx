@@ -4,33 +4,33 @@
 import { createClient } from '@/utils/supabase/client'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { useState } from 'react'
-import { useDebounce } from '@/hooks/useDebounce'
-import { useEffect } from 'react'
 import type { Database } from '@/types/supabase'
-import { SparklesIcon } from '@heroicons/react/24/outline'
-import { Sparkles } from '@mynaui/icons-react'
-import { Button } from '@/components/ui/button'
+
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 
 type Site = {
-    id: number
-    title: string | null
-    slug: string | null
-    url: string | null
-    site_icon: string | null
-  }
-  
-  interface PostWithSite extends BasePost {
-    site: Site | null
-    topics?: {
-      id: number
-      name: string
-      slug: string
-    }[]
-  }
-  
+  id: number
+  title: string | null
+  slug: string | null
+  url: string | null
+  site_icon: string | null
+}
 
+type Topic = {
+  id: number
+  name: string
+  slug: string
+}
+
+type PostTopic = {
+  topic: Topic
+}
+
+interface PostWithSite extends BasePost {
+  site: Site | null
+  content_post_topics: PostTopic[]
+}
 interface SearchResult {
   id: number
   content: string
@@ -104,22 +104,8 @@ interface SearchResponse {
       const { data: posts, error: postsError } = await supabase
       .from('content_post')
       .select(`
-        id,
-        slug,
-        title,
-        description,
-        date_published,
-        date_created,
-        link,
-        image_path,
-        content,
-        indexed,
-        site_id,
-        status,
-        summary,
-        tags_list,
-        user_id,
-        site:content_site!left ( 
+        *,
+        site:content_site!left (
           id,
           title,
           slug,
@@ -141,18 +127,14 @@ interface SearchResponse {
       throw new Error('Failed to fetch post details')
     }
 
-    console.log('Fetched posts:', posts)
-
-    // Updated transformation to handle site data correctly
+    // Transform the posts to match the expected interface
     const transformedPosts: PostWithSite[] = posts?.map(post => ({
       ...post,
-      // Take the first item from the site array if it exists
       site: Array.isArray(post.site) ? post.site[0] || null : post.site,
-      topics: post.content_post_topics
-        ?.map((topicRef: any) => topicRef.topic)
-        .filter(Boolean) || []
+      content_post_topics: post.content_post_topics?.map((pt: any) => ({
+        topic: pt.topic
+      })) || []
     })) || []
-
     // Sort posts based on search result similarity
     const sortedPosts = transformedPosts.sort((a, b) => {
       const aResult = searchResults.find(r => r.metadata.post_id === a.id)

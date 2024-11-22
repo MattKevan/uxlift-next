@@ -46,7 +46,14 @@ export default async function NewsPage({
           slug,
           url,
           site_icon
+      ),
+    content_post_topics!inner (
+      topic:topic_id (
+        id,
+        name,
+        slug
       )
+    )
     `, { count: 'exact' })
     .eq('status', 'published')
     .order('date_published', { ascending: false })

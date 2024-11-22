@@ -35,13 +35,13 @@ export default function AuthButton() {
       setProfile(profile);
     }
 
-    // Initial session check
+    // Initial auth check
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await getProfile(session.user.id);
+        const { data: { user }, error } = await supabase.auth.getUser();
+        setUser(user);
+        if (user) {
+          await getProfile(user.id);
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
@@ -53,9 +53,10 @@ export default function AuthButton() {
     // Set up real-time auth subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await getProfile(session.user.id);
+        const { data: { user }, error } = await supabase.auth.getUser();
+        setUser(user);
+        if (user) {
+          await getProfile(user.id);
         } else {
           setProfile(null);
         }

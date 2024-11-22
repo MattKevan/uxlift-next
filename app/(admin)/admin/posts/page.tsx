@@ -310,8 +310,9 @@ export default function AdminPosts() {
     setRefreshing(true)
     
     // Get the session
-    const { data: { session } } = await supabase.auth.getSession()
-    
+  
+    const { data: { user }, error } = await supabase.auth.getUser()
+
     const response = await fetch('/api/process-feeds', {
       method: 'GET',
       credentials: 'include',

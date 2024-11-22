@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import type { Database } from '@/types/supabase'
 import { CldUploadWidget } from 'next-cloudinary'
 import TopicSelector from './TopicSelector'
+import { useNotification } from '@/contexts/NotificationContext'
 
 type Profile = Database['public']['Tables']['user_profiles']['Row']
 
@@ -37,6 +38,7 @@ export default function ProfileForm({ profile, userId, initialTopics = [] }: Pro
   const [bluesky, setBluesky] = useState(profile?.bluesky || '')
   const [biography, setBiography] = useState(profile?.biography || '')
   const [role, setRole] = useState(profile?.role || '')
+  const { addNotification } = useNotification()
 
   const validateUsername = async (username: string) => {
     if (!usernameRegex.test(username)) {
