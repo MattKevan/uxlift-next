@@ -1,7 +1,9 @@
-import { signUpAction } from "@/app/actions";
+// /app/sign-up/page.tsx
+
+import { signUpAction } from "@/app/actions/actions";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { FormMessage, Message } from "@/components/form-message";
-import { SubmitButton } from "@/components/submit-button";
+import { SubmitButton } from "@/components/submit-button/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
@@ -39,7 +41,11 @@ export default async function Signup(props: {
               <Checkbox id="newsletter" name="newsletter" />
               <Label htmlFor="newsletter">Subscribe to our newsletter for UX tips and resources</Label>
             </div>
-            <SubmitButton formAction={signUpAction} pendingText="Signing up...">
+            <SubmitButton 
+              formAction={signUpAction as unknown as (formData: FormData) => Promise<any>}
+              pendingText="Signing up..."
+              className="w-full mt-4"
+            >
               Sign up
             </SubmitButton>
             <FormMessage message={searchParams} />

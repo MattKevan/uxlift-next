@@ -1,6 +1,6 @@
 'use client'
 
-import { signOutAction } from "@/app/actions"
+import { signOutAction } from "@/app/actions/actions"
 import { Logout } from "@mynaui/icons-react"
 
 export default function LogoutButton() {

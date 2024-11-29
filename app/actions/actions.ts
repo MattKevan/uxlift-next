@@ -1,3 +1,5 @@
+// /app/actions/actions.ts
+
 "use server";
 
 import { encodedRedirect } from "@/utils/utils";
@@ -112,9 +114,13 @@ export const signUpAction = async (formData: FormData) => {
 };
 
 export const signInAction = async (formData: FormData) => {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = formData.get("email")?.toString();
+  const password = formData.get("password")?.toString();
   const supabase = await createClient();
+
+  if (!email || !password) {
+    return encodedRedirect("error", "/sign-in", "Email and password are required");
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
     email,

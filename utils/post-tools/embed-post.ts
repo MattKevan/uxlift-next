@@ -1,9 +1,13 @@
 // /utils/post-tools/embed-post.ts
 import { OpenAI } from 'openai'
-import type { Database, Json } from '@/types/supabase'
+import { Pinecone, RecordMetadata } from '@pinecone-database/pinecone'
+import type { Database } from '@/types/supabase'
 import { createClient } from '@supabase/supabase-js'
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
 import sanitizeHtml from 'sanitize-html'
+
+const pinecone = new Pinecone()
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || '')
 
 type Post = Database['public']['Tables']['content_post']['Row']
 type SupabaseClient = ReturnType<typeof createClient<Database>>
@@ -15,14 +19,13 @@ interface EmbedPostResult {
   details?: string;
 }
 
-type DocumentMetadata = {
-  [key: string]: Json | undefined;
-} & {
+interface PineconeMetadata extends RecordMetadata {
   post_id: number;
   title: string;
   link: string;
   chunk_index: number;
   total_chunks: number;
+  content: string;
 }
 
 interface ContentStats {
@@ -100,39 +103,34 @@ function getChunkConfig(contentLength: number): ChunkConfig {
   }
 }
 
+
 export async function embedPost(postId: number, supabase: SupabaseClient): Promise<EmbedPostResult> {
   try {
-    // Check for existing embeddings first
-    const { count: existingCount, error: checkError } = await supabase
-      .from('documents')
-      .select('*', { count: 'exact', head: true })
-      .eq('metadata->post_id', postId);
+    // First generate a dummy embedding to use for the initial query
+    const dummyEmbedding = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: "dummy text",
+      dimensions: 1536,
+      encoding_format: "float"
+    })
 
-    if (checkError) {
-      console.error(`Error checking existing embeddings for post ${postId}:`, checkError);
-      return {
-        success: false,
-        error: 'Failed to check existing embeddings',
-        details: checkError.message
-      };
-    }
+    // Check for existing embeddings
+    const existingVectors = await index.query({
+      vector: dummyEmbedding.data[0].embedding,
+      filter: {
+        post_id: { $eq: postId }
+      },
+      topK: 1
+    })
 
     // If embeddings exist, delete them
-    if (existingCount && existingCount > 0) {
-      console.log(`Removing ${existingCount} existing embeddings for post ${postId}`);
-      const { error: deleteError } = await supabase
-        .from('documents')
-        .delete()
-        .eq('metadata->post_id', postId);
-
-      if (deleteError) {
-        console.error('Error deleting existing embeddings:', deleteError);
-        return {
-          success: false,
-          error: 'Failed to remove existing embeddings',
-          details: deleteError.message
-        };
-      }
+    if (existingVectors.matches && existingVectors.matches.length > 0) {
+      console.log(`Removing existing embeddings for post ${postId}`)
+      await index.deleteMany({
+        filter: {
+          post_id: { $eq: postId }
+        }
+      })
     }
 
     // Fetch the post content
@@ -140,22 +138,22 @@ export async function embedPost(postId: number, supabase: SupabaseClient): Promi
       .from('content_post')
       .select('content, title, description, link')
       .eq('id', postId)
-      .single();
+      .single()
 
     if (fetchError) {
-      console.error('Error fetching post:', fetchError);
+      console.error('Error fetching post:', fetchError)
       return {
         success: false,
         error: 'Failed to fetch post',
         details: fetchError.message
-      };
+      }
     }
 
     if (!post) {
       return {
         success: false,
         error: 'Post not found'
-      };
+      }
     }
 
     // Clean the content
@@ -173,117 +171,101 @@ export async function embedPost(postId: number, supabase: SupabaseClient): Promi
       return {
         success: false,
         error: 'Post has no content or description to embed after cleaning'
-      };
+      }
     }
 
-    // Create content string for embedding with cleaned content
+    // Create content string for embedding
     const contentToEmbed = [
       post.title && `Title: ${post.title}`,
       cleanDescription && `Description: ${cleanDescription}`,
       cleanContent && `Content: ${cleanContent}`
-    ].filter(Boolean).join('\n\n');
+    ].filter(Boolean).join('\n\n')
 
-    // Get chunk configuration based on content length
-    const chunkConfig = getChunkConfig(contentToEmbed.length);
+    // Get chunk configuration
+    const chunkConfig = getChunkConfig(contentToEmbed.length)
 
-    // Initialize text splitter with dynamic chunk size
+    // Initialize text splitter
     const textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: chunkConfig.size,
       chunkOverlap: chunkConfig.overlap,
-    });
+    })
 
     // Split text into chunks
-    const chunks = await textSplitter.createDocuments([contentToEmbed]);
+    const chunks = await textSplitter.createDocuments([contentToEmbed])
 
-    console.log(`Processing post ${postId} with chunk size ${chunkConfig.size} and ${chunks.length} chunks`);
+    console.log(`Processing post ${postId} with chunk size ${chunkConfig.size} and ${chunks.length} chunks`)
 
     // Process each chunk
     for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
+      const chunk = chunks[i]
       
       try {
-        // Generate embedding
         const embedding = await openai.embeddings.create({
-          model: "text-embedding-ada-002",
+          model: "text-embedding-3-small",
           input: chunk.pageContent,
-        });
+          dimensions: 1536,
+          encoding_format: "float"
+        })
 
-        const metadata: DocumentMetadata = {
+        const metadata: PineconeMetadata = {
           post_id: postId,
           title: post.title || '',
           link: post.link || '',
           chunk_index: i,
-          total_chunks: chunks.length
-        };
-
-        const documentInsert: Database['public']['Tables']['documents']['Insert'] = {
-          content: chunk.pageContent,
-          embedding: JSON.stringify(embedding.data[0].embedding),
-          metadata: metadata
-        };
-
-        // Store in documents table
-        const { error: insertError } = await supabase
-          .from('documents')
-          .insert(documentInsert);
-
-        if (insertError) {
-          // If insertion fails, cleanup any successfully inserted chunks
-          await supabase
-            .from('documents')
-            .delete()
-            .eq('metadata->post_id', postId);
-
-          console.error('Error inserting embedding:', insertError);
-          return {
-            success: false,
-            error: 'Failed to insert embedding',
-            details: insertError.message
-          };
+          total_chunks: chunks.length,
+          content: chunk.pageContent
         }
-      } catch (error) {
-        // If OpenAI API fails, cleanup any successfully inserted chunks
-        await supabase
-          .from('documents')
-          .delete()
-          .eq('metadata->post_id', postId);
 
-        console.error('OpenAI API error:', error);
+        await index.upsert([{
+          id: `post-${postId}-chunk-${i}`,
+          values: embedding.data[0].embedding,
+          metadata
+        }])
+
+      } catch (error) {
+        // If error occurs, cleanup vectors for this post
+        await index.deleteMany({
+          filter: {
+            post_id: { $eq: postId }
+          }
+        })
+
+        console.error('Error processing chunk:', error)
         return {
           success: false,
-          error: 'OpenAI API error',
-          details: error instanceof Error ? error.message : 'Unknown OpenAI error'
-        };
+          error: 'Processing error',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }
       }
     }
 
-    // Only update indexed status if all chunks were successfully processed
+    // Update indexed status in Supabase
     const { error: updateError } = await supabase
       .from('content_post')
       .update({ indexed: true })
-      .eq('id', postId);
+      .eq('id', postId)
 
     if (updateError) {
-      console.error('Error updating post indexed status:', updateError);
+      console.error('Error updating post indexed status:', updateError)
       return {
         success: false,
         error: 'Failed to update post indexed status',
         details: updateError.message
-      };
+      }
     }
 
-    console.log(`Successfully embedded post ${postId} in ${chunks.length} chunks`);
+    console.log(`Successfully embedded post ${postId} in ${chunks.length} chunks`)
     return {
       success: true,
       chunks: chunks.length
-    };
+    }
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error:', error)
     return {
       success: false,
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error occurred'
-    };
+    }
   }
 }

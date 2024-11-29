@@ -1,14 +1,24 @@
-// /app/api/search/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { OpenAI } from 'openai'
+import { Pinecone, RecordMetadata, QueryOptions } from '@pinecone-database/pinecone'
 import { NextResponse } from 'next/server'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
 })
 
+const pinecone = new Pinecone()
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || '')
+
+interface PineconeMetadata extends RecordMetadata {
+  post_id: number
+  title: string
+  link: string
+  content: string
+}
+
 interface DocumentMatch {
-  id: number
+  id: string
   content: string
   metadata: {
     post_id: number
@@ -19,11 +29,11 @@ interface DocumentMatch {
 }
 
 export async function POST(request: Request) {
-  let query: string = '';
+  let query: string = ''
   
   try {
-    const body = await request.json();
-    query = body.query;
+    const body = await request.json()
+    query = body.query
 
     if (!query) {
       return NextResponse.json(
@@ -33,53 +43,81 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
-    
     const { data: { user } } = await supabase.auth.getUser()
 
-
-    // Generate embedding for search query
+    // Generate embedding for the search query
     const embedding = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
+      model: "text-embedding-3-small",
       input: query,
+      dimensions: 1536,
+      encoding_format: "float"
     })
 
-    let documents: DocumentMatch[] | null = null
-    let summaryText: string | null = null
+    let documents: DocumentMatch[] = []
 
-    // First try with stricter threshold
+    // Configure query options
+    const strictQueryOptions: QueryOptions = {
+      vector: embedding.data[0].embedding,
+      topK: 12,
+      includeMetadata: true,
+    }
+
+    // First attempt with stricter threshold
     try {
-      const { data: strictResults, error } = await supabase
-        .rpc('match_documents_optimized', {
-          query_embedding: embedding.data[0].embedding,
-          match_count: 12,
-          similarity_threshold: 0.7
-        }) as { data: DocumentMatch[] | null, error: any }
+      const strictResults = await index.query(strictQueryOptions)
 
-      if (!error && strictResults && strictResults.length > 0) {
-        documents = strictResults
+      if (strictResults.matches && strictResults.matches.length > 0) {
+        // Filter results with score >= 0.75
+        documents = strictResults.matches
+          .filter(match => (match.score || 0) >= 0.75)
+          .map(match => ({
+            id: match.id,
+            content: (match.metadata as PineconeMetadata).content,
+            metadata: {
+              post_id: (match.metadata as PineconeMetadata).post_id,
+              title: (match.metadata as PineconeMetadata).title,
+              link: (match.metadata as PineconeMetadata).link
+            },
+            similarity: match.score || 0
+          }))
       }
     } catch (firstTryError) {
-      console.log('First attempt failed, trying with relaxed parameters...')
+      console.error('First attempt failed:', firstTryError)
     }
 
-    // If first try failed, try with relaxed parameters
-    if (!documents) {
-      const { data: relaxedResults, error } = await supabase
-        .rpc('match_documents_optimized', {
-          query_embedding: embedding.data[0].embedding,
-          match_count: 3,
-          similarity_threshold: 0.5
-        }) as { data: DocumentMatch[] | null, error: any }
-
-      if (error) {
-        throw error
+    // If no results, try with relaxed parameters
+    if (documents.length === 0) {
+      const relaxedQueryOptions: QueryOptions = {
+        vector: embedding.data[0].embedding,
+        topK: 3,
+        includeMetadata: true,
       }
 
-      documents = relaxedResults
+      try {
+        const relaxedResults = await index.query(relaxedQueryOptions)
+
+        if (relaxedResults.matches) {
+          // Filter results with score >= 0.6
+          documents = relaxedResults.matches
+            .filter(match => (match.score || 0) >= 0.6)
+            .map(match => ({
+              id: match.id,
+              content: (match.metadata as PineconeMetadata).content,
+              metadata: {
+                post_id: (match.metadata as PineconeMetadata).post_id,
+                title: (match.metadata as PineconeMetadata).title,
+                link: (match.metadata as PineconeMetadata).link
+              },
+              similarity: match.score || 0
+            }))
+        }
+      } catch (secondTryError) {
+        console.error('Second attempt failed:', secondTryError)
+      }
     }
 
-    if (!documents || documents.length === 0) {
-      // Save failed search attempt
+    // If still no results, return 404
+    if (documents.length === 0) {
       await supabase.from('search_history').insert({
         query: query.trim(),
         user_id: user?.id || null,
@@ -93,17 +131,28 @@ export async function POST(request: Request) {
       )
     }
 
+    // Prepare context for summary
     const contextText = documents
-      .map((doc: DocumentMatch) => `${doc.content}`)
+      .map((doc: DocumentMatch) => doc.content)
       .join('\n\n')
       .slice(0, 2000)
 
+    // Generate summary using GPT-4
     const summary = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use four sentences maximum and keep the answer concise."
+          content: `You are an expert UX design educator. Your role is to provide clear, accurate, and helpful answers about UX design concepts.
+When answering questions, follow these guidelines:
+- Provide concrete explanations with real-world examples where relevant
+- Focus on practical applications and industry best practices
+- If the question is about fundamentals (like "What is UX?"), start with a clear definition
+- Include key principles or components when explaining concepts
+- Keep the tone professional but approachable
+- Format your response with Markdown if necessary
+- Write it as though you are giving the information, not 'the context...' or 'the query asks...'
+Use the provided context to enhance your answer, but also draw from fundamental UX knowledge for basic questions. Do not make things up if you don't know the answer, just say you don't know.`
         },
         {
           role: "user",
@@ -111,12 +160,12 @@ export async function POST(request: Request) {
         }
       ],
       temperature: 0,
-      max_tokens: 150
+      max_tokens: 1000
     })
 
-    summaryText = summary.choices[0].message.content
+    const summaryText = summary.choices[0].message.content
 
-    // Save successful search
+    // Save successful search to history
     await supabase.from('search_history').insert({
       query: query.trim(),
       summary: summaryText,
@@ -124,19 +173,20 @@ export async function POST(request: Request) {
       user_id: user?.id || null
     })
 
+    // Return results and summary
     return NextResponse.json({
       results: documents,
-      summary: summaryText
+      answer: summaryText
     })
 
   } catch (error) {
     console.error('Unexpected error:', error)
     
-    // Only try to save failed search if we have a query
+    // Save failed search to history
     if (query) {
       try {
         const supabase = await createClient()
-        const { data: { user }, error } = await supabase.auth.getUser()
+        const { data: { user } } = await supabase.auth.getUser()
         
         await supabase.from('search_history').insert({
           query: query.trim(),
@@ -150,8 +200,16 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
       { status: 500 }
     )
   }
+}
+
+// Add OPTIONS handler for CORS if needed
+export async function OPTIONS(request: Request) {
+  return NextResponse.json({}, { status: 200 })
 }

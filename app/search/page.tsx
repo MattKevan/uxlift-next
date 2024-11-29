@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { useState } from 'react'
 import type { Database } from '@/types/supabase'
+import ReactMarkdown from 'react-markdown'
 
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
@@ -43,115 +44,133 @@ interface SearchResult {
 }
 
 interface SearchResponse {
-    results: SearchResult[];
-    summary: string;
+  results: SearchResult[];
+  answer: string;  // Changed from summary to answer to match API response
+}
+const exampleQuestions = [
+  {
+    id: 1,
+    question: "Please outline the key steps of the Lean UX process"
+  },
+  {
+    id: 2,
+    question: "What is the Double Diamond design process?"
+  },
+  {
+    id: 3,
+    question: "How do you conduct effective user interviews?"
+  },
+  {
+    id: 4,
+    question: "What are the key principles of usability?"
   }
+]
 
-  export default function SearchPage() {
+export default function SearchPage() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PostWithSite[]>([])
-  const [summary, setSummary] = useState<string>('')
+  const [answer, setAnswer] = useState<string>('')  // Changed from summary to answer
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  const clearSearch = () => {
-    setQuery('')
-    setResults([])
-    setSummary('')
-    setError(null)
+  const handleExampleClick = async (question: string) => {
+    // Immediately perform the search with the question
+    performSearch(question)
   }
 
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!query.trim()) {
+  // Separate the search logic from the event handler
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
       setResults([])
-      setSummary('')
+      setAnswer('')
       return
     }
   
     setLoading(true)
     setError(null)
-  
+    
     try {
-      console.log('Searching for:', query)
+      console.log('Searching for:', searchQuery)
   
       const response = await fetch('/api/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query: searchQuery }),
       })
   
       if (!response.ok) {
-        throw new Error('Search failed')
+        throw new Error("Sorry, I couldn't find an answer to your question. Please try another.")
       }
   
       const data: SearchResponse = await response.json()
       console.log('Search response:', data)
   
-      const { results: searchResults, summary } = data
+      const { results: searchResults, answer } = data
   
-      // Get unique post IDs using Array.from instead of spread operator
       const postIds = Array.from(
         new Set(searchResults.map(r => r.metadata.post_id))
       )
       
-      // Updated select query to match the topics page structure
       const { data: posts, error: postsError } = await supabase
-      .from('content_post')
-      .select(`
-        *,
-        site:content_site!left (
-          id,
-          title,
-          slug,
-          url,
-          site_icon
-        ),
-        content_post_topics!left (
-          topic:content_topic (
+        .from('content_post')
+        .select(`
+          *,
+          site:content_site!left (
             id,
-            name,
-            slug
+            title,
+            slug,
+            url,
+            site_icon
+          ),
+          content_post_topics!left (
+            topic:content_topic (
+              id,
+              name,
+              slug
+            )
           )
-        )
-      `)
-      .in('id', postIds)
-      .eq('status', 'published')
+        `)
+        .in('id', postIds)
+        .eq('status', 'published')
 
-    if (postsError) {
-      throw new Error('Failed to fetch post details')
-    }
+      if (postsError) {
+        throw new Error('Failed to fetch post details')
+      }
 
-    // Transform the posts to match the expected interface
-    const transformedPosts: PostWithSite[] = posts?.map(post => ({
-      ...post,
-      site: Array.isArray(post.site) ? post.site[0] || null : post.site,
-      content_post_topics: post.content_post_topics?.map((pt: any) => ({
-        topic: pt.topic
+      const transformedPosts: PostWithSite[] = posts?.map(post => ({
+        ...post,
+        site: Array.isArray(post.site) ? post.site[0] || null : post.site,
+        content_post_topics: post.content_post_topics?.map((pt: any) => ({
+          topic: pt.topic
+        })) || []
       })) || []
-    })) || []
-    // Sort posts based on search result similarity
-    const sortedPosts = transformedPosts.sort((a, b) => {
-      const aResult = searchResults.find(r => r.metadata.post_id === a.id)
-      const bResult = searchResults.find(r => r.metadata.post_id === b.id)
-      return (bResult?.similarity || 0) - (aResult?.similarity || 0)
-    })
 
-    setResults(sortedPosts)
-    setSummary(summary)
+      const sortedPosts = transformedPosts.sort((a, b) => {
+        const aResult = searchResults.find(r => r.metadata.post_id === a.id)
+        const bResult = searchResults.find(r => r.metadata.post_id === b.id)
+        return (bResult?.similarity || 0) - (aResult?.similarity || 0)
+      })
 
-  } catch (err) {
-    console.error('Search error:', err)
-    setError(err instanceof Error ? err.message : 'An error occurred while searching')
-  } finally {
-    setLoading(false)
+      setQuery(searchQuery) // Update the input field
+      setResults(sortedPosts)
+      setAnswer(answer)
+
+    } catch (err) {
+      console.error('Search error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred while searching')
+    } finally {
+      setLoading(false)
+    }
   }
-}
+
+  // Update form submit handler to use performSearch
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await performSearch(query)
+  }
 
   return (
     <main className="">
@@ -172,7 +191,7 @@ interface SearchResponse {
     setQuery(e.target.value)
     if (e.target.value === '') {
       setResults([])
-      setSummary('')
+      setAnswer('')
       setError(null)
     }
   }}
@@ -202,31 +221,51 @@ interface SearchResponse {
   </div>
 </form>
 
- 
-
-      {error && (
-        <div className="px-4 sm:px-6 py-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg mb-8">
-          {error}
+      {!results.length && !answer && !loading && (
+        <div className="">
+          <h2 id="answer" className="text-lg font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
+            Things you could ask
+          </h2>         
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 max-w-5xl">
+            {exampleQuestions.map((q) => (
+              <button
+                key={q.id}
+                onClick={() => handleExampleClick(q.question)}
+                className="p-4 text-left border rounded-lg hover:border-blue-500 
+                          transition-colors duration-200 bg-white/50 dark:bg-gray-800/50
+                          hover:bg-white dark:hover:bg-gray-800"
+              >
+                <p className="text-lg">{q.question}</p>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      
+      {error && (
+  <>
+  <h2 id="answer" className="text-lg font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
+            Answer
+          </h2>
+        <div className="p-4">
+          {error}
+        </div>
+        </>
+      )}
+
+      {answer && (
+        <>
+          
+          <div className="p-4 max-w-5xl mb-12 prose dark:prose-invert prose-lg">
+            <ReactMarkdown>
+              {answer}
+            </ReactMarkdown>
+          </div>
+        </>
+      )}
 
       {results.length > 0 && (
         <>
-          {summary && (
-            <>
-                  <h2 id="summary" className="text-lg font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">Summary</h2>
-
-            <div className="p-4 max-w-5xl mb-12">
-             
-                <p className="">
-                  {summary}
-                </p>
-              </div>
-            </>
-          )}
-
           <h2 className="text-lg font-bold pl-4 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
             Further reading ({results.length})
           </h2>
