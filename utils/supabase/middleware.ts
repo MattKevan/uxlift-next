@@ -1,16 +1,10 @@
-// /utils/supabase/middleware.ts
-
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-// Define allowed public API routes
 const publicApiRoutes: string[] = [
-  // Add any public API routes here
-  // '/api/public-route',
   '/api/search',
   '/api/fetch-url'
 ];
-
 
 export const updateSession = async (request: NextRequest) => {
   try {
@@ -43,44 +37,43 @@ export const updateSession = async (request: NextRequest) => {
       },
     );
 
+    const isPublicRoute = publicApiRoutes.some(route => 
+      request.nextUrl.pathname.startsWith(route)
+    );
+
+    if (isPublicRoute) {
+    return response;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Check API routes
     if (request.nextUrl.pathname.startsWith("/api")) {
-      // Check if the current route is in the public routes list
-      const isPublicRoute = publicApiRoutes.includes(request.nextUrl.pathname);
+      if (!user) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Unauthorized - Not logged in' }), 
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
 
-      if (!isPublicRoute) {
-        // If not a public route, verify admin status
-        if (!user) {
-          return new NextResponse(
-            JSON.stringify({ error: 'Unauthorized - Not logged in' }), 
-            { status: 401, headers: { 'Content-Type': 'application/json' } }
-          );
-        }
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('is_admin')
+        .eq('user_id', user.id)
+        .single();
 
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('is_admin')
-          .eq('user_id', user.id)
-          .single();
-
-        if (!profile?.is_admin) {
-          return new NextResponse(
-            JSON.stringify({ error: 'Unauthorized - Admin access required' }), 
-            { status: 401, headers: { 'Content-Type': 'application/json' } }
-          );
-        }
+      if (!profile?.is_admin) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Unauthorized - Admin access required' }), 
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
       }
     }
 
-    // If accessing admin routes, check if user exists and is admin
     if (request.nextUrl.pathname.startsWith("/admin")) {
       if (!user) {
         return NextResponse.redirect(new URL("/sign-in", request.url));
       }
 
-      // Check if user is admin
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('is_admin')
@@ -92,13 +85,12 @@ export const updateSession = async (request: NextRequest) => {
       }
     }
 
-    // Protected routes check
     if (request.nextUrl.pathname.startsWith("/protected") && !user) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
-
     return response;
   } catch (e) {
+    console.error('Middleware error:', e);
     return NextResponse.next({
       request: {
         headers: request.headers,

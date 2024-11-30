@@ -165,48 +165,47 @@ Use the provided context to enhance your answer, but also draw from fundamental 
 
     const summaryText = summary.choices[0].message.content
 
-    // Save successful search to history
-    await supabase.from('search_history').insert({
-      query: query.trim(),
-      summary: summaryText,
-      total_results: documents.length,
-      user_id: user?.id || null
-    })
+  // Log all searches with user_id if available, null if not
+  await supabase.from('search_history').insert({
+    query: query.trim(),
+    summary: summaryText,
+    total_results: documents.length,
+    user_id: user?.id || null // null for anonymous users
+  })
 
-    // Return results and summary
-    return NextResponse.json({
-      results: documents,
-      answer: summaryText
-    })
+  return NextResponse.json({
+    results: documents,
+    answer: summaryText
+  })
 
-  } catch (error) {
-    console.error('Unexpected error:', error)
-    
-    // Save failed search to history
-    if (query) {
-      try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        await supabase.from('search_history').insert({
-          query: query.trim(),
-          user_id: user?.id || null,
-          total_results: 0,
-          summary: null
-        })
-      } catch (dbError) {
-        console.error('Failed to save failed search:', dbError)
-      }
+} catch (error) {
+  console.error('Unexpected error:', error)
+  
+  // Log failed searches too
+  if (query) {
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      await supabase.from('search_history').insert({
+        query: query.trim(),
+        user_id: user?.id || null, // null for anonymous users
+        total_results: 0,
+        summary: null
+      })
+    } catch (dbError) {
+      console.error('Failed to save failed search:', dbError)
     }
-
-    return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
-    )
   }
+
+  return NextResponse.json(
+    { 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    },
+    { status: 500 }
+  )
+}
 }
 
 // Add OPTIONS handler for CORS if needed

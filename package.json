@@ -65,6 +65,7 @@
     "@types/sanitize-html": "^2.13.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "node-fetch": "^2.7.0",
     "postcss": "8.4.33",
     "supabase": "^1.215.0",
     "tailwind-merge": "^2.5.2",
