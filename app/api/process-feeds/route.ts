@@ -15,7 +15,7 @@ const createServiceClient = () => {
 
 export async function GET(request: Request) {
   try {
-    // Validate the request
+    // Get the user's session
     const supabase = await createServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -23,8 +23,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all active sites
     const serviceClient = createServiceClient()
+    
     const { data: sites, error: sitesError } = await serviceClient
       .from('content_site')
       .select('*')
@@ -48,15 +48,27 @@ export async function GET(request: Request) {
 
     if (jobError) throw jobError
 
-    // Trigger the background processing
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/process-feeds-background`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.CRON_SECRET}`
-      },
-      body: JSON.stringify({ jobId: job.id })
-    })
+     // Pass the user's session token to the background process
+     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+     if (sessionError || !session) {
+       throw new Error('Failed to get session')
+     }
+ 
+     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+     const host = request.headers.get('host') || 'localhost:3000'
+     const baseUrl = `${protocol}://${host}`
+ 
+     const response = await fetch(`${baseUrl}/api/process-feeds-background`, {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${session.access_token}` // Use the session token instead of CRON_SECRET
+       },
+       body: JSON.stringify({ 
+         jobId: job.id,
+         userId: user.id 
+       })
+     })
 
     return NextResponse.json({
       success: true,
