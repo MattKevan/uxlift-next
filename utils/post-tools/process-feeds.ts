@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { fetchAndProcessContent } from './fetch-content'
 import { summarisePost } from './summarise'
 import { tagPost } from './tag-posts'
+import { embedPost } from './embed-post'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -86,6 +87,9 @@ export async function processFeedItems(supabase: SupabaseClient) {
                   
                   // Tag the post
                   await tagPost(newPost.id, supabase)
+
+                  // Embed the post
+                  await embedPost(newPost.id, supabase)
                   
                   results.processed++
                 } catch (processingError) {

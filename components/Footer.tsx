@@ -16,6 +16,15 @@ export default async function Footer() {
 
     return (
         <div className="lg:ml-[60px]">
+            <div className="border-y mt-12">
+            <iframe 
+          src="https://embeds.beehiiv.com/9d493c10-b8b3-41a9-9e8a-1d5767d98d81" 
+          data-test-id="beehiiv-embed" 
+          width="100%" 
+          height="320" 
+          className="dark:bg-gray-950 bg-white"
+        />
+            </div>
         <div className="text-sm p-4 mt-12 flex gap-4">
             <p className="">&copy; 2024. Made in Manchester by <a href="https://www.kevan.tv" className="hover:underline">Matt Kevan</a>.</p>
             <p className="text-gray-400"><a href="/privacy" className="hover:underline">Privacy</a></p>
@@ -23,7 +32,6 @@ export default async function Footer() {
 
             <p className="text-gray-400"><a href="mailto:hello@uxlift.org" className="hover:underline">Contact</a></p>
         </div>
-            <SubscribeButton isSubscriber={isSubscriber} />
         </div>
     )
 }

@@ -419,27 +419,6 @@ export type Database = {
           },
         ]
       }
-      documents: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       newsletter_posts: {
         Row: {
           audience: string
@@ -506,6 +485,33 @@ export type Database = {
         }
         Relationships: []
       }
+      search_history: {
+        Row: {
+          created_at: string
+          id: number
+          query: string
+          summary: string | null
+          total_results: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          query: string
+          summary?: string | null
+          total_results?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          query?: string
+          summary?: string | null
+          total_results?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           biography: string | null
@@ -516,6 +522,7 @@ export type Database = {
           is_admin: boolean
           linkedin: string | null
           name: string | null
+          newsletter_pending: boolean | null
           newsletter_subscriber: boolean | null
           role: string | null
           user_id: string | null
@@ -531,6 +538,7 @@ export type Database = {
           is_admin?: boolean
           linkedin?: string | null
           name?: string | null
+          newsletter_pending?: boolean | null
           newsletter_subscriber?: boolean | null
           role?: string | null
           user_id?: string | null
@@ -546,6 +554,7 @@ export type Database = {
           is_admin?: boolean
           linkedin?: string | null
           name?: string | null
+          newsletter_pending?: boolean | null
           newsletter_subscriber?: boolean | null
           role?: string | null
           user_id?: string | null
