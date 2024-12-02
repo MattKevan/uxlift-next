@@ -49,6 +49,8 @@ export default function AdminPosts() {
   const [showErrors, setShowErrors] = useState(false)
   const [embedding, setEmbedding] = useState<number | null>(null);
   const [batchEmbedding, setBatchEmbedding] = useState(false);
+ 
+ 
   const handleResetIndexStatus = async () => {
     if (!confirm('Are you sure you want to reset the index status for all posts? This will mark all posts as unindexed.')) {
       return;
@@ -300,47 +302,67 @@ export default function AdminPosts() {
       alert(error instanceof Error ? error.message : 'Failed to delete post')
     }
   }
+  
   const formatPublishedDate = (dateString: string | null) => {
     if (!dateString) return 'Not published'
     return format(parseISO(dateString), 'dd/MM/yyyy')
   }
 
   const handleRefreshFeeds = async () => {
-  try {
-    setRefreshing(true)
-    
-    // Get the session
+    try {
+      setRefreshing(true)
   
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    const response = await fetch('/api/process-feeds', {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
+      const response = await fetch('/api/process-feeds', {
+        method: 'GET',
+        credentials: 'include',
+      })
+  
+      const result = await response.json()
+  
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to start feed processing')
       }
-    })
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.details || result.error || 'Failed to refresh feeds')
+  
+      // Start polling for job status
+      const jobId = result.jobId
+      const pollInterval = setInterval(async () => {
+        const { data: job } = await supabase
+          .from('feed_processing_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single()
+  
+        if (job) {
+          if (job.status === 'completed') {
+            clearInterval(pollInterval)
+            setRefreshing(false)
+            alert(`Feeds refreshed successfully! Processed ${job.processed_items} items with ${job.error_count} errors.`)
+            await fetchPosts()
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval)
+            setRefreshing(false)
+            alert(`Feed processing failed: ${job.error}`)
+          } else {
+            // Update progress UI
+            console.log(`Processing: ${job.processed_sites}/${job.total_sites} sites`)
+          }
+        }
+      }, 2000) // Poll every 2 seconds
+  
+      // Clear interval after 10 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(pollInterval)
+        setRefreshing(false)
+      }, 600000)
+  
+    } catch (error) {
+      console.error('Error refreshing feeds:', error)
+      setRefreshing(false)
+      alert(error instanceof Error ? error.message : 'Failed to refresh feeds')
     }
-
-    if (result.success) {
-      alert(`Feeds refreshed successfully! Processed ${result.processed} items with ${result.errors} errors.`)
-      // Refresh the posts list
-      await fetchPosts()
-    }
-
-  } catch (error) {
-    console.error('Error refreshing feeds:', error)
-    alert(error instanceof Error ? error.message : 'Failed to refresh feeds')
-  } finally {
-    setRefreshing(false)
   }
-}
-  const handleAutoTag = async (postId: number) => {
+  
+const handleAutoTag = async (postId: number) => {
     try {
       setTagging(postId)
       

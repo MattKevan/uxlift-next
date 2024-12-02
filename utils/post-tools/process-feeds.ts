@@ -27,7 +27,19 @@ const parser: Parser<CustomFeed, CustomItem> = new Parser({
   }
 })
 
-export async function processFeedItems(supabase: SupabaseClient) {
+// /utils/post-tools/process-feeds.ts
+
+type ProgressCallback = (progress: {
+  processed: number;
+  errors: number;
+  sites: number;
+  currentSite: string;
+}) => Promise<void>;
+
+export async function processFeedItems(
+  supabase: SupabaseClient,
+  onProgress?: ProgressCallback
+) {
   try {
     // Get all active sites with feeds
     const { data: sites, error: sitesError } = await supabase
@@ -42,12 +54,22 @@ export async function processFeedItems(supabase: SupabaseClient) {
       processed: 0,
       errors: 0,
       sites: sites?.length || 0,
+      currentSite: ''
     }
 
     // Process each site
     for (const site of sites || []) {
       try {
         if (!site.feed_url) continue
+
+        results.currentSite = site.title || ''
+        
+        // Report progress
+        if (onProgress) {
+          await onProgress({
+            ...results
+          })
+        }
 
         // Parse the RSS feed
         const feed = await parser.parseURL(site.feed_url)
@@ -92,6 +114,13 @@ export async function processFeedItems(supabase: SupabaseClient) {
                   await embedPost(newPost.id, supabase)
                   
                   results.processed++
+                  
+                  // Report progress after each successful item
+                  if (onProgress) {
+                    await onProgress({
+                      ...results
+                    })
+                  }
                 } catch (processingError) {
                   console.error(`Error processing content for ${item.link}:`, processingError)
                   results.errors++
@@ -104,20 +133,15 @@ export async function processFeedItems(supabase: SupabaseClient) {
           }
         }
       } catch (siteError) {
-        console.error(`Error processing site ${site.title}:`, siteError)
         results.errors++
+        console.error(`Error processing site ${site.title}:`, siteError)
       }
     }
 
-    return {
-      success: true,
-      ...results
-    }
+    return results
+
   } catch (error) {
     console.error('Feed processing error:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }
+    throw error
   }
 }

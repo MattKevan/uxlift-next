@@ -419,6 +419,48 @@ export type Database = {
           },
         ]
       }
+      feed_processing_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          current_site: string | null
+          error: string | null
+          error_count: number
+          id: number
+          processed_items: number
+          processed_sites: number
+          status: string
+          total_sites: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          current_site?: string | null
+          error?: string | null
+          error_count?: number
+          id?: number
+          processed_items?: number
+          processed_sites?: number
+          status?: string
+          total_sites?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          current_site?: string | null
+          error?: string | null
+          error_count?: number
+          id?: number
+          processed_items?: number
+          processed_sites?: number
+          status?: string
+          total_sites?: number
+        }
+        Relationships: []
+      }
       newsletter_posts: {
         Row: {
           audience: string
