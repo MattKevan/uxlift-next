@@ -20,7 +20,13 @@ const createServiceClient = () => {
   )
 }
 
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
+  const startTime = Date.now()
+  const serviceClient = createServiceClient()
+
   try {
     const authHeader = request.headers.get('authorization')
     
@@ -32,7 +38,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { jobId, isCron, userId } = await request.json()
+    const body = await request.json()
+    
+    // Type check and validate jobId
+    if (!body.jobId || typeof body.jobId !== 'number') {
+      return NextResponse.json({ error: 'Invalid job ID' }, { status: 400 })
+    }
+
+    const { jobId, isCron, userId } = body
 
     // If it's not a cron job, verify user session
     if (!isCron) {
@@ -44,7 +57,6 @@ export async function POST(request: Request) {
       }
 
       // Verify admin status
-      const serviceClient = createServiceClient()
       const { data: profile } = await serviceClient
         .from('user_profiles')
         .select('is_admin')
@@ -56,10 +68,22 @@ export async function POST(request: Request) {
       }
     }
 
-    const serviceClient = createServiceClient()
+    // Update job status to processing
+    await serviceClient
+      .from('feed_processing_jobs')
+      .update({
+        status: 'processing',
+        started_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
 
-    // Process feeds in background
+    // Process feeds with progress updates
     const result = await processFeedItems(serviceClient, async (progress) => {
+      // Check if we're approaching the time limit
+      if (Date.now() - startTime > (maxDuration - 30) * 1000) {
+        throw new Error('Approaching time limit, stopping gracefully')
+      }
+
       // Update job status
       await serviceClient
         .from('feed_processing_jobs')
@@ -68,7 +92,8 @@ export async function POST(request: Request) {
           processed_sites: progress.processed,
           error_count: progress.errors,
           current_site: progress.currentSite,
-          processed_items: progress.processed
+          processed_items: progress.processed,
+          last_updated: new Date().toISOString()
         })
         .eq('id', jobId)
     })
@@ -80,26 +105,33 @@ export async function POST(request: Request) {
         status: 'completed',
         completed_at: new Date().toISOString(),
         processed_items: result.processed,
-        error_count: result.errors
+        error_count: result.errors,
+        duration: Math.round((Date.now() - startTime) / 1000)
       })
       .eq('id', jobId)
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      processed: result.processed,
+      errors: result.errors,
+      duration: Math.round((Date.now() - startTime) / 1000)
+    })
 
   } catch (error) {
     console.error('Background processing error:', error)
 
+    // Get jobId from request body again if needed
     try {
       const { jobId } = await request.json()
-      if (jobId) {
-        const serviceClient = createServiceClient()
-        
+      
+      if (jobId && typeof jobId === 'number') {
         await serviceClient
           .from('feed_processing_jobs')
           .update({
             status: 'failed',
             completed_at: new Date().toISOString(),
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
+            duration: Math.round((Date.now() - startTime) / 1000)
           })
           .eq('id', jobId)
       }
@@ -110,7 +142,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        duration: Math.round((Date.now() - startTime) / 1000)
       }, 
       { status: 500 }
     )

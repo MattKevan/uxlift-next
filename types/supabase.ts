@@ -204,6 +204,7 @@ export type Database = {
           status: string
           title: string
           url: string
+          user_id: number | null
         }
         Insert: {
           content?: string | null
@@ -216,6 +217,7 @@ export type Database = {
           status: string
           title: string
           url: string
+          user_id?: number | null
         }
         Update: {
           content?: string | null
@@ -228,8 +230,17 @@ export type Database = {
           status?: string
           title?: string
           url?: string
+          user_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_site_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_site_site_type: {
         Row: {
@@ -425,12 +436,15 @@ export type Database = {
           created_at: string
           created_by: string
           current_site: string | null
+          duration: number | null
           error: string | null
           error_count: number
           id: number
           is_cron: boolean | null
+          last_updated: string | null
           processed_items: number
           processed_sites: number
+          started_at: string | null
           status: string
           total_sites: number
         }
@@ -439,12 +453,15 @@ export type Database = {
           created_at?: string
           created_by: string
           current_site?: string | null
+          duration?: number | null
           error?: string | null
           error_count?: number
           id?: number
           is_cron?: boolean | null
+          last_updated?: string | null
           processed_items?: number
           processed_sites?: number
+          started_at?: string | null
           status?: string
           total_sites?: number
         }
@@ -453,12 +470,15 @@ export type Database = {
           created_at?: string
           created_by?: string
           current_site?: string | null
+          duration?: number | null
           error?: string | null
           error_count?: number
           id?: number
           is_cron?: boolean | null
+          last_updated?: string | null
           processed_items?: number
           processed_sites?: number
+          started_at?: string | null
           status?: string
           total_sites?: number
         }

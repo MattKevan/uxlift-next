@@ -20,6 +20,28 @@ const createServiceClient = () => {
   )
 }
 
+async function acquireLock(supabase: ReturnType<typeof createServiceClient>) {
+  const { data, error } = await supabase
+    .from('feed_processing_jobs')
+    .select('id, created_at')
+    .eq('status', 'processing')
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error) throw error
+
+  // If there's a processing job that started less than 30 minutes ago, don't start a new one
+  if (data.length > 0) {
+    const lastJob = data[0]
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+    if (new Date(lastJob.created_at) > thirtyMinutesAgo) {
+      return false
+    }
+  }
+
+  return true
+}
+
 async function validateRequest(request: Request) {
   // Check for cron secret first
   const authHeader = request.headers.get('authorization')
@@ -56,6 +78,15 @@ export async function GET(request: Request) {
     const { isCron, userId } = await validateRequest(request)
 
     const serviceClient = createServiceClient()
+
+    // Check if another job is already running
+    const canProcess = await acquireLock(serviceClient)
+    if (!canProcess) {
+      return NextResponse.json({
+        success: false,
+        message: 'Another feed processing job is currently running'
+      })
+    }
     
     // Get all active sites for total count
     const { data: sites, error: sitesError } = await serviceClient
@@ -98,10 +129,12 @@ export async function GET(request: Request) {
         .join('; ')
     }
 
-    // Start background processing
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-    const host = request.headers.get('host') || 'localhost:3000'
-    const baseUrl = `${protocol}://${host}`
+    // Determine the base URL
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (
+      process.env.NODE_ENV === 'production'
+        ? `https://${request.headers.get('host')}`
+        : 'http://localhost:3000'
+    )
 
     const response = await fetch(`${baseUrl}/api/process-feeds-background`, {
       method: 'POST',
