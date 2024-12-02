@@ -20,7 +20,7 @@ const createServiceClient = () => {
   )
 }
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
