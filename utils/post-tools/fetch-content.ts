@@ -32,6 +32,52 @@ export async function fetchAndProcessContent(
     console.log('Starting content fetch for URL:', rawUrl)
     const validUrl = validateAndFormatUrl(rawUrl)
 
+    // Define the select query properly
+    const query = `
+  id,
+  title,
+  description,
+  content,
+  image_path,
+  link,
+  date_created,
+  date_published,
+  status,
+  indexed,
+  summary,
+  user_id,
+  site_id,
+  content_site!inner (
+    id,
+    title,
+    url,
+    feed_url,
+    description,
+    site_icon,
+    include_in_newsfeed
+  ),
+  content_post_topics!inner (
+    topic_id,
+    content_topic!inner (
+      id,
+      name,
+      slug
+    )
+  )
+`
+
+    // Check if URL already exists
+    const { data: existingPost } = await supabase
+      .from('content_post')
+      .select(query)
+      .eq('link', validUrl)
+      .single()
+
+    if (existingPost) {
+      console.log('Post already exists:', validUrl)
+      return existingPost
+    }
+
     const response = await fetch(validUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; UXLift/1.0; +https://uxlift.org)'
@@ -71,30 +117,50 @@ export async function fetchAndProcessContent(
       content = $('body').text().trim()
     }
 
+    // Prepare post data
+    const postData = {
+      title: title.substring(0, 255),
+      description: description.substring(0, 500),
+      content,
+      image_path: imagePath,
+      link: validUrl,
+      date_created: new Date().toISOString(),
+      date_published: new Date().toISOString(),
+      status: options?.status || 'draft',
+      indexed: false,
+      summary: '',
+      user_id: options?.user_id || null
+    } as const
+
     console.log('Attempting to insert post with user_id:', options?.user_id)
 
     // Create post
     const { data: post, error: postError } = await supabase
       .from('content_post')
-      .insert({
-        title: title.substring(0, 255),
-        description: description.substring(0, 500),
-        content: content,
-        image_path: imagePath,
-        link: validUrl,
-        date_created: new Date().toISOString(),
-        date_published: new Date().toISOString(),
-        status: options?.status || 'draft',
-        indexed: false,
-        summary: '',
-        user_id: options?.user_id || null
-      })
+      .insert([postData])
       .select()
       .single()
 
     if (postError) {
-      console.error('Post insertion error:', postError)
-      throw postError
+      if (postError.code === '23505') {
+        const { data: existingPost, error: fetchError } = await supabase
+          .from('content_post')
+          .select('*')
+          .eq('link', validUrl)
+          .single()
+
+        if (fetchError) {
+          throw new Error(`Failed to fetch existing post: ${fetchError.message}`)
+        }
+
+        return existingPost
+      }
+      
+      throw new Error(`Failed to insert post: ${postError.message}`)
+    }
+
+    if (!post) {
+      throw new Error('Failed to create post: No data returned')
     }
 
     // Process the post
@@ -103,21 +169,25 @@ export async function fetchAndProcessContent(
       await tagPost(post.id, supabase)
     } catch (processingError) {
       console.error('Post processing error:', processingError)
-      // Continue despite processing errors
     }
 
-    // Fetch final post
+    // Fetch final post with all relations
     const { data: finalPost, error: fetchError } = await supabase
       .from('content_post')
       .select(`
-        *,
-        content_post_topics (
-          content_topic (
-            id,
-            name,
-            slug
-          )
-        )
+        id,
+        title,
+        description,
+        content,
+        image_path,
+        link,
+        date_created,
+        date_published,
+        status,
+        indexed,
+        summary,
+        user_id,
+        site_id
       `)
       .eq('id', post.id)
       .single()
@@ -127,9 +197,17 @@ export async function fetchAndProcessContent(
       throw fetchError
     }
 
+    if (!finalPost) {
+      throw new Error('Failed to fetch final post: No data returned')
+    }
+
     return finalPost
+
   } catch (error) {
     console.error('Content fetching error:', error)
-    throw new Error(error instanceof Error ? error.message : 'Failed to process content')
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to process content')
   }
 }

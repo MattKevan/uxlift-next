@@ -428,6 +428,7 @@ export type Database = {
           error: string | null
           error_count: number
           id: number
+          is_cron: boolean | null
           processed_items: number
           processed_sites: number
           status: string
@@ -441,6 +442,7 @@ export type Database = {
           error?: string | null
           error_count?: number
           id?: number
+          is_cron?: boolean | null
           processed_items?: number
           processed_sites?: number
           status?: string
@@ -454,6 +456,7 @@ export type Database = {
           error?: string | null
           error_count?: number
           id?: number
+          is_cron?: boolean | null
           processed_items?: number
           processed_sites?: number
           status?: string
