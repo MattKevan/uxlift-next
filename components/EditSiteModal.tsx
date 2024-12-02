@@ -31,6 +31,7 @@ export default function EditSiteModal({ site, isOpen, onClose, onUpdate }: EditS
     site_icon: site.site_icon,
     slug: site.slug,
     status: site.status,
+    user_id: site.user_id,
     include_in_newsfeed: site.include_in_newsfeed,
   })
   const [selectedSiteTypes, setSelectedSiteTypes] = useState<number[]>(
