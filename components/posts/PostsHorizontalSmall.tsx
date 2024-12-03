@@ -125,10 +125,10 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
         </div>
       </div>
 
-      {post.image_path && (
+      {post.image_path && post.slug && (
         <div className="relative aspect-square col-span-2 mb-0">
           <a 
-            href={post.link}
+            href={post.slug}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"

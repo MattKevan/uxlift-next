@@ -84,6 +84,7 @@ export default async function SitePage({
       link,
       image_path,
       content,
+      slug,
       site:content_site!left ( 
         title,
         slug,
