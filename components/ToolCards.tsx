@@ -13,10 +13,8 @@ export function ToolCard({ tool }: ToolCardProps) {
   return (
 
     <a
-      href={tool.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block transition-all duration-200 p-4 hover:bg-gray-50 hover:dark:bg-gray-900 h-full border-b sm:border-r"
+    href={`/tools/${tool.slug}`}
+    className="group block transition-all duration-200 p-4 hover:bg-gray-50 hover:dark:bg-gray-900 h-full border-b sm:border-r"
     >
      
       <div className='flex flex-row gap-4'>
