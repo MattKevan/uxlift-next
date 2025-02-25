@@ -66,7 +66,7 @@ export default async function RootLayout({
 
         </div>
         </NotificationProvider>
-        <Analytics/>
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ed8a9135471944c6921618b15a43ad7a"}'></script>
       </body>
     </html>
   )
