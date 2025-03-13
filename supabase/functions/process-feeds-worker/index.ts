@@ -1,5 +1,5 @@
 // supabase/functions/process-feeds-worker/index.ts
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { Parser } from 'npm:rss-parser@3.13.0'
 import { EdgeFunctionLogger } from '../_shared/logger.ts'
 import { corsHeaders } from '../_shared/cors.ts'
