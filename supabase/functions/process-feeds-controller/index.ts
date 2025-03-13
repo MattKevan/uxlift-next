@@ -1,11 +1,20 @@
 // supabase/functions/process-feeds-controller/index.ts
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { EdgeFunctionLogger } from '../_shared/logger.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  
   const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    supabaseUrl,
+    supabaseServiceKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -51,12 +60,17 @@ Deno.serve(async (req) => {
         await logger.complete(false, {}, new Error('Another job is already running'))
         
         return new Response(
-          JSON.stringify({ 
-            success: false, 
+          JSON.stringify({
+            success: false,
             message: 'Another job is already running',
             jobId: runningJobs[0].id
           }),
-          { headers: { 'Content-Type': 'application/json' } }
+          {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          }
         )
       }
       
@@ -138,12 +152,17 @@ Deno.serve(async (req) => {
     await logger.complete(true, { itemsProcessed: 0 })
     
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Feed processing initiated',
         jobId: job.id
       }),
-      { headers: { 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     )
   } catch (error) {
     console.error('Controller error:', error)
@@ -151,13 +170,16 @@ Deno.serve(async (req) => {
     await logger.complete(false, {}, error instanceof Error ? error : new Error('Unknown error'))
     
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
-      { 
+      {
         status: 500,
-        headers: { 'Content-Type': 'application/json' } 
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     )
   }

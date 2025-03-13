@@ -2,6 +2,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Parser } from 'npm:rss-parser@3.13.0'
 import { EdgeFunctionLogger } from '../_shared/logger.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 // Import adapted versions of processing functions
 import { fetchAndProcessContent } from './lib/fetch-content.ts'
@@ -19,6 +20,11 @@ addEventListener('beforeunload', (ev) => {
 })
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const startTime = Date.now()
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -39,7 +45,13 @@ Deno.serve(async (req) => {
     if (!jobId || batchNumber === undefined) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing jobId or batchNumber' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       )
     }
     
@@ -60,7 +72,13 @@ Deno.serve(async (req) => {
       await logger.complete(false, {}, new Error('Job not found'))
       return new Response(
         JSON.stringify({ success: false, error: 'Job not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       )
     }
     await logger.endStep('get_job_details', true, 'Job details retrieved', { job })
@@ -298,8 +316,8 @@ Deno.serve(async (req) => {
       })
       
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Feed processing completed',
           results: {
             processed: results.processed,
@@ -307,7 +325,12 @@ Deno.serve(async (req) => {
             duration: Math.round((Date.now() - startTime) / 1000)
           }
         }),
-        { headers: { 'Content-Type': 'application/json' } }
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       )
     } else {
       // Schedule next batch as a background task
@@ -361,8 +384,8 @@ Deno.serve(async (req) => {
       })
       
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Batch processed, next batch scheduled as background task',
           results: {
             processed: results.processed,
@@ -371,7 +394,12 @@ Deno.serve(async (req) => {
             nextBatch: batchNumber + 1
           }
         }),
-        { headers: { 'Content-Type': 'application/json' } }
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       )
     }
     
@@ -406,9 +434,12 @@ Deno.serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error',
         duration: Math.round((Date.now() - startTime) / 1000)
       }),
-      { 
+      {
         status: 500,
-        headers: { 'Content-Type': 'application/json' } 
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     )
   }

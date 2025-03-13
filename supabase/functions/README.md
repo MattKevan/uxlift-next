@@ -11,6 +11,7 @@ The feed processing system consists of the following components:
 3. **Database**: Stores state, progress, and processed content
 4. **Event System**: Enables future extensions through event-based triggers
 5. **Background Processing**: Uses EdgeRuntime.waitUntil() to continue processing after responding to requests
+6. **CORS Support**: Includes proper CORS headers for browser access
 
 ## Prerequisites
 
@@ -73,6 +74,21 @@ policy = "per_worker"
 ```
 
 This configuration prevents function instances from being terminated automatically after a request is completed, allowing background tasks to run to completion. Note that with this policy, functions won't auto-reload on edits during development. You'll need to manually restart them by running `supabase functions serve`.
+
+### CORS Configuration
+
+The Edge Functions include CORS support for browser access. This is implemented using a shared CORS headers file:
+
+```typescript
+// supabase/functions/_shared/cors.ts
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
+```
+
+Each function handles OPTIONS requests for CORS preflight and includes the CORS headers in all responses. This allows the functions to be called directly from the browser, which is used in the admin interface.
 
 Alternatively, you can deploy the functions manually:
 
