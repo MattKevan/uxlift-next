@@ -8,7 +8,6 @@ import { format, parseISO } from 'date-fns'
 import EditPostModal from '@/components/EditPostModal'
 import type { Database } from '@/types/supabase'
 import FetchUrlForm from '@/components/FetchUrlForm'
-import { summarisePost } from '@/utils/post-tools/summarise'
 
 type Post = Database['public']['Tables']['content_post']['Row']
 type Site = Database['public']['Tables']['content_site']['Row']
@@ -21,6 +20,32 @@ type PostWithRelations = Post & {
 }
 
 const POSTS_PER_PAGE = 50
+
+// Helper function to call Supabase Edge Functions
+const callEdgeFunction = async (functionName: string, body: any = {}) => {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    throw new Error('Authentication required');
+  }
+  
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to call ${functionName}`);
+  }
+  
+  return response;
+};
 
 export default function AdminPosts() {
   const [posts, setPosts] = useState<PostWithRelations[]>([])
@@ -57,18 +82,14 @@ export default function AdminPosts() {
     }
   
     try {
-      const response = await fetch('/api/reset-index-status', {
-        method: 'POST',
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to reset index status');
-      }
-  
-      alert('Successfully reset index status for all posts');
+      // Call the reset-index-status Edge Function directly
+      const response = await callEdgeFunction('reset-index-status');
+      const result = await response.json();
+      
+      alert(`Successfully reset index status for ${result.count || 'all'} posts`);
     } catch (error) {
       console.error('Error resetting index status:', error);
-      alert('Failed to reset index status');
+      alert(error instanceof Error ? error.message : 'Failed to reset index status');
     }
   };
 
@@ -82,18 +103,13 @@ export default function AdminPosts() {
     }
   
     try {
-      const response = await fetch('/api/reset-embeddings', {
-        method: 'POST',
-      });
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to reset embeddings');
-      }
-  
-      alert(`Success! Deleted ${data.deletedCount} embeddings. All posts have been reset to unindexed.`);
+      // Call the reset-embeddings Edge Function directly
+      const response = await callEdgeFunction('reset-embeddings');
+      const result = await response.json();
+      
+      alert(`Success! Deleted ${result.deletedCount || 0} embeddings. All posts have been reset to unindexed.`);
       // Refresh your UI as needed
+      await fetchPosts();
       
     } catch (error) {
       console.error('Error resetting embeddings:', error);
@@ -105,31 +121,20 @@ export default function AdminPosts() {
     try {
       setEmbedding(postId);
       
-      const response = await fetch('/api/embed-post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId }),
-      });
-  
+      // Call the embed-post Edge Function directly
+      const response = await callEdgeFunction('embed-post', { postId });
       const result = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(result.details || result.error || 'Failed to embed post');
-      }
-  
-      if (result.success) {
-        // Update the post in the UI to show it's been indexed
-        setPosts(currentPosts => 
-          currentPosts.map(post => 
-            post.id === postId 
-              ? { ...post, indexed: true } 
-              : post
-          )
-        );
-        alert(`Post successfully embedded with ${result.chunks} chunks`);
-      }
+      
+      // Update the post in the UI to show it's been indexed
+      setPosts(currentPosts =>
+        currentPosts.map(post =>
+          post.id === postId
+            ? { ...post, indexed: true }
+            : post
+        )
+      );
+      
+      alert(`Post successfully embedded with ${result.chunks || 0} chunks`);
   
     } catch (error) {
       console.error('Error embedding post:', error);
@@ -157,9 +162,8 @@ export default function AdminPosts() {
         processType: 'embedding'
       });
       
-      const response = await fetch('/api/embed-all-posts', {
-        method: 'POST',
-      });
+      // Call the batch-embed Edge Function directly
+      const response = await callEdgeFunction('batch-embed-posts');
   
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -312,53 +316,46 @@ export default function AdminPosts() {
     try {
       setRefreshing(true)
   
-      const response = await fetch('/api/process-feeds', {
-        method: 'GET',
-        credentials: 'include',
-      })
-  
-      const result = await response.json()
-  
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to start feed processing')
-      }
-  
+      // Call the process-feeds-controller Edge Function directly
+      const response = await callEdgeFunction('process-feeds-controller', { isCron: false });
+      const result = await response.json();
+      
       // Start polling for job status
-      const jobId = result.jobId
+      const jobId = result.jobId;
       const pollInterval = setInterval(async () => {
         const { data: job } = await supabase
           .from('feed_processing_jobs')
           .select('*')
           .eq('id', jobId)
-          .single()
+          .single();
   
         if (job) {
           if (job.status === 'completed') {
-            clearInterval(pollInterval)
-            setRefreshing(false)
-            alert(`Feeds refreshed successfully! Processed ${job.processed_items} items with ${job.error_count} errors.`)
-            await fetchPosts()
+            clearInterval(pollInterval);
+            setRefreshing(false);
+            alert(`Feeds refreshed successfully! Processed ${job.processed_items} items with ${job.error_count} errors.`);
+            await fetchPosts();
           } else if (job.status === 'failed') {
-            clearInterval(pollInterval)
-            setRefreshing(false)
-            alert(`Feed processing failed: ${job.error}`)
+            clearInterval(pollInterval);
+            setRefreshing(false);
+            alert(`Feed processing failed: ${job.error}`);
           } else {
             // Update progress UI
-            console.log(`Processing: ${job.processed_sites}/${job.total_sites} sites`)
+            console.log(`Processing: ${job.processed_sites}/${job.total_sites} sites, batch ${job.current_batch}/${job.total_batches}`);
           }
         }
-      }, 2000) // Poll every 2 seconds
+      }, 2000); // Poll every 2 seconds
   
       // Clear interval after 10 minutes to prevent infinite polling
       setTimeout(() => {
-        clearInterval(pollInterval)
-        setRefreshing(false)
-      }, 600000)
+        clearInterval(pollInterval);
+        setRefreshing(false);
+      }, 600000);
   
     } catch (error) {
-      console.error('Error refreshing feeds:', error)
-      setRefreshing(false)
-      alert(error instanceof Error ? error.message : 'Failed to refresh feeds')
+      console.error('Error refreshing feeds:', error);
+      setRefreshing(false);
+      alert(error instanceof Error ? error.message : 'Failed to refresh feeds');
     }
   }
   
@@ -366,23 +363,13 @@ const handleAutoTag = async (postId: number) => {
     try {
       setTagging(postId)
       
-      const response = await fetch('/api/tag-post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId }),
-      })
-  
-      const result = await response.json()
-  
-      if (!response.ok) {
-        throw new Error(result.details || result.error || 'Failed to auto-tag post')
-      }
-  
-      if (result.success && result.post) {
-        setPosts(currentPosts => 
-          currentPosts.map(post => 
+      // Call the tag-post Edge Function directly
+      const response = await callEdgeFunction('tag-post', { postId });
+      const result = await response.json();
+      
+      if (result.post) {
+        setPosts(currentPosts =>
+          currentPosts.map(post =>
             post.id === result.post.id ? result.post : post
           )
         )
@@ -408,25 +395,15 @@ const handleAutoTag = async (postId: number) => {
     try {
       setSummarising(postId)
       
-      const response = await fetch('/api/summarise', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId }),
-      })
-  
-      const result = await response.json()
-  
-      if (!response.ok) {
-        throw new Error(result.details || result.error || 'Failed to summarize post')
-      }
-  
-      if (result.success && result.summary) {
-        setPosts(currentPosts => 
-          currentPosts.map(post => 
-            post.id === postId 
-              ? { ...post, summary: result.summary } 
+      // Call the summarise Edge Function directly
+      const response = await callEdgeFunction('summarise-post', { postId });
+      const result = await response.json();
+      
+      if (result.summary) {
+        setPosts(currentPosts =>
+          currentPosts.map(post =>
+            post.id === postId
+              ? { ...post, summary: result.summary }
               : post
           )
         )
@@ -457,9 +434,8 @@ const handleAutoTag = async (postId: number) => {
         processType: 'tagging'
       });
       
-      const response = await fetch('/api/tag-all-posts', {
-        method: 'POST',
-      });
+      // Call the batch-tag Edge Function directly
+      const response = await callEdgeFunction('batch-tag-posts');
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -481,14 +457,15 @@ const handleAutoTag = async (postId: number) => {
 
             switch (data.type) {
               case 'progress':
-            setBatchProgress({
-  total: 0,
-  processed: 0,
-  succeeded: 0,
-  failed: 0,
-  currentPost: null,
-  processType: 'tagging'
-});
+                setBatchProgress(prev => ({
+                  ...prev,
+                  total: data.total || 0,
+                  processed: data.processed || 0,
+                  succeeded: data.succeeded || 0,
+                  failed: data.failed || 0,
+                  currentPost: data.currentPost,
+                  processType: 'tagging'
+                }));
                 break;
 
               case 'error':
@@ -500,6 +477,7 @@ const handleAutoTag = async (postId: number) => {
                 break;
 
               case 'complete':
+                alert(`Tagging complete!\nProcessed: ${data.total || 0}\nSucceeded: ${data.succeeded || 0}\nFailed: ${data.failed || 0}`);
                 await fetchPosts();
                 break;
             }
@@ -515,7 +493,8 @@ const handleAutoTag = async (postId: number) => {
       setBatchProgress(prev => ({
         ...prev,
         processType: null
-      }));    }
+      }));
+    }
   };
 
   const totalPages = Math.ceil(count / POSTS_PER_PAGE)
