@@ -29,78 +29,148 @@ interface TagPostResult {
   details?: string;
 }
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: Deno.env.get('OPENAI_API_KEY') || ''
-})
+// Initialize OpenAI with detailed error logging
+let openai: OpenAI;
+try {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  
+  if (!apiKey) {
+    console.error('OPENAI_API_KEY environment variable is not set');
+    throw new Error('OpenAI API key is missing');
+  }
+  
+  openai = new OpenAI({
+    apiKey: apiKey,
+  });
+  
+  console.log('OpenAI client initialized successfully for tagging');
+} catch (initError) {
+  console.error('Error initializing OpenAI client for tagging:', initError);
+  throw initError;
+}
 
 export async function tagPost(postId: number, supabase: SupabaseClient): Promise<TagPostResult> {
+  console.log(`Starting tagging process for post ${postId}`);
+  
   try {
     // Fetch the post content
-    const { data: post, error: fetchError } = await supabase
-      .from('content_post')
-      .select('content, title, description')
-      .eq('id', postId)
-      .single()
+    let post;
+    try {
+      console.log(`Fetching post ${postId} content from database`);
+      const { data, error: fetchError } = await supabase
+        .from('content_post')
+        .select('content, title, description')
+        .eq('id', postId)
+        .single();
 
-    if (fetchError) {
-      console.error('Error fetching post:', fetchError)
+      if (fetchError) {
+        console.error(`Failed to fetch post ${postId}:`, fetchError);
+        return {
+          success: false,
+          error: 'Failed to fetch post',
+          details: fetchError.message
+        };
+      }
+
+      if (!data) {
+        console.error(`Post ${postId} not found`);
+        return {
+          success: false,
+          error: 'Post not found'
+        };
+      }
+      
+      post = data;
+      console.log(`Successfully fetched post ${postId}, title: "${post.title}"`);
+    } catch (fetchError) {
+      console.error(`Error fetching post ${postId}:`, fetchError);
       return {
         success: false,
-        error: 'Failed to fetch post',
-        details: fetchError.message
-      }
-    }
-
-    if (!post) {
-      return {
-        success: false,
-        error: 'Post not found'
-      }
+        error: 'Error fetching post',
+        details: fetchError instanceof Error ? fetchError.message : 'Unknown error'
+      };
     }
 
     // Fetch all available topics
-    const { data: topics, error: topicsError } = await supabase
-      .from('content_topic')
-      .select('*')
-      .order('name')
+    let topics;
+    try {
+      console.log('Fetching available topics from database');
+      const { data, error: topicsError } = await supabase
+        .from('content_topic')
+        .select('*')
+        .order('name');
 
-    if (topicsError) {
-      console.error('Error fetching topics:', topicsError)
+      if (topicsError) {
+        console.error('Failed to fetch topics:', topicsError);
+        return {
+          success: false,
+          error: 'Failed to fetch topics',
+          details: topicsError.message
+        };
+      }
+
+      if (!data || data.length === 0) {
+        console.error('No topics found in database');
+        return {
+          success: false,
+          error: 'No topics found in database'
+        };
+      }
+      
+      topics = data;
+      console.log(`Successfully fetched ${topics.length} topics`);
+      console.log('Topic examples:', topics.slice(0, 5).map(t => t.name).join(', '));
+    } catch (topicsError) {
+      console.error('Error fetching topics:', topicsError);
       return {
         success: false,
-        error: 'Failed to fetch topics',
-        details: topicsError.message
-      }
-    }
-
-    if (!topics || topics.length === 0) {
-      return {
-        success: false,
-        error: 'No topics found in database'
-      }
+        error: 'Error fetching topics',
+        details: topicsError instanceof Error ? topicsError.message : 'Unknown error'
+      };
     }
 
     // Create content string for analysis
     const contentToAnalyze = [
       post.title && `Title: ${post.title}`,
       post.description && `Description: ${post.description}`,
-      post.content && `Content: ${post.content}`
-    ].filter(Boolean).join('\n\n')
+      post.content && `Content: ${post.content.substring(0, 5000)}` // Limit content length for OpenAI
+    ].filter(Boolean).join('\n\n');
 
     if (!contentToAnalyze) {
+      console.warn(`Post ${postId} has no content available to analyze`);
       return {
         success: false,
         error: 'No content available to analyze'
-      }
+      };
     }
+    
+    console.log(`Prepared content for analysis, length: ${contentToAnalyze.length} characters`);
 
     // Create topics string
     const topicsString = topics
       .map(topic => `${topic.name}${topic.description ? ` (${topic.description})` : ''}`)
-      .join('\n')
+      .join('\n');
+    
+    console.log(`Prepared topics list with ${topics.length} topics for OpenAI`);
 
+    // Get topics from OpenAI
+    let suggestedTopics;
     try {
+      console.log(`Calling OpenAI API to categorize post ${postId}`);
+      console.log('Using model: gpt-4o-mini for tagging');
+      
+      // Create content previews for logging
+      const contentPreview = contentToAnalyze.length > 300 
+        ? contentToAnalyze.substring(0, 300) + '...' 
+        : contentToAnalyze;
+      
+      const topicsPreview = topics.length > 10
+        ? topics.slice(0, 10).map(t => t.name).join(', ') + '...'
+        : topics.map(t => t.name).join(', ');
+      
+      console.log(`Input content preview: "${contentPreview}"`);
+      console.log(`Topics preview: ${topicsPreview}`);
+      
       const completion = await openai.chat.completions.create({
         messages: [
           {
@@ -116,64 +186,115 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
           }
         ],
         model: 'gpt-4o-mini',
-      })
+      });
 
-      const suggestedTopics = completion.choices[0].message.content
+      const response = completion.choices[0].message.content;
+      console.log(`OpenAI response for post ${postId}: "${response}"`);
+      
+      suggestedTopics = response
         ?.split(',')
         .map(topic => topic.trim())
         .filter(Boolean)
-        .slice(0, 4)
+        .slice(0, 4);
 
       if (!suggestedTopics || suggestedTopics.length === 0) {
+        console.warn(`No topics suggested by AI for post ${postId}`);
         return {
           success: false,
           error: 'No topics suggested by AI'
-        }
+        };
       }
+      
+      console.log(`OpenAI suggested ${suggestedTopics.length} topics:`, suggestedTopics);
+    } catch (openaiError) {
+      console.error(`OpenAI API error for post ${postId}:`, openaiError);
+      console.error('OpenAI error details:', {
+        name: openaiError instanceof Error ? openaiError.name : 'Unknown',
+        message: openaiError instanceof Error ? openaiError.message : String(openaiError),
+        stack: openaiError instanceof Error ? openaiError.stack : 'No stack trace'
+      });
+      
+      return {
+        success: false,
+        error: 'OpenAI API error',
+        details: openaiError instanceof Error ? openaiError.message : 'Unknown OpenAI error'
+      };
+    }
 
-      // Match suggested topic names with topic IDs
-      const topicIds = topics
-        .filter(topic => suggestedTopics.includes(topic.name))
-        .map(topic => topic.id)
+    // Match suggested topic names with topic IDs
+    const topicIds = topics
+      .filter(topic => suggestedTopics.includes(topic.name))
+      .map(topic => topic.id);
+    
+    console.log(`Matched ${topicIds.length} topic IDs from suggested topics`);
 
-      // Delete existing topics
+    // Delete existing topics
+    try {
+      console.log(`Deleting existing topics for post ${postId}`);
       const { error: deleteError } = await supabase
         .from('content_post_topics')
         .delete()
-        .eq('post_id', postId)
+        .eq('post_id', postId);
 
       if (deleteError) {
-        console.error('Error deleting existing topics:', deleteError)
+        console.error(`Error deleting existing topics for post ${postId}:`, deleteError);
         return {
           success: false,
           error: 'Failed to remove existing topics',
           details: deleteError.message
-        }
+        };
       }
+      
+      console.log(`Successfully deleted existing topics for post ${postId}`);
+    } catch (deleteError) {
+      console.error(`Error deleting existing topics for post ${postId}:`, deleteError);
+      return {
+        success: false,
+        error: 'Error deleting existing topics',
+        details: deleteError instanceof Error ? deleteError.message : 'Unknown error'
+      };
+    }
 
-      // Only proceed with insertion if we have topics to insert
-      if (topicIds.length > 0) {
+    // Insert new topic associations
+    if (topicIds.length > 0) {
+      try {
+        console.log(`Inserting ${topicIds.length} new topics for post ${postId}:`, topicIds);
         const topicAssociations = topicIds.map(topic_id => ({
           post_id: postId,
           topic_id: topic_id,
-        }))
+        }));
 
         const { error: insertError } = await supabase
           .from('content_post_topics')
-          .insert(topicAssociations)
+          .insert(topicAssociations);
 
         if (insertError) {
-          console.error('Error inserting new topics:', insertError)
+          console.error(`Failed to insert new topics for post ${postId}:`, insertError);
           return {
             success: false,
             error: 'Failed to insert new topics',
             details: insertError.message
-          }
+          };
         }
+        
+        console.log(`Successfully inserted ${topicIds.length} topics for post ${postId}`);
+      } catch (insertError) {
+        console.error(`Error inserting new topics for post ${postId}:`, insertError);
+        return {
+          success: false,
+          error: 'Error inserting new topics',
+          details: insertError instanceof Error ? insertError.message : 'Unknown error'
+        };
       }
+    } else {
+      console.log(`No matching topic IDs found for post ${postId}, skipping insertion`);
+    }
 
-      // Fetch updated post
-      const { data: updatedPost, error: updatedError } = await supabase
+    // Fetch updated post
+    let updatedPost;
+    try {
+      console.log(`Fetching updated post ${postId} with topics`);
+      const { data, error: updatedError } = await supabase
         .from('content_post')
         .select(`
           *,
@@ -200,37 +321,56 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
           )
         `)
         .eq('id', postId)
-        .single()
+        .single();
 
       if (updatedError) {
-        console.error('Error fetching updated post:', updatedError)
+        console.error(`Failed to fetch updated post ${postId}:`, updatedError);
         return {
           success: false,
           error: 'Failed to fetch updated post',
           details: updatedError.message
-        }
+        };
       }
-
-      return {
-        success: true,
-        post: updatedPost,
-        suggestedTopics
+      
+      if (!data) {
+        console.error(`Updated post ${postId} not found`);
+        return {
+          success: false,
+          error: 'Updated post not found'
+        };
       }
-
-    } catch (error) {
-      console.error('OpenAI API error:', error)
+      
+      updatedPost = data;
+      console.log(`Successfully fetched updated post ${postId} with topics`);
+      
+      const assignedTopics = updatedPost.content_post_topics.map(t => t.content_topic.name);
+      console.log(`Post ${postId} now has ${assignedTopics.length} topics:`, assignedTopics);
+    } catch (fetchUpdatedError) {
+      console.error(`Error fetching updated post ${postId}:`, fetchUpdatedError);
       return {
         success: false,
-        error: 'OpenAI API error',
-        details: error instanceof Error ? error.message : 'Unknown OpenAI error'
-      }
+        error: 'Error fetching updated post',
+        details: fetchUpdatedError instanceof Error ? fetchUpdatedError.message : 'Unknown error'
+      };
     }
+
+    return {
+      success: true,
+      post: updatedPost,
+      suggestedTopics
+    };
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error(`Unexpected error tagging post ${postId}:`, error);
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+    
     return {
       success: false,
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error occurred'
-    }
+    };
   }
 }

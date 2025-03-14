@@ -1,3 +1,5 @@
+// /supabase/functions/_shared/logger.ts
+
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 export class EdgeFunctionLogger {

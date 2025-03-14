@@ -16,7 +16,7 @@ const MAX_EXECUTION_TIME = 55 * 1000 // 55 seconds
 // Listen for shutdown events
 addEventListener('beforeunload', (ev) => {
   console.log('Function will be shutdown due to', ev.detail?.reason)
-  // Could save state or log progress here
+  // Save state or log progress information here if needed
 })
 
 Deno.serve(async (req) => {
@@ -26,25 +26,85 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now()
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
+  
+  // Log environment availability
+  console.log('Environment check:', {
+    supabaseUrl: Boolean(Deno.env.get('SUPABASE_URL')),
+    supabaseServiceKey: Boolean(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')),
+    openaiKey: Boolean(Deno.env.get('OPENAI_API_KEY')),
+    pineconeApiKey: Boolean(Deno.env.get('PINECONE_API_KEY')),
+    pineconeIndexName: Boolean(Deno.env.get('PINECONE_INDEX_NAME'))
+  })
+  
+  // Initialize Supabase client with error handling
+  let supabase;
+  try {
+    supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
-    }
-  )
+    )
+    console.log('Supabase client created successfully')
+  } catch (initError) {
+    console.error('Failed to initialize Supabase client:', initError)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Supabase initialization failed',
+        details: initError instanceof Error ? initError.message : 'Unknown error',
+        stack: initError instanceof Error ? initError.stack : undefined
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+  }
+  
   let logger: EdgeFunctionLogger | null = null
   
   try {
-    // Parse request
-    const { jobId, batchNumber } = await req.json()
+    // Parse request with detailed error handling
+    let requestData;
+    try {
+      requestData = await req.json()
+      console.log('Request data:', requestData)
+    } catch (parseError) {
+      console.error('Error parsing request JSON:', parseError)
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid JSON in request body',
+          details: parseError instanceof Error ? parseError.message : 'Unknown parse error'
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    }
+    
+    const { jobId, batchNumber } = requestData
     
     if (!jobId || batchNumber === undefined) {
+      console.error('Missing required parameters:', { jobId, batchNumber })
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing jobId or batchNumber' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing required parameters',
+          details: `Required: jobId (${jobId}), batchNumber (${batchNumber})`
+        }),
         {
           status: 400,
           headers: {
@@ -56,61 +116,116 @@ Deno.serve(async (req) => {
     }
     
     // Initialize logger with job ID
-    logger = new EdgeFunctionLogger('process-feeds-worker', jobId)
-    await logger.initialize()
-    
-    await logger.startStep('get_job_details')
-    // Get job details
-    const { data: job, error: jobError } = await supabase
-      .from('feed_processing_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .single()
-    
-    if (jobError || !job) {
-      await logger.endStep('get_job_details', false, 'Job not found')
-      await logger.complete(false, {}, new Error('Job not found'))
-      return new Response(
-        JSON.stringify({ success: false, error: 'Job not found' }),
-        {
-          status: 404,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+    try {
+      logger = new EdgeFunctionLogger('process-feeds-worker', jobId)
+      await logger.initialize()
+      console.log(`Logger initialized with ID: ${logger.logId} for job ${jobId}`)
+    } catch (loggerError) {
+      console.error('Failed to initialize logger:', loggerError)
+      // Continue execution even if logger fails
     }
-    await logger.endStep('get_job_details', true, 'Job details retrieved', { job })
+    
+    // Get job details
+    if (logger) await logger.startStep('get_job_details')
+    let job;
+    try {
+      const { data, error: jobError } = await supabase
+        .from('feed_processing_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single()
+      
+      if (jobError || !data) {
+        console.error(`Failed to fetch job ${jobId}:`, jobError)
+        if (logger) {
+          await logger.endStep('get_job_details', false, 'Job not found')
+          await logger.complete(false, {}, new Error('Job not found'))
+        }
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Job not found',
+            details: jobError ? jobError.message : 'No data returned'
+          }),
+          {
+            status: 404,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
+      }
+      
+      job = data
+      console.log(`Job ${jobId} details:`, {
+        status: job.status,
+        currentBatch: job.current_batch,
+        totalBatches: job.total_batches,
+        processedItems: job.processed_items
+      })
+      
+      if (logger) await logger.endStep('get_job_details', true, 'Job details retrieved', { job })
+    } catch (fetchJobError) {
+      console.error('Error fetching job details:', fetchJobError)
+      if (logger) {
+        await logger.endStep('get_job_details', false, 'Error fetching job details', 
+          { error: fetchJobError instanceof Error ? fetchJobError.message : 'Unknown error' })
+        await logger.complete(false, {}, fetchJobError instanceof Error ? fetchJobError : new Error('Unknown error'))
+      }
+      throw fetchJobError
+    }
     
     // Initialize parser
-    await logger.startStep('initialize_parser')
-    const parser = new Parser({
-      customFields: {
-        item: ['content', 'contentSnippet']
-      }
-    })
-    await logger.endStep('initialize_parser', true, 'Parser initialized')
-    
-    // Get sites for this batch
-    await logger.startStep('fetch_sites')
-    const { data: sites, error: sitesError } = await supabase
-      .from('content_site')
-      .select('*')
-      .eq('include_in_newsfeed', true)
-      .not('feed_url', 'is', null)
-      .order('id', { ascending: true })
-      .range(
-        batchNumber * job.batch_size, 
-        (batchNumber + 1) * job.batch_size - 1
-      )
-    
-    if (sitesError) {
-      await logger.endStep('fetch_sites', false, 'Failed to fetch sites', { error: sitesError })
-      throw new Error(`Failed to fetch sites: ${sitesError.message}`)
+    if (logger) await logger.startStep('initialize_parser')
+    let parser;
+    try {
+      parser = new Parser({
+        customFields: {
+          item: ['content', 'contentSnippet']
+        }
+      })
+      console.log('RSS parser initialized')
+      if (logger) await logger.endStep('initialize_parser', true, 'Parser initialized')
+    } catch (parserError) {
+      console.error('Failed to initialize RSS parser:', parserError)
+      if (logger) await logger.endStep('initialize_parser', false, 'Failed to initialize parser', 
+        { error: parserError instanceof Error ? parserError.message : 'Unknown error' })
+      throw parserError
     }
     
-    await logger.endStep('fetch_sites', true, `Fetched ${sites?.length || 0} sites for batch ${batchNumber}`)
+    // Get sites for this batch
+    if (logger) await logger.startStep('fetch_sites')
+    let sites;
+    try {
+      const { data, error: sitesError } = await supabase
+        .from('content_site')
+        .select('*')
+        .eq('include_in_newsfeed', true)
+        .not('feed_url', 'is', null)
+        .order('id', { ascending: true })
+        .range(
+          batchNumber * job.batch_size, 
+          (batchNumber + 1) * job.batch_size - 1
+        )
+      
+      if (sitesError) {
+        console.error('Failed to fetch sites:', sitesError)
+        if (logger) await logger.endStep('fetch_sites', false, 'Failed to fetch sites', { error: sitesError })
+        throw new Error(`Failed to fetch sites: ${sitesError.message}`)
+      }
+      
+      sites = data || []
+      console.log(`Fetched ${sites.length} sites for batch ${batchNumber}:`, 
+        sites.slice(0, 3).map(s => ({ id: s.id, title: s.title })))
+      
+      if (logger) await logger.endStep('fetch_sites', true, `Fetched ${sites.length} sites for batch ${batchNumber}`)
+    } catch (sitesError) {
+      console.error('Error fetching sites:', sitesError)
+      if (logger) await logger.endStep('fetch_sites', false, 'Failed to fetch sites', 
+        { error: sitesError instanceof Error ? sitesError.message : 'Unknown error' })
+      throw sitesError
+    }
     
     const results = {
       processed: 0,
@@ -123,76 +238,154 @@ Deno.serve(async (req) => {
     for (const site of sites || []) {
       try {
         // Check if we're approaching time limit
-        if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-          await logger.startStep('time_limit_reached')
-          await logger.endStep('time_limit_reached', true, 'Approaching time limit, stopping gracefully')
+        const elapsedTime = Date.now() - startTime
+        if (elapsedTime > MAX_EXECUTION_TIME) {
+          console.log(`Approaching time limit after ${elapsedTime}ms, stopping gracefully`)
+          if (logger) {
+            await logger.startStep('time_limit_reached')
+            await logger.endStep('time_limit_reached', true, 'Approaching time limit, stopping gracefully', 
+              { elapsedTime, limit: MAX_EXECUTION_TIME })
+          }
           // We need to stop and schedule the next batch
           break
         }
         
-        if (!site.feed_url) continue
+        if (!site.feed_url) {
+          console.log(`Skipping site ${site.id} (${site.title}) - no feed URL`)
+          continue
+        }
         
         results.currentSite = site.title || ''
+        console.log(`Processing site: ${site.id} (${results.currentSite})`)
         
-        await logger.startStep(`process_site_${site.id}`)
+        if (logger) await logger.startStep(`process_site_${site.id}`)
         
         // Update job status
-        await supabase
-          .from('feed_processing_jobs')
-          .update({
-            status: 'processing',
-            current_batch: batchNumber,
-            current_site: results.currentSite,
-            last_processed_site_id: site.id,
-            last_updated: new Date().toISOString()
-          })
-          .eq('id', jobId)
+        try {
+          await supabase
+            .from('feed_processing_jobs')
+            .update({
+              status: 'processing',
+              current_batch: batchNumber,
+              current_site: results.currentSite,
+              last_processed_site_id: site.id,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', jobId)
+          
+          console.log(`Updated job ${jobId} status with current site: ${results.currentSite}`)
+        } catch (updateError) {
+          console.error(`Failed to update job ${jobId} status:`, updateError)
+          // Continue processing even if update fails
+        }
         
         // Parse the RSS feed
-        await logger.startStep(`parse_feed_${site.id}`)
-        let feed
+        if (logger) await logger.startStep(`parse_feed_${site.id}`)
+        let feed;
+        
         try {
+          console.log(`Parsing feed: ${site.feed_url}`)
           feed = await parser.parseURL(site.feed_url)
-          await logger.endStep(`parse_feed_${site.id}`, true, `Parsed feed with ${feed.items.length} items`)
+                      console.log(`Successfully parsed feed with ${feed.items.length} items`)
+          
+          if (logger) await logger.endStep(`parse_feed_${site.id}`, true, 
+            `Parsed feed with ${feed.items.length} items`, {
+              feedTitle: feed.title,
+              feedDescription: feed.description?.substring(0, 100),
+              itemCount: feed.items.length
+            })
         } catch (feedError) {
-          await logger.endStep(`parse_feed_${site.id}`, false, 'Failed to parse feed', { error: feedError })
-          throw feedError
+          console.error(`Error parsing feed for site ${site.id} (${site.title}):`, feedError)
+          
+          if (logger) await logger.endStep(`parse_feed_${site.id}`, false, 'Failed to parse feed', 
+            { error: feedError instanceof Error ? feedError.message : 'Unknown error', url: site.feed_url })
+          
+          results.errors++
+          continue // Skip to next site
         }
         
         // Process each feed item
+        let siteTotalProcessed = 0
+        let siteTotalErrors = 0
+        
         for (const item of feed.items) {
           try {
             // Check time again
             if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+              console.log(`Time limit reached while processing feed items, stopping`)
               break
             }
             
-            if (!item.link) continue
-            
-            await logger.startStep(`check_item_${item.link.substring(0, 50)}`)
-            
-            // Check if article already exists
-            const { data: existing } = await supabase
-              .from('content_post')
-              .select('id')
-              .eq('link', item.link)
-              .single()
-            
-            if (existing) {
-              await logger.endStep(`check_item_${item.link.substring(0, 50)}`, true, 'Item already exists')
+            if (!item.link) {
+              console.log('Skipping item - no link provided')
               continue
             }
             
-            await logger.endStep(`check_item_${item.link.substring(0, 50)}`, true, 'Item is new, processing')
+            // Truncate link for logging purposes
+            const truncatedLink = item.link.length > 50 
+              ? item.link.substring(0, 47) + '...' 
+              : item.link
+            
+            const stepName = `check_item_${truncatedLink.replace(/[^a-zA-Z0-9]/g, '_')}`
+            
+            if (logger) await logger.startStep(stepName)
+            console.log(`Checking item: ${truncatedLink}`)
+            
+            // Check if article already exists
+            try {
+              const { data: existing } = await supabase
+                .from('content_post')
+                .select('id')
+                .eq('link', item.link)
+                .single()
+              
+              if (existing) {
+                console.log(`Item already exists: ${truncatedLink} (ID: ${existing.id})`)
+                if (logger) await logger.endStep(stepName, true, 'Item already exists', { postId: existing.id })
+                continue
+              }
+            } catch (checkError) {
+              // If error is "not found", that's expected - continue processing
+              if (checkError.code !== 'PGRST116') {
+                console.error(`Error checking existing post for ${truncatedLink}:`, checkError)
+              }
+            }
+            
+            console.log(`Item is new, processing: ${truncatedLink}`)
+            if (logger) await logger.endStep(stepName, true, 'Item is new, processing')
             
             // Process new article
-            await logger.startStep(`fetch_content_${item.link.substring(0, 50)}`)
-            const newPost = await fetchAndProcessContent(item.link, supabase)
-            await logger.endStep(`fetch_content_${item.link.substring(0, 50)}`, Boolean(newPost), newPost ? 'Content fetched successfully' : 'Failed to fetch content')
+            const fetchStepName = `fetch_content_${truncatedLink.replace(/[^a-zA-Z0-9]/g, '_')}`
+            if (logger) await logger.startStep(fetchStepName)
             
-            if (newPost) {
-              // Update the post with site_id and status
-              await logger.startStep(`update_post_${newPost.id}`)
+            let newPost;
+            try {
+              console.log(`Fetching content from: ${item.link}`)
+              newPost = await fetchAndProcessContent(item.link, supabase)
+              
+              if (newPost) {
+                console.log(`Content fetched successfully, created post ID: ${newPost.id}`)
+                if (logger) await logger.endStep(fetchStepName, true, 'Content fetched successfully', 
+                  { postId: newPost.id, title: newPost.title })
+              } else {
+                console.error(`Failed to fetch content from ${item.link} - no post created`)
+                if (logger) await logger.endStep(fetchStepName, false, 'Failed to fetch content')
+                siteTotalErrors++
+                continue
+              }
+            } catch (fetchError) {
+              console.error(`Error fetching content from ${item.link}:`, fetchError)
+              if (logger) await logger.endStep(fetchStepName, false, 'Error fetching content', 
+                { error: fetchError instanceof Error ? fetchError.message : 'Unknown error' })
+              siteTotalErrors++
+              continue
+            }
+            
+            // Update the post with site_id and status
+            const updateStepName = `update_post_${newPost.id}`
+            if (logger) await logger.startStep(updateStepName)
+            
+            try {
               const { error: updateError } = await supabase
                 .from('content_post')
                 .update({
@@ -203,244 +396,85 @@ Deno.serve(async (req) => {
                 .eq('id', newPost.id)
               
               if (updateError) {
-                await logger.endStep(`update_post_${newPost.id}`, false, 'Failed to update post', { error: updateError })
-              } else {
-                await logger.endStep(`update_post_${newPost.id}`, true, 'Post updated successfully')
-                
-                try {
-                  // Summarize the post
-                  await logger.startStep(`summarize_post_${newPost.id}`)
-                  const summaryResult = await summarisePost(newPost.id, supabase)
-                  await logger.endStep(`summarize_post_${newPost.id}`, summaryResult.success, summaryResult.success ? 'Post summarized' : summaryResult.error)
-                  
-                  // Tag the post
-                  await logger.startStep(`tag_post_${newPost.id}`)
-                  const tagResult = await tagPost(newPost.id, supabase)
-                  await logger.endStep(`tag_post_${newPost.id}`, tagResult.success, tagResult.success ? 'Post tagged' : tagResult.error)
-                  
-                  // Embed the post
-                  await logger.startStep(`embed_post_${newPost.id}`)
-                  const embedResult = await embedPost(newPost.id, supabase)
-                  await logger.endStep(`embed_post_${newPost.id}`, embedResult.success, embedResult.success ? `Post embedded with ${embedResult.chunks} chunks` : embedResult.error)
-                  
-                  results.processed++
-                  
-                  // Create event for future extensions
-                  await supabase
-                    .from('feed_processing_events')
-                    .insert([{
-                      job_id: jobId,
-                      event_type: 'post_processed',
-                      payload: {
-                        post_id: newPost.id,
-                        site_id: site.id,
-                        title: newPost.title,
-                        link: newPost.link
-                      }
-                    }])
-                  
-                } catch (processingError) {
-                  console.error(`Error processing content for ${item.link}:`, processingError)
-                  results.errors++
-                }
+                console.error(`Failed to update post ${newPost.id}:`, updateError)
+                if (logger) await logger.endStep(updateStepName, false, 'Failed to update post', 
+                  { error: updateError.message })
+                siteTotalErrors++
+                continue
               }
+              
+              console.log(`Updated post ${newPost.id} with site ID and status`)
+              if (logger) await logger.endStep(updateStepName, true, 'Post updated successfully')
+            } catch (updateError) {
+              console.error(`Error updating post ${newPost.id}:`, updateError)
+              if (logger) await logger.endStep(updateStepName, false, 'Error updating post', 
+                { error: updateError instanceof Error ? updateError.message : 'Unknown error' })
+              siteTotalErrors++
+              continue
             }
-          } catch (itemError) {
-            console.error(`Error processing item from ${site.title}:`, itemError)
-            results.errors++
-          }
-        }
-        
-        await logger.endStep(`process_site_${site.id}`, true, `Processed site with ${results.processed} new items`)
-      } catch (siteError) {
-        results.errors++
-        console.error(`Error processing site ${site.title}:`, siteError)
-        if (logger) {
-          await logger.endStep(`process_site_${site.id}`, false, 'Failed to process site', { error: siteError })
-        }
-      }
-    }
-    
-    // Update job with progress
-    await logger.startStep('update_job_progress')
-    const { data: updatedJob } = await supabase
-      .from('feed_processing_jobs')
-      .update({
-        processed_sites: job.processed_sites + results.sites,
-        processed_items: job.processed_items + results.processed,
-        error_count: job.error_count + results.errors,
-        last_updated: new Date().toISOString(),
-        duration: job.duration ? job.duration + Math.round((Date.now() - startTime) / 1000) : Math.round((Date.now() - startTime) / 1000)
-      })
-      .eq('id', jobId)
-      .select()
-      .single()
-    
-    await logger.endStep('update_job_progress', true, 'Job progress updated', { 
-      processed_sites: job.processed_sites + results.sites,
-      processed_items: job.processed_items + results.processed,
-      error_count: job.error_count + results.errors
-    })
-    
-    // Determine if we need to process more batches
-    const isLastBatch = batchNumber >= job.total_batches - 1
-    const allSitesProcessed = sites && sites.length < job.batch_size
-    
-    if (isLastBatch || allSitesProcessed) {
-      // Job is complete
-      await logger.startStep('complete_job')
-      await supabase
-        .from('feed_processing_jobs')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', jobId)
-      
-      // Create completion event for future extensions
-      await supabase
-        .from('feed_processing_events')
-        .insert([{
-          job_id: jobId,
-          event_type: 'job_completed',
-          payload: {
-            processed_items: updatedJob?.processed_items || 0,
-            error_count: updatedJob?.error_count || 0
-          }
-        }])
-      
-      await logger.endStep('complete_job', true, 'Job completed successfully')
-      await logger.complete(true, {
-        itemsProcessed: results.processed,
-        itemsFailed: results.errors
-      })
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Feed processing completed',
-          results: {
-            processed: results.processed,
-            errors: results.errors,
-            duration: Math.round((Date.now() - startTime) / 1000)
-          }
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-    } else {
-      // Schedule next batch as a background task
-      await logger.startStep('schedule_next_batch')
-      
-      // Define the background task for processing the next batch
-      const processNextBatch = async () => {
-        try {
-          console.log(`Starting background processing of batch ${batchNumber + 1}`)
-          
-          // Process the next batch directly instead of making a new HTTP request
-          const nextBatchResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/process-feeds-worker`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-            },
-            body: JSON.stringify({
-              jobId: jobId,
-              batchNumber: batchNumber + 1
-            })
-          })
-          
-          console.log(`Completed background processing of batch ${batchNumber + 1}`)
-        } catch (error) {
-          console.error(`Error in background processing of batch ${batchNumber + 1}:`, error)
-          
-          // Update job status to failed if there's an error
-          try {
-            await supabase
-              .from('feed_processing_jobs')
-              .update({
-                status: 'failed',
-                error: error instanceof Error ? error.message : 'Unknown error in background processing',
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', jobId)
-          } catch (updateError) {
-            console.error('Failed to update job status after background error:', updateError)
-          }
-        }
-      }
-      
-      // Use EdgeRuntime.waitUntil to run the next batch processing in the background
-      EdgeRuntime.waitUntil(processNextBatch())
-      
-      await logger.endStep('schedule_next_batch', true, 'Next batch scheduled as background task', { nextBatch: batchNumber + 1 })
-      await logger.complete(true, {
-        itemsProcessed: results.processed,
-        itemsFailed: results.errors
-      })
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Batch processed, next batch scheduled as background task',
-          results: {
-            processed: results.processed,
-            errors: results.errors,
-            duration: Math.round((Date.now() - startTime) / 1000),
-            nextBatch: batchNumber + 1
-          }
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-    }
-    
-  } catch (error) {
-    console.error('Worker error:', error)
-    
-    if (logger) {
-      await logger.complete(false, {}, error instanceof Error ? error : new Error('Unknown error'))
-    }
-    
-    // Try to update job status if possible
-    try {
-      const { jobId } = await req.json().catch(() => ({}))
-      
-      if (jobId) {
-        await supabase
-          .from('feed_processing_jobs')
-          .update({
-            status: 'failed',
-            error: error instanceof Error ? error.message : 'Unknown error',
-            last_updated: new Date().toISOString()
-          })
-          .eq('id', jobId)
-      }
-    } catch (updateError) {
-      console.error('Failed to update job status:', updateError)
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: Math.round((Date.now() - startTime) / 1000)
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-  }
-})
+            
+            // Process the post (summarize, tag, embed)
+            try {
+              // Summarize the post
+              const summarizeStepName = `summarize_post_${newPost.id}`
+              if (logger) await logger.startStep(summarizeStepName)
+              
+              console.log(`Summarizing post ${newPost.id}`)
+              try {
+                const summaryResult = await summarisePost(newPost.id, supabase)
+                
+                if (summaryResult.success) {
+                  console.log(`Post ${newPost.id} successfully summarized: "${summaryResult.summary?.substring(0, 50)}..."`)
+                  if (logger) await logger.endStep(summarizeStepName, true, 'Post summarized')
+                } else {
+                  console.error(`Failed to summarize post ${newPost.id}:`, summaryResult.error, summaryResult.details)
+                  if (logger) await logger.endStep(summarizeStepName, false, summaryResult.error || 'Unknown error', 
+                    { details: summaryResult.details })
+                }
+                
+                // Tag the post
+                const tagStepName = `tag_post_${newPost.id}`
+                if (logger) await logger.startStep(tagStepName)
+                
+                console.log(`Tagging post ${newPost.id}`)
+                try {
+                  const tagResult = await tagPost(newPost.id, supabase)
+                  
+                  if (tagResult.success) {
+                    console.log(`Post ${newPost.id} successfully tagged with topics:`, 
+                      tagResult.suggestedTopics?.join(', ') || 'none')
+                    if (logger) await logger.endStep(tagStepName, true, 'Post tagged', 
+                      { topics: tagResult.suggestedTopics })
+                  } else {
+                    console.error(`Failed to tag post ${newPost.id}:`, tagResult.error, tagResult.details)
+                    if (logger) await logger.endStep(tagStepName, false, tagResult.error || 'Unknown error', 
+                      { details: tagResult.details })
+                  }
+                } catch (tagError) {
+                  console.error(`Error tagging post ${newPost.id}:`, tagError)
+                  if (logger) await logger.endStep(tagStepName, false, 'Error tagging post', 
+                    { error: tagError instanceof Error ? tagError.message : 'Unknown error' })
+                }
+                
+                // Embed the post
+                const embedStepName = `embed_post_${newPost.id}`
+                if (logger) await logger.startStep(embedStepName)
+                
+                console.log(`Embedding post ${newPost.id}`)
+                try {
+                  const embedResult = await embedPost(newPost.id, supabase)
+                  
+                  if (embedResult.success) {
+                    console.log(`Post ${newPost.id} successfully embedded with ${embedResult.chunks} chunks`)
+                    if (logger) await logger.endStep(embedStepName, true, 
+                      `Post embedded with ${embedResult.chunks} chunks`)
+                  } else {
+                    console.error(`Failed to embed post ${newPost.id}:`, embedResult.error, embedResult.details)
+                    if (logger) await logger.endStep(embedStepName, false, embedResult.error || 'Unknown error', 
+                      { details: embedResult.details })
+                  }
+                } catch (embedError) {
+                  console.error(`Error embedding post ${newPost.id}:`, embedError)
+                  if (logger) await logger.endStep(embedStepName, false, 'Error embedding post', 
+                    { error: embedError instanceof Error ? embedError.message : 'Unknown error' })
+                }
