@@ -478,3 +478,400 @@ Deno.serve(async (req) => {
                   if (logger) await logger.endStep(embedStepName, false, 'Error embedding post', 
                     { error: embedError instanceof Error ? embedError.message : 'Unknown error' })
                 }
+                Looking at the truncated code you provided, I can see it's the enhanced version of the `process-feeds-worker/index.ts` file that I created earlier.
+
+                Let me provide you with the most likely missing parts to complete this file:
+
+                                
+                try {
+                  // Create event for successful post processing
+                  await supabase
+                    .from('feed_processing_events')
+                    .insert([{
+                      job_id: jobId,
+                      event_type: 'post_processed',
+                      payload: {
+                        post_id: newPost.id,
+                        site_id: site.id,
+                        title: newPost.title,
+                        link: newPost.link
+                      }
+                    }])
+                  
+                  results.processed++
+                  siteTotalProcessed++
+                  console.log(`Post ${newPost.id} processing complete`)
+                } catch (eventError) {
+                  console.error(`Error creating processing event for post ${newPost.id}:`, eventError)
+                  // Continue processing even if event creation fails
+                }
+              } catch (processingError) {
+                console.error(`Error processing content for ${item.link}:`, processingError)
+                if (logger) {
+                  // Log detailed error information
+                  await logger.startStep(`processing_error_${newPost.id}`)
+                  await logger.endStep(`processing_error_${newPost.id}`, false, 'Content processing failed', {
+                    error: processingError instanceof Error ? processingError.message : 'Unknown error',
+                    stack: processingError instanceof Error ? processingError.stack : undefined,
+                    postId: newPost.id,
+                    link: item.link
+                  })
+                }
+                results.errors++
+                siteTotalErrors++
+              }
+            }
+          } catch (itemError) {
+            console.error(`Error processing item from ${site.title}:`, itemError)
+            results.errors++
+            siteTotalErrors++
+          }
+        }
+        
+        console.log(`Completed processing site ${site.id} (${site.title}): ${siteTotalProcessed} items processed, ${siteTotalErrors} errors`)
+        if (logger) await logger.endStep(`process_site_${site.id}`, true, `Processed site with ${siteTotalProcessed} new items`, {
+          siteId: site.id,
+          siteTitle: site.title,
+          processedItems: siteTotalProcessed,
+          errors: siteTotalErrors,
+          elapsedTime: Date.now() - startTime
+        })
+      } catch (siteError) {
+        results.errors++
+        console.error(`Error processing site ${site.title}:`, siteError)
+        if (logger) {
+          await logger.endStep(`process_site_${site.id}`, false, 'Failed to process site', { 
+            error: siteError instanceof Error ? siteError.message : 'Unknown error',
+            stack: siteError instanceof Error ? siteError.stack : undefined,
+            siteId: site.id,
+            siteTitle: site.title,
+            siteFeedUrl: site.feed_url
+          })
+        }
+      }
+    }
+    
+    // Update job with progress
+    if (logger) await logger.startStep('update_job_progress')
+    
+    let updatedJob;
+    try {
+      console.log(`Updating job ${jobId} progress:`, {
+        processedSites: job.processed_sites + results.sites,
+        processedItems: job.processed_items + results.processed,
+        errorCount: job.error_count + results.errors,
+        duration: Math.round((Date.now() - startTime) / 1000)
+      })
+      
+      const { data, error: updateError } = await supabase
+        .from('feed_processing_jobs')
+        .update({
+          processed_sites: job.processed_sites + results.sites,
+          processed_items: job.processed_items + results.processed,
+          error_count: job.error_count + results.errors,
+          last_updated: new Date().toISOString(),
+          duration: job.duration 
+            ? job.duration + Math.round((Date.now() - startTime) / 1000) 
+            : Math.round((Date.now() - startTime) / 1000)
+        })
+        .eq('id', jobId)
+        .select()
+        .single()
+      
+      if (updateError) {
+        console.error(`Failed to update job ${jobId} progress:`, updateError)
+        if (logger) await logger.endStep('update_job_progress', false, 'Failed to update job progress', 
+          { error: updateError.message })
+      } else {
+        updatedJob = data
+        console.log(`Successfully updated job ${jobId} progress`)
+        if (logger) await logger.endStep('update_job_progress', true, 'Job progress updated', { 
+          processed_sites: job.processed_sites + results.sites,
+          processed_items: job.processed_items + results.processed,
+          error_count: job.error_count + results.errors,
+          duration: updatedJob.duration
+        })
+      }
+    } catch (updateJobError) {
+      console.error('Error updating job progress:', updateJobError)
+      if (logger) await logger.endStep('update_job_progress', false, 'Error updating job progress', 
+        { error: updateJobError instanceof Error ? updateJobError.message : 'Unknown error' })
+    }
+    
+    // Determine if we need to process more batches
+    const isLastBatch = batchNumber >= job.total_batches - 1
+    const allSitesProcessed = sites && sites.length < job.batch_size
+    
+    console.log('Determining next steps:', {
+      batchNumber,
+      totalBatches: job.total_batches,
+      isLastBatch,
+      sitesInBatch: sites?.length,
+      batchSize: job.batch_size,
+      allSitesProcessed,
+      elapsedTime: Date.now() - startTime
+    })
+    
+    if (isLastBatch || allSitesProcessed) {
+      // Job is complete
+      if (logger) await logger.startStep('complete_job')
+      
+      try {
+        console.log(`Marking job ${jobId} as completed`)
+        const { error: updateError } = await supabase
+          .from('feed_processing_jobs')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', jobId)
+          
+        if (updateError) {
+          console.error(`Failed to mark job ${jobId} as completed:`, updateError)
+          if (logger) await logger.endStep('complete_job', false, 'Failed to mark job as completed', 
+            { error: updateError.message })
+        } else {
+          console.log(`Successfully marked job ${jobId} as completed`)
+        }
+      } catch (completeJobError) {
+        console.error(`Error marking job ${jobId} as completed:`, completeJobError)
+        if (logger) await logger.endStep('complete_job', false, 'Error marking job as completed', 
+          { error: completeJobError instanceof Error ? completeJobError.message : 'Unknown error' })
+      }
+      
+      // Create completion event for future extensions
+      try {
+        console.log(`Creating completion event for job ${jobId}`)
+        await supabase
+          .from('feed_processing_events')
+          .insert([{
+            job_id: jobId,
+            event_type: 'job_completed',
+            payload: {
+              processed_items: job.processed_items + results.processed,
+              error_count: job.error_count + results.errors,
+              duration: Date.now() - startTime,
+              completed_at: new Date().toISOString()
+            }
+          }])
+          
+        console.log(`Successfully created completion event for job ${jobId}`)
+      } catch (eventError) {
+        console.error(`Error creating completion event for job ${jobId}:`, eventError)
+        // Continue even if event creation fails
+      }
+      
+      if (logger) {
+        await logger.endStep('complete_job', true, 'Job completed successfully')
+        await logger.complete(true, {
+          itemsProcessed: results.processed,
+          itemsFailed: results.errors
+        })
+      }
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Feed processing completed',
+          results: {
+            processed: results.processed,
+            errors: results.errors,
+            duration: Math.round((Date.now() - startTime) / 1000)
+          }
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    } else {
+      // Schedule next batch as a background task
+      if (logger) await logger.startStep('schedule_next_batch')
+      
+      console.log(`Scheduling next batch (${batchNumber + 1}) for job ${jobId}`)
+      
+      // Define the background task for processing the next batch
+      const processNextBatch = async () => {
+        try {
+          console.log(`Starting background processing of batch ${batchNumber + 1} for job ${jobId}`)
+          
+          const workerUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/process-feeds-worker`
+          console.log(`Calling worker URL: ${workerUrl}`)
+          
+          // Process the next batch with a new HTTP request
+          const nextBatchResponse = await fetch(workerUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            },
+            body: JSON.stringify({
+              jobId: jobId,
+              batchNumber: batchNumber + 1
+            })
+          })
+          
+          if (!nextBatchResponse.ok) {
+            // Log detailed error information
+            const errorText = await nextBatchResponse.text().catch(() => 'Could not extract error details')
+            console.error(`Next batch worker call failed with status ${nextBatchResponse.status}:`, errorText)
+            throw new Error(`Worker responded with ${nextBatchResponse.status}: ${errorText}`)
+          }
+          
+          const responseData = await nextBatchResponse.json().catch(() => null)
+          console.log(`Completed background processing of batch ${batchNumber + 1}:`, responseData)
+        } catch (error) {
+          console.error(`Error in background processing of batch ${batchNumber + 1}:`, error)
+          
+          // Log detailed error information
+          console.error('Background processing error details:', {
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : 'No stack trace'
+          })
+          
+          // Update job status to failed if there's an error
+          try {
+            console.log(`Marking job ${jobId} as failed due to background processing error`)
+            await supabase
+              .from('feed_processing_jobs')
+              .update({
+                status: 'failed',
+                error: error instanceof Error ? error.message : 'Unknown error in background processing',
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', jobId)
+          } catch (updateError) {
+            console.error(`Failed to update job ${jobId} status after background error:`, updateError)
+          }
+        }
+      }
+      
+      try {
+        // Use EdgeRuntime.waitUntil to run the next batch processing in the background
+        console.log(`Using EdgeRuntime.waitUntil to schedule batch ${batchNumber + 1}`)
+        EdgeRuntime.waitUntil(processNextBatch())
+        console.log(`Successfully scheduled batch ${batchNumber + 1} using EdgeRuntime.waitUntil`)
+      } catch (waitUntilError) {
+        console.error(`Error using EdgeRuntime.waitUntil:`, waitUntilError)
+        // If waitUntil fails, try to call the next batch directly
+        try {
+          console.log(`Attempting direct invocation of next batch as fallback`)
+          processNextBatch().catch(e => console.error('Error in direct next batch invocation:', e))
+        } catch (directCallError) {
+          console.error(`Error in direct next batch invocation attempt:`, directCallError)
+        }
+      }
+      
+      if (logger) {
+        await logger.endStep('schedule_next_batch', true, 'Next batch scheduled as background task', 
+          { nextBatch: batchNumber + 1, jobId })
+        await logger.complete(true, {
+          itemsProcessed: results.processed,
+          itemsFailed: results.errors
+        })
+      }
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Batch processed, next batch scheduled as background task',
+          results: {
+            processed: results.processed,
+            errors: results.errors,
+            duration: Math.round((Date.now() - startTime) / 1000),
+            nextBatch: batchNumber + 1
+          }
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    }
+  } catch (error) {
+    console.error('Worker error:', error)
+    
+    // Log detailed error information
+    console.error('Worker error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      timestamp: new Date().toISOString(),
+      runtime: Date.now() - startTime
+    })
+    
+    if (logger) {
+      try {
+        await logger.complete(false, {}, error instanceof Error ? error : new Error('Unknown error'))
+      } catch (logError) {
+        console.error('Failed to log completion status:', logError)
+      }
+    }
+    
+    // Try to update job status if possible
+    try {
+      const requestData = await req.json().catch(() => ({}))
+      const jobId = requestData.jobId
+      
+      if (jobId) {
+        console.log(`Updating job ${jobId} status to failed`)
+        const { error: updateError } = await supabase
+          .from('feed_processing_jobs')
+          .update({
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', jobId)
+          
+        if (updateError) {
+          console.error(`Failed to update job ${jobId} status:`, updateError)
+        } else {
+          console.log(`Successfully updated job ${jobId} status to failed`)
+          
+          // Create error event
+          try {
+            await supabase
+              .from('feed_processing_events')
+              .insert([{
+                job_id: jobId,
+                event_type: 'job_error',
+                payload: {
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                  errorType: error instanceof Error ? error.name : 'Unknown',
+                  timestamp: new Date().toISOString()
+                }
+              }])
+          } catch (eventError) {
+            console.error(`Failed to create error event for job ${jobId}:`, eventError)
+          }
+        }
+      }
+    } catch (updateError) {
+      console.error('Failed to update job status:', updateError)
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+        duration: Math.round((Date.now() - startTime) / 1000)
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+  }
+})
