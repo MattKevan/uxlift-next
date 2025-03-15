@@ -1,0 +1,50 @@
+name: Process Content
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Run every 4 hours
+  workflow_dispatch:
+    inputs:
+      process_type:
+        description: 'Type of processing to run'
+        required: true
+        default: 'feeds'
+        type: choice
+        options:
+          - feeds
+          - embed
+          - both
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # Allow up to 2 hours for processing
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Process content
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Use the manually selected option
+            npm run process-${{ github.event.inputs.process_type }}
+          else
+            # Default to processing feeds for scheduled runs
+            npm run process-feeds
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_INDEX_NAME: ${{ secrets.PINECONE_INDEX_NAME }}
