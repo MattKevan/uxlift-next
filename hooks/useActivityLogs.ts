@@ -26,7 +26,7 @@ export function useActivityLogs() {
         throw new Error('Unauthorized - Please sign in')
       }
       
-      // Build the query
+      // Build the query for logs
       let query = supabase
         .from('admin_activity_logs')
         .select('*', { count: 'exact' })
@@ -52,11 +52,11 @@ export function useActivityLogs() {
         throw new Error(`Failed to fetch logs: ${logsError.message}`)
       }
       
-      // Fetch active jobs
+      // Fetch active jobs (both Supabase functions and GitHub Actions jobs)
       const { data: activeJobsData, error: jobsError } = await supabase
         .from('feed_processing_jobs')
         .select('*')
-        .in('status', ['pending', 'processing'])
+        .in('status', ['pending', 'processing', 'initiated']) // Added 'initiated' for GitHub Actions jobs
         .order('created_at', { ascending: false })
       
       if (jobsError) {
@@ -64,8 +64,19 @@ export function useActivityLogs() {
         // Continue anyway as this is secondary information
       }
       
+      // Add GitHub Actions specific information to jobs
+      const enhancedJobs = (activeJobsData || []).map(job => ({
+        ...job,
+        // Check if this is a GitHub Action job (check metadata or job type)
+        isGithubAction: job.metadata?.github_workflow || job.status === 'initiated',
+        // Display appropriate labels based on job type
+        displayName: job.metadata?.github_workflow 
+          ? `GitHub Action: ${job.metadata.github_workflow}`
+          : job.job_type || 'Feed Processing'
+      }));
+      
       setLogs(logsData || [])
-      setActiveJobs(activeJobsData || [])
+      setActiveJobs(enhancedJobs)
       setPagination(prev => ({ ...prev, total: count || 0 }))
       
     } catch (err) {
@@ -94,6 +105,9 @@ export function useActivityLogs() {
         console.error('Error fetching steps:', stepsError)
         throw new Error(stepsError.message)
       }
+      
+      // If this is a GitHub Action job, we might want to fetch additional details here
+      // For example, if you're logging GitHub Action events to another table
       
       // Update the log with steps
       setLogs(prevLogs => 

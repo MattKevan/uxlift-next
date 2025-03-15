@@ -21,30 +21,22 @@ type PostWithRelations = Post & {
 
 const POSTS_PER_PAGE = 50
 
-// Helper function to call Supabase Edge Functions
-const callEdgeFunction = async (functionName: string, body: any = {}) => {
-  const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    throw new Error('Authentication required');
-  }
-  
-  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${functionName}`, {
+// Helper function to call the GitHub Actions trigger API
+const triggerGitHubAction = async (processType: 'feeds' | 'embed' | 'both') => {
+  const response = await fetch('/api/trigger-github-action', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ process_type: processType })
   });
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to call ${functionName}`);
+    throw new Error(errorData.error || 'Failed to trigger GitHub workflow');
   }
   
-  return response;
+  return response.json();
 };
 
 export default function AdminPosts() {
@@ -64,7 +56,7 @@ export default function AdminPosts() {
     succeeded: 0,
     failed: 0,
     currentPost: null as { id: number; title?: string } | null,
-    processType: null as 'tagging' | 'embedding' | null // Add this
+    processType: null as 'tagging' | 'embedding' | null
   });
   const [batchErrors, setBatchErrors] = useState<Array<{
     postId: number;
@@ -74,7 +66,8 @@ export default function AdminPosts() {
   const [showErrors, setShowErrors] = useState(false)
   const [embedding, setEmbedding] = useState<number | null>(null);
   const [batchEmbedding, setBatchEmbedding] = useState(false);
- 
+  
+  const [processingJobId, setProcessingJobId] = useState<number | null>(null);
  
   const handleResetIndexStatus = async () => {
     if (!confirm('Are you sure you want to reset the index status for all posts? This will mark all posts as unindexed.')) {
@@ -82,11 +75,18 @@ export default function AdminPosts() {
     }
   
     try {
-      // Call the reset-index-status Edge Function directly
-      const response = await callEdgeFunction('reset-index-status');
-      const result = await response.json();
+      // Reset index status directly via Supabase
+      const { error } = await supabase
+        .from('content_post')
+        .update({ indexed: false })
+        .neq('id', 0); // Update all posts
       
-      alert(`Successfully reset index status for ${result.count || 'all'} posts`);
+      if (error) {
+        throw new Error(`Failed to reset index status: ${error.message}`);
+      }
+      
+      alert('Successfully reset index status for all posts');
+      await fetchPosts();
     } catch (error) {
       console.error('Error resetting index status:', error);
       alert(error instanceof Error ? error.message : 'Failed to reset index status');
@@ -103,14 +103,18 @@ export default function AdminPosts() {
     }
   
     try {
-      // Call the reset-embeddings Edge Function directly
-      const response = await callEdgeFunction('reset-embeddings');
-      const result = await response.json();
+      // Reset indexed status for all posts via Supabase
+      const { error: updateError } = await supabase
+        .from('content_post')
+        .update({ indexed: false })
+        .neq('id', 0);
       
-      alert(`Success! Deleted ${result.deletedCount || 0} embeddings. All posts have been reset to unindexed.`);
-      // Refresh your UI as needed
+      if (updateError) {
+        throw new Error(`Failed to reset post index status: ${updateError.message}`);
+      }
+      
+      alert('All posts have been reset to unindexed. You may need to manually delete embeddings from Pinecone.');
       await fetchPosts();
-      
     } catch (error) {
       console.error('Error resetting embeddings:', error);
       alert(error instanceof Error ? error.message : 'Failed to reset embeddings');
@@ -121,11 +125,10 @@ export default function AdminPosts() {
     try {
       setEmbedding(postId);
       
-      // Call the embed-post Edge Function directly
-      const response = await callEdgeFunction('embed-post', { postId });
-      const result = await response.json();
+      // Use GitHub Actions to embed posts
+      const result = await triggerGitHubAction('embed');
       
-      // Update the post in the UI to show it's been indexed
+      // Create a more optimistic UX - update UI right away
       setPosts(currentPosts =>
         currentPosts.map(post =>
           post.id === postId
@@ -134,7 +137,33 @@ export default function AdminPosts() {
         )
       );
       
-      alert(`Post successfully embedded with ${result.chunks || 0} chunks`);
+      alert(`Embedding job initiated! Job ID: ${result.jobId}`);
+      setProcessingJobId(result.jobId);
+      
+      // Start polling for job status
+      const pollInterval = setInterval(async () => {
+        const { data: job } = await supabase
+          .from('feed_processing_jobs')
+          .select('*')
+          .eq('id', result.jobId)
+          .single();
+  
+        if (job && (job.status === 'completed' || job.status === 'failed')) {
+          clearInterval(pollInterval);
+          
+          if (job.status === 'completed') {
+            alert(`Embedding job completed successfully!`);
+            await fetchPosts(); // Refresh the posts to get updated status
+          } else {
+            alert(`Embedding job failed: ${job.error || 'Unknown error'}`);
+          }
+        }
+      }, 5000); // Poll every 5 seconds
+      
+      // Clear interval after 15 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(pollInterval);
+      }, 15 * 60 * 1000);
   
     } catch (error) {
       console.error('Error embedding post:', error);
@@ -144,84 +173,26 @@ export default function AdminPosts() {
     }
   };
 
-
   const handleBatchEmbed = async () => {
-    if (!confirm('This will re-embed all posts in the database. This process may take several hours. Continue?')) {
+    if (!confirm('This will re-embed all posts in the database. This process may take several hours using GitHub Actions. Continue?')) {
       return;
     }
   
     try {
       setBatchEmbedding(true);
-      setBatchErrors([]);
-      setBatchProgress({
-        total: 0,
-        processed: 0,
-        succeeded: 0,
-        failed: 0,
-        currentPost: null,
-        processType: 'embedding'
-      });
       
-      // Call the batch-embed Edge Function directly
-      const response = await callEdgeFunction('batch-embed-posts');
-  
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-  
-      if (!reader) {
-        throw new Error('Failed to initialize stream reader');
-      }
-  
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-  
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-  
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
-  
-            switch (data.type) {
-              case 'progress':
-                setBatchProgress(prev => ({
-                  ...prev,
-                  total: data.total,
-                  processed: data.processed,
-                  succeeded: data.succeeded,
-                  failed: data.failed,
-                  currentPost: data.currentPost,
-                  processType: 'embedding'
-                }));
-                break;
-  
-              case 'error':
-                setBatchErrors(prev => [...prev, {
-                  postId: data.postId,
-                  error: data.error,
-                  details: data.details
-                }]);
-                break;
-  
-              case 'complete':
-                alert(`Embedding complete!\nProcessed: ${data.total}\nSucceeded: ${data.succeeded}\nFailed: ${data.failed}`);
-                await fetchPosts();
-                break;
-            }
-          }
-        }
-      }
-  
+      // Trigger GitHub Action for embedding
+      const result = await triggerGitHubAction('embed');
+      
+      alert(`Embedding job initiated! Job ID: ${result.jobId}. This process will run in the background and may take several hours. You can check the status in the Activity Logs.`);
+      
+      setProcessingJobId(result.jobId);
+      
     } catch (error) {
-      console.error('Error batch embedding posts:', error);
-      alert(error instanceof Error ? error.message : 'Failed to process posts');
+      console.error('Error initiating batch embedding:', error);
+      alert(error instanceof Error ? error.message : 'Failed to start embedding process');
     } finally {
       setBatchEmbedding(false);
-      setBatchProgress(prev => ({
-        ...prev,
-        processType: null
-      }));
     }
   };
 
@@ -267,6 +238,7 @@ export default function AdminPosts() {
       post.id === updatedPost.id ? { ...post, ...updatedPost } : post
     ))
   }
+  
   const handleDelete = async (postId: number) => {
     if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
       return
@@ -314,19 +286,21 @@ export default function AdminPosts() {
 
   const handleRefreshFeeds = async () => {
     try {
-      setRefreshing(true)
-  
-      // Call the process-feeds-controller Edge Function directly
-      const response = await callEdgeFunction('process-feeds-controller', { isCron: false });
-      const result = await response.json();
+      setRefreshing(true);
+      
+      // Trigger GitHub Action for feed processing
+      const result = await triggerGitHubAction('feeds');
+      
+      alert(`Feed processing initiated! Job ID: ${result.jobId}. You can check the status in the Activity Logs.`);
+      
+      setProcessingJobId(result.jobId);
       
       // Start polling for job status
-      const jobId = result.jobId;
       const pollInterval = setInterval(async () => {
         const { data: job } = await supabase
           .from('feed_processing_jobs')
           .select('*')
-          .eq('id', jobId)
+          .eq('id', result.jobId)
           .single();
   
         if (job) {
@@ -339,161 +313,133 @@ export default function AdminPosts() {
             clearInterval(pollInterval);
             setRefreshing(false);
             alert(`Feed processing failed: ${job.error}`);
-          } else {
-            // Update progress UI
-            console.log(`Processing: ${job.processed_sites}/${job.total_sites} sites, batch ${job.current_batch}/${job.total_batches}`);
           }
         }
-      }, 2000); // Poll every 2 seconds
+      }, 30000); // Poll every 30 seconds (longer interval since GitHub Actions will take time)
   
-      // Clear interval after 10 minutes to prevent infinite polling
+      // Clear interval after 30 minutes to prevent infinite polling
       setTimeout(() => {
         clearInterval(pollInterval);
-        setRefreshing(false);
-      }, 600000);
+        if (setRefreshing) {
+          setRefreshing(false);
+        }
+      }, 30 * 60 * 1000);
   
     } catch (error) {
       console.error('Error refreshing feeds:', error);
       setRefreshing(false);
       alert(error instanceof Error ? error.message : 'Failed to refresh feeds');
     }
-  }
+  };
   
-const handleAutoTag = async (postId: number) => {
+  const handleAutoTag = async (postId: number) => {
     try {
-      setTagging(postId)
+      setTagging(postId);
       
-      // Call the tag-post Edge Function directly
-      const response = await callEdgeFunction('tag-post', { postId });
-      const result = await response.json();
+      // Use GitHub Actions to tag posts
+      const result = await triggerGitHubAction('both'); // Using 'both' will run tagging as well
       
-      if (result.post) {
-        setPosts(currentPosts =>
-          currentPosts.map(post =>
-            post.id === result.post.id ? result.post : post
-          )
-        )
+      alert(`Tagging job initiated! Job ID: ${result.jobId}`);
+      
+      // Start polling for job status
+      const pollInterval = setInterval(async () => {
+        const { data: job } = await supabase
+          .from('feed_processing_jobs')
+          .select('*')
+          .eq('id', result.jobId)
+          .single();
   
-        if (result.suggestedTopics) {
-          alert('Post successfully tagged with topics: ' + result.suggestedTopics.join(', '))
+        if (job && (job.status === 'completed' || job.status === 'failed')) {
+          clearInterval(pollInterval);
+          
+          if (job.status === 'completed') {
+            alert(`Tagging job completed successfully!`);
+            await fetchPosts(); // Refresh the posts to get updated tags
+          } else {
+            alert(`Tagging job failed: ${job.error || 'Unknown error'}`);
+          }
         }
-      }
+      }, 5000); // Poll every 5 seconds
+      
+      // Clear interval after 15 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+      }, 15 * 60 * 1000);
   
     } catch (error) {
-      console.error('Error auto-tagging post:', error)
+      console.error('Error auto-tagging post:', error);
       if (error instanceof Error) {
-        alert(error.message)
+        alert(error.message);
       } else {
-        alert('Failed to auto-tag post')
+        alert('Failed to auto-tag post');
       }
     } finally {
-      setTagging(null)
+      setTagging(null);
     }
-  }
+  };
 
   const handleSummarise = async (postId: number) => {
     try {
-      setSummarising(postId)
+      setSummarising(postId);
       
-      // Call the summarise Edge Function directly
-      const response = await callEdgeFunction('summarise-post', { postId });
-      const result = await response.json();
+      // Use GitHub Actions for summarization
+      const result = await triggerGitHubAction('both'); // Using 'both' will handle summarization
       
-      if (result.summary) {
-        setPosts(currentPosts =>
-          currentPosts.map(post =>
-            post.id === postId
-              ? { ...post, summary: result.summary }
-              : post
-          )
-        )
-        alert('Summary generated successfully')
-      }
+      alert(`Summarization job initiated! Job ID: ${result.jobId}`);
+      
+      // Start polling for job status
+      const pollInterval = setInterval(async () => {
+        const { data: job } = await supabase
+          .from('feed_processing_jobs')
+          .select('*')
+          .eq('id', result.jobId)
+          .single();
+  
+        if (job && (job.status === 'completed' || job.status === 'failed')) {
+          clearInterval(pollInterval);
+          
+          if (job.status === 'completed') {
+            alert(`Summarization job completed successfully!`);
+            await fetchPosts(); // Refresh the posts to get updated summaries
+          } else {
+            alert(`Summarization job failed: ${job.error || 'Unknown error'}`);
+          }
+        }
+      }, 5000); // Poll every 5 seconds
+      
+      // Clear interval after 15 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+      }, 15 * 60 * 1000);
   
     } catch (error) {
-      console.error('Error summarizing post:', error)
-      alert(error instanceof Error ? error.message : 'Failed to summarize post')
+      console.error('Error summarizing post:', error);
+      alert(error instanceof Error ? error.message : 'Failed to summarize post');
     } finally {
-      setSummarising(null)
+      setSummarising(null);
     }
-  }
+  };
+  
   const handleBatchTag = async () => {
-    if (!confirm('This will re-tag all posts in the database. This may take several minutes. Continue?')) {
+    if (!confirm('This will re-tag all posts in the database using GitHub Actions. This may take several hours. Continue?')) {
       return;
     }
 
     try {
       setBatchTagging(true);
-      setBatchErrors([]);
-      setBatchProgress({
-        total: 0,
-        processed: 0,
-        succeeded: 0,
-        failed: 0,
-        currentPost: null,
-        processType: 'tagging'
-      });
       
-      // Call the batch-tag Edge Function directly
-      const response = await callEdgeFunction('batch-tag-posts');
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error('Failed to initialize stream reader');
-      }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
-
-            switch (data.type) {
-              case 'progress':
-                setBatchProgress(prev => ({
-                  ...prev,
-                  total: data.total || 0,
-                  processed: data.processed || 0,
-                  succeeded: data.succeeded || 0,
-                  failed: data.failed || 0,
-                  currentPost: data.currentPost,
-                  processType: 'tagging'
-                }));
-                break;
-
-              case 'error':
-                setBatchErrors(prev => [...prev, {
-                  postId: data.postId,
-                  error: data.error,
-                  details: data.details
-                }]);
-                break;
-
-              case 'complete':
-                alert(`Tagging complete!\nProcessed: ${data.total || 0}\nSucceeded: ${data.succeeded || 0}\nFailed: ${data.failed || 0}`);
-                await fetchPosts();
-                break;
-            }
-          }
-        }
-      }
-
+      // Trigger GitHub Action for tagging
+      const result = await triggerGitHubAction('both'); // 'both' includes tagging
+      
+      alert(`Tagging job initiated! Job ID: ${result.jobId}. This process will run in the background and may take several hours. You can check the status in the Activity Logs.`);
+      
+      setProcessingJobId(result.jobId);
+      
     } catch (error) {
-      console.error('Error batch tagging posts:', error);
-      alert(error instanceof Error ? error.message : 'Failed to process posts');
+      console.error('Error initiating batch tagging:', error);
+      alert(error instanceof Error ? error.message : 'Failed to start tagging process');
     } finally {
       setBatchTagging(false);
-      setBatchProgress(prev => ({
-        ...prev,
-        processType: null
-      }));
     }
   };
 
@@ -502,6 +448,7 @@ const handleAutoTag = async (postId: number) => {
     // Update your posts list or show a success message
     setPosts([newPost, ...posts])
   }
+  
   return (
     <div className="">
       <h1 className="text-2xl font-bold mb-6">Manage posts</h1>
@@ -513,7 +460,7 @@ const handleAutoTag = async (postId: number) => {
           className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors
             ${refreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {refreshing ? 'Refreshing feeds...' : 'Refresh feeds'}
+          {refreshing ? 'Refreshing feeds...' : 'Refresh feeds (GitHub Action)'}
         </button>
 
         <button
@@ -522,89 +469,51 @@ const handleAutoTag = async (postId: number) => {
           className={`px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors
             ${batchTagging ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {batchTagging ? 'Processing all posts...' : 'Re-tag all posts'}
+          {batchTagging ? 'Processing all posts...' : 'Re-tag all posts (GitHub Action)'}
         </button>
         <button
-  onClick={handleResetIndexStatus}
-  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
->
-  Reset All Index Status
-</button>
+          onClick={handleResetIndexStatus}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+        >
+          Reset All Index Status
+        </button>
         <button
-  onClick={handleBatchEmbed}
-  disabled={batchEmbedding || batchTagging}
-  className={`px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors
-    ${(batchEmbedding || batchTagging) ? 'opacity-50 cursor-not-allowed' : ''}`}
->
-  {batchEmbedding 
-    ? `Embedding: ${batchProgress.processed}/${batchProgress.total}`
-    : 'Re-embed all posts'}
-</button>
-<button
-  onClick={handleResetAllEmbeddings}
-  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
->
-  Reset All Embeddings
-</button>
+          onClick={handleBatchEmbed}
+          disabled={batchEmbedding || batchTagging}
+          className={`px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors
+            ${(batchEmbedding || batchTagging) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {batchEmbedding 
+            ? `Initializing embedding...`
+            : 'Re-embed all posts (GitHub Action)'}
+        </button>
+        <button
+          onClick={handleResetAllEmbeddings}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        >
+          Reset All Embeddings
+        </button>
       </div>
 
-      {(batchTagging || batchEmbedding) && (
-  <div className="mb-8 space-y-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-      <div 
-        className={`h-2.5 rounded-full transition-all duration-500 ${
-          batchTagging ? 'bg-purple-600' : 'bg-green-600'
-        }`}
-        style={{ width: `${(batchProgress.processed / batchProgress.total) * 100}%` }}
-      ></div>
-    </div>
-    
-    <div className="text-sm text-gray-600 dark:text-gray-300">
-      <div className="flex justify-between">
-        <span>
-          {batchTagging ? 'Tagging' : 'Embedding'}: {batchProgress.processed} / {batchProgress.total} posts
-        </span>
-        <span>
-          Success: <span className="text-green-600">{batchProgress.succeeded}</span> | 
-          Failed: <span className="text-red-600">{batchProgress.failed}</span>
-        </span>
-      </div>
-      {batchProgress.currentPost && (
-        <div className="text-xs text-gray-500 mt-1">
-          Current: {batchProgress.currentPost.title || `Post ${batchProgress.currentPost.id}`}
+      {processingJobId && (
+        <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium">Background Job Running</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Job ID: {processingJobId} - This job is processing in GitHub Actions and may take time to complete.
+              </p>
+            </div>
+            <a 
+              href="/admin/activity-logs" 
+              className="text-blue-600 hover:underline text-sm font-medium"
+            >
+              View in Activity Logs →
+            </a>
+          </div>
         </div>
       )}
-    </div>
 
-    {batchErrors.length > 0 && (
-      <div className="mt-4">
-        <button
-          onClick={() => setShowErrors(!showErrors)}
-          className="text-red-600 text-sm hover:underline"
-        >
-          {showErrors ? 'Hide' : 'Show'} Errors ({batchErrors.length})
-        </button>
-        
-        {showErrors && (
-          <div className="mt-2 max-h-40 overflow-y-auto text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded">
-            {batchErrors.map((error, index) => (
-              <div key={index} className="mb-2 text-red-600 dark:text-red-400">
-                <div>Post ID: {error.postId}</div>
-                <div>Error: {error.error}</div>
-                {error.details && <div>Details: {error.details}</div>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )}
-    
-    <div className="mt-4 text-xs text-gray-500">
-      <div>Processing {batchTagging ? 'tags' : 'embeddings'} in batches to avoid rate limits.</div>
-      <div>This may take several minutes to complete.</div>
-    </div>
-  </div>
-)}
       <FetchUrlForm onSuccess={handlePostCreated} />
 
       <div className="overflow-x-auto">
@@ -692,38 +601,38 @@ const handleAutoTag = async (postId: number) => {
                     Edit
                   </button>
                   <button
-          onClick={() => handleSummarise(post.id)}
-          disabled={summarising === post.id}
-          className={`text-green-600 hover:underline dark:text-green-400 ${
-            summarising === post.id ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {summarising === post.id ? 'Summarising...' : 'Summarise'}
-        </button>
-        <button
-          onClick={() => handleAutoTag(post.id)}
-          disabled={tagging === post.id}
-          className={`text-purple-600 hover:underline dark:text-purple-400 ${
-            tagging === post.id ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {tagging === post.id ? 'Tagging...' : 'Auto-tag'}
-        </button>
-        <button
-  onClick={() => handleEmbed(post.id)}
-  disabled={embedding === post.id}
-  className={`text-green-600 hover:underline dark:text-green-400 ${
-    embedding === post.id ? 'opacity-50 cursor-not-allowed' : ''
-  }`}
->
-  {embedding === post.id ? 'Embedding...' : 'Embed'}
-</button>
-        <button
-    onClick={() => handleDelete(post.id)}
-    className="text-red-600 hover:underline dark:text-red-400"
-  >
-    Delete
-  </button>
+                    onClick={() => handleSummarise(post.id)}
+                    disabled={summarising === post.id}
+                    className={`text-green-600 hover:underline dark:text-green-400 ${
+                      summarising === post.id ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {summarising === post.id ? 'Summarising...' : 'Summarise (GH)'}
+                  </button>
+                  <button
+                    onClick={() => handleAutoTag(post.id)}
+                    disabled={tagging === post.id}
+                    className={`text-purple-600 hover:underline dark:text-purple-400 ${
+                      tagging === post.id ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {tagging === post.id ? 'Tagging...' : 'Auto-tag (GH)'}
+                  </button>
+                  <button
+                    onClick={() => handleEmbed(post.id)}
+                    disabled={embedding === post.id}
+                    className={`text-green-600 hover:underline dark:text-green-400 ${
+                      embedding === post.id ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {embedding === post.id ? 'Embedding...' : 'Embed (GH)'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="text-red-600 hover:underline dark:text-red-400"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
