@@ -18,7 +18,7 @@ on:
 jobs:
   process:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # Allow up to 2 hours for processing
+    timeout-minutes: 120
     
     steps:
       - name: Checkout code
@@ -32,27 +32,19 @@ jobs:
           
       - name: Install dependencies
         run: npm ci
-        
-      - name: Debug environment
+      
+      - name: Write env file
         run: |
-          echo "Node version: $(node -v)"
-          echo "NPM version: $(npm -v)"
-          echo "Working directory: $(pwd)"
-          ls -la scripts/
-        
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}" >> .env
+          echo "PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}" >> .env
+      
       - name: Process content
-        shell: bash
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-          PINECONE_INDEX_NAME: ${{ secrets.PINECONE_INDEX_NAME }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "Running with process type: ${{ github.event.inputs.process_type }}"
-            node scripts/process-feeds.js ${{ github.event.inputs.process_type }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            node -r dotenv/config scripts/process-feeds.js ${{ github.event.inputs.process_type }}
           else
-            echo "Running scheduled job with process type: feeds"
-            node scripts/process-feeds.js feeds
+            node -r dotenv/config scripts/process-feeds.js feeds
           fi

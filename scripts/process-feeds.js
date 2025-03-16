@@ -8,6 +8,8 @@ const { JSDOM } = require('jsdom');
 const { Readability } = require('@mozilla/readability');
 const cheerio = require('cheerio');
 
+require('dotenv').config();
+
 // Debug environment variables availability
 console.log('Environment variables check:');
 console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'present' : 'missing');
