@@ -1,13 +1,38 @@
 // scripts/process-feeds.js
-require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
-const { Parser } = require('rss-parser');
-const { OpenAI } = require('openai');
-const { Pinecone } = require('@pinecone-database/pinecone');
-const cheerio = require('cheerio');
-const fetch = require('node-fetch');
-const { JSDOM } = require('jsdom');
-const { Readability } = require('@mozilla/readability');
+
+// Add this at the top of your script
+console.log('Environment variables:');
+console.log('SUPABASE_URL present:', !!process.env.SUPABASE_URL);
+console.log('SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+console.log('OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY);
+console.log('PINECONE_API_KEY present:', !!process.env.PINECONE_API_KEY);
+console.log('PINECONE_INDEX_NAME present:', !!process.env.PINECONE_INDEX_NAME);
+
+
+// Replace your current initialization code with this
+if (!process.env.SUPABASE_URL) {
+  console.error('ERROR: SUPABASE_URL environment variable is missing');
+  process.exit(1);
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('ERROR: SUPABASE_SERVICE_ROLE_KEY environment variable is missing');
+  process.exit(1);
+}
+
+
+
+// (similar checks for other services)
+
+import { createClient } from '@supabase/supabase-js';
+import { Parser } from 'rss-parser';
+import { OpenAI } from 'openai';
+import { Pinecone } from '@pinecone-database/pinecone';
+import { load } from 'cheerio';
+import fetch from 'node-fetch';
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
+// Initialize clients with additional error checking
 
 // Cleanup HTML content
 function cleanHTML(html) {
@@ -17,7 +42,7 @@ function cleanHTML(html) {
     cleaned = cleaned.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
     
     // Use cheerio to parse and clean HTML
-    const $ = cheerio.load(cleaned);
+    const $ = load(cleaned);
     $('script, style, iframe, noscript').remove();
     
     // Get text content
@@ -130,7 +155,7 @@ async function fetchAndProcessContent(rawUrl) {
     }
 
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = load(html);
     
     // Extract metadata
     const title = $('meta[property="og:title"]').attr('content') || 
