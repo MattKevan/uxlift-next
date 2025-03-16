@@ -729,7 +729,6 @@ async function processAllFeeds() {
       .from('feed_processing_jobs')
       .insert([{ 
         status: 'processing',
-        created_by: '00000000-0000-0000-0000-000000000000',
         is_cron: true
       }])
       .select()
