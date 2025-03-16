@@ -67,15 +67,15 @@ function formatBlueskyPost(post, postTopics, allTopics) {
   }
   
   // Ensure the content doesn't exceed 300 characters (Bluesky's limit)
-  if (content.length > 300) {
+  if (content.length > 290) { // Using 290 to give some safety margin
     // If too long, truncate the summary 
-    const titleLength = post.title.length;
-    const linkLength = post.link.length;
-    const hashtagsLength = hashtags.length > 0 ? hashtags.slice(0, 5).join(' ').length : 0;
+    const titleLength = post.title ? post.title.length : 0;
+    const linkLength = post.link ? post.link.length : 0;
+    const hashtagsLength = hashtags.length > 0 ? hashtags.slice(0, 3).join(' ').length : 0; // Reduce to 3 hashtags max
     
-    // Calculate max length for summary to stay under 300 chars
+    // Calculate max length for summary to stay under 290 chars
     // 10 chars are reserved for newlines and spacing
-    const maxSummaryLength = 300 - titleLength - linkLength - hashtagsLength - 10;
+    const maxSummaryLength = 290 - titleLength - linkLength - hashtagsLength - 10;
     
     if (maxSummaryLength > 20) {
       // Rebuild content with truncated summary
@@ -86,15 +86,20 @@ function formatBlueskyPost(post, postTopics, allTopics) {
       content += `${post.link}\n\n`;
       
       if (hashtags.length > 0) {
-        content += hashtags.slice(0, 5).join(' ');
+        content += hashtags.slice(0, 3).join(' '); // Reduce to 3 hashtags max
       }
     } else {
-      // If summary can't be reasonably included, use just title, link, and tags
+      // If summary can't be reasonably included, use just title, link, and fewer tags
       content = `${post.title}\n\n${post.link}\n\n`;
       
       if (hashtags.length > 0) {
-        content += hashtags.slice(0, 5).join(' ');
+        content += hashtags.slice(0, 2).join(' '); // Only use 2 hashtags if space is very limited
       }
+    }
+    
+    // Final safety check - if still too long, just use title and link
+    if (content.length > 290) {
+      content = `${post.title}\n\n${post.link}`;
     }
   }
   
