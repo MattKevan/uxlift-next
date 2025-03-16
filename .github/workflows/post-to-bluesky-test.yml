@@ -1,0 +1,75 @@
+name: Test Bluesky Post
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-test-post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Write env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+          # Only adding necessary environment variables for the database operations
+          # Bluesky credentials are passed directly to the action
+      
+      # Get the next post to be published
+      - name: Find next post for Bluesky
+        id: find_post
+        run: |
+          # Execute the script that finds the next post to publish
+          node -r dotenv/config scripts/get-next-post-for-bluesky.js
+          
+          # Check if the script found a post
+          if [ -f ".post-data" ]; then
+            source .post-data
+            echo "HAS_POST=true" >> $GITHUB_ENV
+            echo "POST_ID=$POST_ID" >> $GITHUB_ENV
+            echo "POST_CONTENT=$POST_CONTENT" >> $GITHUB_ENV
+            echo "POST_TAGS=$POST_TAGS" >> $GITHUB_ENV
+            echo "Found post $POST_ID to publish to Bluesky"
+          else
+            echo "HAS_POST=false" >> $GITHUB_ENV
+            echo "No posts to publish at this time"
+          fi
+      
+      # Post to Bluesky if a post was found
+      - name: Post to Bluesky
+        if: env.HAS_POST == 'true'
+        uses: myConsciousness/bluesky-post@v5
+        with:
+          text: ${{ env.POST_CONTENT }}
+          identifier: ${{ secrets.BLUESKY_IDENTIFIER }}
+          password: ${{ secrets.BLUESKY_PASSWORD }}
+          retry-count: 3
+          tags: ${{ env.POST_TAGS }}
+      
+      # Update the database to mark the post as published
+      - name: Update post status
+        if: env.HAS_POST == 'true' && success()
+        run: |
+          # Double-check the post hasn't been published already
+          node -r dotenv/config scripts/verify-post-status.js ${{ env.POST_ID }}
+          
+          if [ -f ".post-verified" ]; then
+            # Update the status in the database
+            node -r dotenv/config scripts/update-bluesky-status.js ${{ env.POST_ID }}
+            echo "Successfully posted to Bluesky and updated status for post ${{ env.POST_ID }}"
+          else
+            echo "Post ${{ env.POST_ID }} was already published or couldn't be verified. Skipping update."
+          fi

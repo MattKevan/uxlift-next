@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       content_book: {
         Row: {
           authors: string
@@ -430,56 +454,351 @@ export type Database = {
           },
         ]
       }
-      feed_processing_jobs: {
+      detailed_logs: {
+        Row: {
+          error: Json | null
+          execution_id: string
+          function_name: string
+          id: number
+          job_id: number | null
+          level: string
+          message: string
+          metadata: Json | null
+          step: string | null
+          timestamp: string
+        }
+        Insert: {
+          error?: Json | null
+          execution_id: string
+          function_name: string
+          id?: number
+          job_id?: number | null
+          level: string
+          message: string
+          metadata?: Json | null
+          step?: string | null
+          timestamp?: string
+        }
+        Update: {
+          error?: Json | null
+          execution_id?: string
+          function_name?: string
+          id?: number
+          job_id?: number | null
+          level?: string
+          message?: string
+          metadata?: Json | null
+          step?: string | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detailed_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edge_function_logs: {
         Row: {
           completed_at: string | null
+          context: Json | null
+          duration_ms: number | null
+          error: string | null
+          execution_id: string
+          function_name: string
+          id: number
+          items_failed: number | null
+          items_processed: number | null
+          job_id: number | null
+          memory_used_mb: number | null
+          started_at: string
+          status: string
+          success: boolean | null
+        }
+        Insert: {
+          completed_at?: string | null
+          context?: Json | null
+          duration_ms?: number | null
+          error?: string | null
+          execution_id?: string
+          function_name: string
+          id?: number
+          items_failed?: number | null
+          items_processed?: number | null
+          job_id?: number | null
+          memory_used_mb?: number | null
+          started_at?: string
+          status: string
+          success?: boolean | null
+        }
+        Update: {
+          completed_at?: string | null
+          context?: Json | null
+          duration_ms?: number | null
+          error?: string | null
+          execution_id?: string
+          function_name?: string
+          id?: number
+          items_failed?: number | null
+          items_processed?: number | null
+          job_id?: number | null
+          memory_used_mb?: number | null
+          started_at?: string
+          status?: string
+          success?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edge_function_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edge_function_steps: {
+        Row: {
+          completed_at: string | null
+          data: Json | null
+          duration_ms: number | null
+          id: number
+          log_id: number | null
+          message: string | null
+          started_at: string
+          step_name: string
+          success: boolean | null
+        }
+        Insert: {
+          completed_at?: string | null
+          data?: Json | null
+          duration_ms?: number | null
+          id?: number
+          log_id?: number | null
+          message?: string | null
+          started_at?: string
+          step_name: string
+          success?: boolean | null
+        }
+        Update: {
+          completed_at?: string | null
+          data?: Json | null
+          duration_ms?: number | null
+          id?: number
+          log_id?: number | null
+          message?: string | null
+          started_at?: string
+          step_name?: string
+          success?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edge_function_steps_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: false
+            referencedRelation: "admin_activity_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edge_function_steps_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: false
+            referencedRelation: "edge_function_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_processing_batches: {
+        Row: {
+          batch_number: number
+          completed_at: string | null
+          continuation: boolean
           created_at: string
-          created_by: string
+          current_site: string | null
+          error: string | null
+          error_count: number
+          id: number
+          items_processed: number
+          job_id: number | null
+          last_updated: string | null
+          previous_batch_id: number | null
+          started_at: string | null
+          state: Json | null
+          status: string
+        }
+        Insert: {
+          batch_number: number
+          completed_at?: string | null
+          continuation?: boolean
+          created_at?: string
+          current_site?: string | null
+          error?: string | null
+          error_count?: number
+          id?: number
+          items_processed?: number
+          job_id?: number | null
+          last_updated?: string | null
+          previous_batch_id?: number | null
+          started_at?: string | null
+          state?: Json | null
+          status?: string
+        }
+        Update: {
+          batch_number?: number
+          completed_at?: string | null
+          continuation?: boolean
+          created_at?: string
+          current_site?: string | null
+          error?: string | null
+          error_count?: number
+          id?: number
+          items_processed?: number
+          job_id?: number | null
+          last_updated?: string | null
+          previous_batch_id?: number | null
+          started_at?: string | null
+          state?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_processing_batches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_processing_batches_previous_batch_id_fkey"
+            columns: ["previous_batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_processing_events: {
+        Row: {
+          batch_id: number | null
+          created_at: string
+          event_type: string
+          id: number
+          job_id: number | null
+          payload: Json | null
+          processed: boolean | null
+          processed_at: string | null
+        }
+        Insert: {
+          batch_id?: number | null
+          created_at?: string
+          event_type: string
+          id?: number
+          job_id?: number | null
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Update: {
+          batch_id?: number | null
+          created_at?: string
+          event_type?: string
+          id?: number
+          job_id?: number | null
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_processing_events_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_processing_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_processing_jobs: {
+        Row: {
+          batch_size: number | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          current_batch: number | null
           current_site: string | null
           duration: number | null
           error: string | null
           error_count: number
           id: number
           is_cron: boolean | null
+          job_type: string
+          last_processed_item_id: number | null
+          last_processed_site_id: number | null
           last_updated: string | null
+          metadata: Json | null
           processed_items: number
           processed_sites: number
           started_at: string | null
           status: string
+          total_batches: number | null
           total_sites: number
         }
         Insert: {
+          batch_size?: number | null
           completed_at?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
+          current_batch?: number | null
           current_site?: string | null
           duration?: number | null
           error?: string | null
           error_count?: number
           id?: number
           is_cron?: boolean | null
+          job_type?: string
+          last_processed_item_id?: number | null
+          last_processed_site_id?: number | null
           last_updated?: string | null
+          metadata?: Json | null
           processed_items?: number
           processed_sites?: number
           started_at?: string | null
           status?: string
+          total_batches?: number | null
           total_sites?: number
         }
         Update: {
+          batch_size?: number | null
           completed_at?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
+          current_batch?: number | null
           current_site?: string | null
           duration?: number | null
           error?: string | null
           error_count?: number
           id?: number
           is_cron?: boolean | null
+          job_type?: string
+          last_processed_item_id?: number | null
+          last_processed_site_id?: number | null
           last_updated?: string | null
+          metadata?: Json | null
           processed_items?: number
           processed_sites?: number
           started_at?: string | null
           status?: string
+          total_batches?: number | null
           total_sites?: number
         }
         Relationships: []
@@ -630,7 +949,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_activity_logs: {
+        Row: {
+          batch_size: number | null
+          completed_at: string | null
+          current_batch: number | null
+          current_site: string | null
+          duration_ms: number | null
+          error: string | null
+          execution_id: string | null
+          function_name: string | null
+          id: number | null
+          items_failed: number | null
+          items_processed: number | null
+          job_id: number | null
+          processed_sites: number | null
+          started_at: string | null
+          status: string | null
+          success: boolean | null
+          successful_steps: number | null
+          total_batches: number | null
+          total_sites: number | null
+          total_steps: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edge_function_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "feed_processing_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       binary_quantize:
@@ -646,6 +997,16 @@ export type Database = {
             }
             Returns: unknown
           }
+      check_job_completion: {
+        Args: {
+          job_id_param: number
+        }
+        Returns: boolean
+      }
+      cleanup_stalled_batches: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       generate_unique_slug: {
         Args: {
           title: string

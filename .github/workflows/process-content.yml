@@ -2,7 +2,7 @@ name: Process Content
 
 on:
   schedule:
-    - cron: '0 */4 * * *'  # Run every 4 hours
+    - cron: '0 5 * * *'  # Run once a day at 5:00 AM UTC
   workflow_dispatch:
     inputs:
       process_type:
