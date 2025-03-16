@@ -1,4 +1,4 @@
-// scripts/get-next-post-for-bluesky.js
+// scripts/get-test-post-for-bluesky.js
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 require('dotenv').config();
@@ -77,7 +77,14 @@ function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
   // Check if we have space for hashtags
   if (hashtags.length > 0) {
     content += '\r\n';
+    // Always include #ux as the first hashtag
+    if (!hashtags.some(tag => tag.toLowerCase() === '#ux')) {
+      content += '#ux ';
+    }
     content += hashtags.slice(0, 3).join(' ');
+  } else {
+    // If no other hashtags, at least include #ux
+    content += '\r\n#ux';
   }
   
   // Final check to ensure we're under the limit
@@ -87,8 +94,16 @@ function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
     
     // Add hashtags if possible
     const remainingSpace = 280 - content.length;
-    if (remainingSpace > 20 && hashtags.length > 0) {
-      content += '\r\n' + hashtags.slice(0, Math.min(2, hashtags.length)).join(' ');
+    if (remainingSpace > 20) {
+      content += '\r\n#ux';
+      
+      // Add other hashtags if space permits
+      if (remainingSpace > 25 && hashtags.length > 0) {
+        const otherTags = hashtags.filter(tag => tag.toLowerCase() !== '#ux');
+        if (otherTags.length > 0) {
+          content += ' ' + otherTags.slice(0, Math.min(2, otherTags.length)).join(' ');
+        }
+      }
     }
   }
   
@@ -99,31 +114,9 @@ function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
   return content;
 }
 
-// Main function to get the next article for Bluesky posting
-async function getNextPostForBluesky() {
-  // Create a log record for this run
-  const { data: job, error: jobError } = await supabase
-    .from('feed_processing_jobs')
-    .insert([{ 
-      status: 'processing',
-      job_type: 'bluesky_posting',
-      is_cron: true,
-      total_sites: 0,
-      processed_sites: 0,
-      processed_items: 0,
-      error_count: 0,
-      started_at: new Date().toISOString()
-    }])
-    .select()
-    .single();
-  
-  if (jobError) {
-    console.error(`Failed to create job record: ${jobError.message}`);
-    // Continue without a job record
-  } else {
-    console.log(`Created job record with ID: ${job.id}`);
-  }
-  console.log('Finding next post for Bluesky');
+// Main function to get a specific test post for Bluesky posting
+async function getTestPostForBluesky(offset = 0) {
+  console.log(`Finding test post for Bluesky with offset: ${offset}`);
   
   try {
     // Get posts that haven't been posted to Bluesky yet AND were added in the last 24 hours
@@ -143,6 +136,7 @@ async function getNextPostForBluesky() {
       .or('bluesky_posted.is.null,bluesky_posted.eq.false')  // Check for both null and false
       .gte('date_created', yesterdayISOString)  // Only posts from last 24 hours
       .order('date_published', { ascending: true })
+      .range(parseInt(offset), parseInt(offset))
       .limit(1);
     
     if (fetchError) {
@@ -150,7 +144,7 @@ async function getNextPostForBluesky() {
     }
     
     if (!posts || posts.length === 0) {
-      console.log('No posts to publish to Bluesky');
+      console.log(`No posts found at offset ${offset} or all posts have already been shared to Bluesky`);
       return null;
     }
     
@@ -267,44 +261,19 @@ async function getNextPostForBluesky() {
     fs.writeFileSync('.post-data', fileContent);
     console.log('Post data written to .post-data file');
     
-    // Update job status if we have a job record
-    if (job && job.id) {
-      await supabase
-        .from('feed_processing_jobs')
-        .update({
-          status: 'processing',
-          processed_items: 1,
-          last_processed_item_id: post.id,
-          last_updated: new Date().toISOString()
-        })
-        .eq('id', job.id);
-    }
-    
     return postData;
   } catch (error) {
-    console.error('Error getting next post for Bluesky:', error);
-    
-    // Update job status if we have a job record
-    if (job && job.id) {
-      await supabase
-        .from('feed_processing_jobs')
-        .update({
-          status: 'failed',
-          error: error.message,
-          error_count: 1,
-          completed_at: new Date().toISOString(),
-          last_updated: new Date().toISOString()
-        })
-        .eq('id', job.id);
-    }
-    
+    console.error('Error getting test post for Bluesky:', error);
     throw error;
   }
 }
 
+// Get the offset from command line argument
+const offset = process.argv[2] || 0;
+
 // Run the main function if called directly
 if (require.main === module) {
-  getNextPostForBluesky()
+  getTestPostForBluesky(offset)
     .then(() => {
       console.log('Successfully completed');
       process.exit(0);
@@ -317,6 +286,6 @@ if (require.main === module) {
 
 // Export functions
 module.exports = {
-  getNextPostForBluesky,
+  getTestPostForBluesky,
   formatBlueskyPost
 };
