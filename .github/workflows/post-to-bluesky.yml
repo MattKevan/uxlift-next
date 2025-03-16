@@ -23,41 +23,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Write env file
-        run: |
-          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
-          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          echo "PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}" >> .env
-          echo "PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}" >> .env
-      
       # Get the next post to be published
       - name: Find next post for Bluesky
         id: find_post
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           # Execute the script that finds the next post to publish
-          # The script will write the post content and tags to the environment variables
-          node -r dotenv/config scripts/get-next-post-for-bluesky.js
+          node scripts/get-next-post-for-bluesky.js
           
           # Check if the script found a post
           if [ -f ".post-data" ]; then
             source .post-data
             echo "HAS_POST=true" >> $GITHUB_ENV
             echo "POST_ID=$POST_ID" >> $GITHUB_ENV
-            echo "POST_CONTENT=$POST_CONTENT" >> $GITHUB_ENV
-            echo "POST_TAGS=$POST_TAGS" >> $GITHUB_ENV
+            
+            # Decode the base64 content and save to a file for the action
+            echo $POST_CONTENT_BASE64 | base64 -d > post_content.txt
             echo "Found post $POST_ID to publish to Bluesky"
           else
             echo "HAS_POST=false" >> $GITHUB_ENV
             echo "No posts to publish at this time"
           fi
       
-      # Post to Bluesky if a post was found
+      # Show post content for debugging
+      - name: Debug post content
+        if: env.HAS_POST == 'true'
+        run: |
+          echo "Post content:"
+          cat post_content.txt
+      
+      # Post to Bluesky if a post was found (using file input)
       - name: Post to Bluesky
         if: env.HAS_POST == 'true'
         uses: myConsciousness/bluesky-post@v5
         with:
-          text: ${{ env.POST_CONTENT }}
+          text-file: post_content.txt
           identifier: ${{ secrets.BLUESKY_IDENTIFIER }}
           password: ${{ secrets.BLUESKY_PASSWORD }}
           retry-count: 3
@@ -66,7 +68,10 @@ jobs:
       # Update the database to mark the post as published
       - name: Update post status
         if: env.HAS_POST == 'true' && success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           # Update the status in the database
-          node -r dotenv/config scripts/update-bluesky-status.js ${{ env.POST_ID }}
+          node scripts/update-bluesky-status.js ${{ env.POST_ID }}
           echo "Successfully posted to Bluesky and updated status for post ${{ env.POST_ID }}"
