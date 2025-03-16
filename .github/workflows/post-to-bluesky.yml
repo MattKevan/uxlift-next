@@ -38,9 +38,7 @@ jobs:
             source .post-data
             echo "HAS_POST=true" >> $GITHUB_ENV
             echo "POST_ID=$POST_ID" >> $GITHUB_ENV
-            
-            # Decode the base64 content and save to a file for the action
-            echo $POST_CONTENT_BASE64 | base64 -d > post_content.txt
+            echo "POST_TAGS=$POST_TAGS" >> $GITHUB_ENV
             echo "Found post $POST_ID to publish to Bluesky"
           else
             echo "HAS_POST=false" >> $GITHUB_ENV

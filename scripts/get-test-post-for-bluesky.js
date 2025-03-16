@@ -1,4 +1,4 @@
-// scripts/get-test-post-for-bluesky.js
+// scripts/get-next-post-for-bluesky.js
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 require('dotenv').config();
@@ -11,11 +11,12 @@ const supabase = createClient(
 
 // Format a post for Bluesky
 function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
-  // Use template: "New article from <site name> - <article title>"
+  // Use template: "New article from <site name> – <article title>"
   let title = post.title || '';
   let siteText = siteName ? `New article from ${siteName} – ` : 'New article – ';
   
-  let content = `${siteText}${title}\n${post.link}`;
+  // Format with proper line breaks
+  let content = `${siteText}${title}\r\n${post.link}`;
   
   // Add hashtags from post topics
   const hashtags = [];
@@ -98,9 +99,31 @@ function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
   return content;
 }
 
-// Main function to get a specific test post for Bluesky posting
-async function getTestPostForBluesky(offset = 0) {
-  console.log(`Finding test post for Bluesky with offset: ${offset}`);
+// Main function to get the next article for Bluesky posting
+async function getNextPostForBluesky() {
+  // Create a log record for this run
+  const { data: job, error: jobError } = await supabase
+    .from('feed_processing_jobs')
+    .insert([{ 
+      status: 'processing',
+      job_type: 'bluesky_posting',
+      is_cron: true,
+      total_sites: 0,
+      processed_sites: 0,
+      processed_items: 0,
+      error_count: 0,
+      started_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+  
+  if (jobError) {
+    console.error(`Failed to create job record: ${jobError.message}`);
+    // Continue without a job record
+  } else {
+    console.log(`Created job record with ID: ${job.id}`);
+  }
+  console.log('Finding next post for Bluesky');
   
   try {
     // Get posts that haven't been posted to Bluesky yet AND were added in the last 24 hours
@@ -120,7 +143,6 @@ async function getTestPostForBluesky(offset = 0) {
       .or('bluesky_posted.is.null,bluesky_posted.eq.false')  // Check for both null and false
       .gte('date_created', yesterdayISOString)  // Only posts from last 24 hours
       .order('date_published', { ascending: true })
-      .range(parseInt(offset), parseInt(offset))
       .limit(1);
     
     if (fetchError) {
@@ -128,12 +150,28 @@ async function getTestPostForBluesky(offset = 0) {
     }
     
     if (!posts || posts.length === 0) {
-      console.log(`No posts found at offset ${offset} or all posts have already been shared to Bluesky`);
+      console.log('No posts to publish to Bluesky');
       return null;
     }
     
     const post = posts[0];
     console.log(`Found post to publish: ${post.id} - ${post.title}`);
+    
+    // Get site information if available
+    let siteName = '';
+    if (post.site_id) {
+      const { data: site, error: siteError } = await supabase
+        .from('content_site')
+        .select('title')
+        .eq('id', post.site_id)
+        .single();
+      
+      if (!siteError && site) {
+        siteName = site.title;
+      } else {
+        console.error('Error fetching site information:', siteError);
+      }
+    }
     
     // Get topics for hashtags
     const { data: topics, error: topicsError } = await supabase
@@ -156,24 +194,11 @@ async function getTestPostForBluesky(offset = 0) {
       // Continue without post topics if there's an error
     }
     
-    // Get the site information for the post
-    let siteName = '';
-    if (post.site_id) {
-      const { data: site, error: siteError } = await supabase
-        .from('content_site')
-        .select('title')
-        .eq('id', post.site_id)
-        .single();
-      
-      if (!siteError && site) {
-        siteName = site.title;
-      } else {
-        console.error('Error fetching site information:', siteError);
-      }
-    }
-    
     // Format post content for Bluesky
     const blueskyContent = formatBlueskyPost(post, postTopics, topics, siteName);
+    
+    // Write post content directly to a file for the action to use
+    fs.writeFileSync('post_content.txt', blueskyContent);
     
     // Extract topic tags for the Bluesky post action
     const topicTags = [];
@@ -195,10 +220,24 @@ async function getTestPostForBluesky(offset = 0) {
     // Add tags from tags_list if available
     if (post.tags_list) {
       try {
-        // Parse tags if stored as JSON string
-        const tags = typeof post.tags_list === 'string' 
-          ? JSON.parse(post.tags_list) 
-          : post.tags_list;
+        // Try to parse tags if stored as JSON string
+        let tags;
+        if (typeof post.tags_list === 'string') {
+          // Check if it's a JSON string
+          if (post.tags_list.startsWith('[') && post.tags_list.endsWith(']')) {
+            try {
+              tags = JSON.parse(post.tags_list);
+            } catch (jsonError) {
+              // If JSON parsing fails, try to split by comma
+              tags = post.tags_list.split(',').map(t => t.trim());
+            }
+          } else {
+            // Not JSON formatted, treat as comma-separated string
+            tags = post.tags_list.split(',').map(t => t.trim());
+          }
+        } else {
+          tags = post.tags_list;
+        }
         
         if (Array.isArray(tags)) {
           tags.forEach(tag => {
@@ -210,38 +249,62 @@ async function getTestPostForBluesky(offset = 0) {
           });
         }
       } catch (error) {
-        console.error('Error parsing tags_list:', error);
+        console.error('Error parsing tags_list for action:', error);
       }
     }
     
-    // Write post data to file for GitHub Actions
+    // Create a simple data file for GitHub Actions with just the ID and tags
     const postData = {
       POST_ID: post.id,
-      POST_CONTENT: blueskyContent.replace(/"/g, '\\"').replace(/\r\n/g, '\\n'), // Escape quotes and convert CRLF to \n
       POST_TAGS: topicTags.slice(0, 5).join(',') // Max 5 tags for Bluesky
     };
     
     // Format the file in a way that can be sourced in bash
     const fileContent = Object.entries(postData)
-      .map(([key, value]) => `${key}="${value.toString().replace(/"/g, '\\"')}"`)
+      .map(([key, value]) => `${key}="${value}"`)
       .join('\n');
     
     fs.writeFileSync('.post-data', fileContent);
     console.log('Post data written to .post-data file');
     
+    // Update job status if we have a job record
+    if (job && job.id) {
+      await supabase
+        .from('feed_processing_jobs')
+        .update({
+          status: 'processing',
+          processed_items: 1,
+          last_processed_item_id: post.id,
+          last_updated: new Date().toISOString()
+        })
+        .eq('id', job.id);
+    }
+    
     return postData;
   } catch (error) {
-    console.error('Error getting test post for Bluesky:', error);
+    console.error('Error getting next post for Bluesky:', error);
+    
+    // Update job status if we have a job record
+    if (job && job.id) {
+      await supabase
+        .from('feed_processing_jobs')
+        .update({
+          status: 'failed',
+          error: error.message,
+          error_count: 1,
+          completed_at: new Date().toISOString(),
+          last_updated: new Date().toISOString()
+        })
+        .eq('id', job.id);
+    }
+    
     throw error;
   }
 }
 
-// Get the offset from command line argument
-const offset = process.argv[2] || 0;
-
 // Run the main function if called directly
 if (require.main === module) {
-  getTestPostForBluesky(offset)
+  getNextPostForBluesky()
     .then(() => {
       console.log('Successfully completed');
       process.exit(0);
@@ -254,6 +317,6 @@ if (require.main === module) {
 
 // Export functions
 module.exports = {
-  getTestPostForBluesky,
+  getNextPostForBluesky,
   formatBlueskyPost
 };
