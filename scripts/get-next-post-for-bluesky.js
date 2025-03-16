@@ -10,9 +10,12 @@ const supabase = createClient(
 );
 
 // Format a post for Bluesky
-function formatBlueskyPost(post, postTopics, allTopics) {
-  // Start with just the title and link - no summary
-  let content = `${post.title}\n\n${post.link}`;
+function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
+  // Use template: "New article from <site name> - <article title>"
+  let title = post.title || '';
+  let siteText = siteName ? `New article from ${siteName} – ` : 'New article – ';
+  
+  let content = `${siteText}${title}\n${post.link}`;
   
   // Add hashtags from post topics
   const hashtags = [];
@@ -71,28 +74,21 @@ function formatBlueskyPost(post, postTopics, allTopics) {
   }
   
   // Check if we have space for hashtags
-  const baseLength = content.length;
-  const remainingSpace = 280 - baseLength;
-  
-  // Only add hashtags if we have more than 20 characters remaining
-  if (remainingSpace > 20 && hashtags.length > 0) {
-    // Calculate how many hashtags we can fit
-    let hashtagText = '\n\n';
-    let availableTags = [...hashtags];
-    let count = 0;
-    
-    while (availableTags.length > 0 && hashtagText.length + availableTags[0].length + 1 < remainingSpace && count < 3) {
-      hashtagText += availableTags.shift() + ' ';
-      count++;
-    }
-    
-    content += hashtagText.trim();
+  if (hashtags.length > 0) {
+    content += '\n';
+    content += hashtags.slice(0, 3).join(' ');
   }
   
   // Final check to ensure we're under the limit
   if (content.length > 280) {
-    // If still too long, just use title and link without hashtags
-    content = `${post.title}\n\n${post.link}`;
+    // If still too long, remove the site name prefix
+    content = `${title}\n${post.link}`;
+    
+    // Add hashtags if possible
+    const remainingSpace = 280 - content.length;
+    if (remainingSpace > 20 && hashtags.length > 0) {
+      content += '\n' + hashtags.slice(0, Math.min(2, hashtags.length)).join(' ');
+    }
   }
   
   return content;
@@ -129,7 +125,7 @@ async function getNextPostForBluesky() {
     // They should have status 'published', be indexed, and have bluesky_posted as false or null
     const { data: posts, error: fetchError } = await supabase
       .from('content_post')
-      .select('id, title, summary, link, tags_list')
+      .select('id, title, summary, link, tags_list, site_id')
       .eq('status', 'published')
       .eq('indexed', true) 
       .or('bluesky_posted.is.null,bluesky_posted.eq.false')  // Check for both null and false
@@ -169,8 +165,24 @@ async function getNextPostForBluesky() {
       // Continue without post topics if there's an error
     }
     
+    // Get the site information for the post
+    let siteName = '';
+    if (post.site_id) {
+      const { data: site, error: siteError } = await supabase
+        .from('content_site')
+        .select('title')
+        .eq('id', post.site_id)
+        .single();
+      
+      if (!siteError && site) {
+        siteName = site.title;
+      } else {
+        console.error('Error fetching site information:', siteError);
+      }
+    }
+    
     // Format post content for Bluesky
-    const blueskyContent = formatBlueskyPost(post, postTopics, topics);
+    const blueskyContent = formatBlueskyPost(post, postTopics, topics, siteName);
     
     // Extract topic tags for the Bluesky post action
     const topicTags = [];
