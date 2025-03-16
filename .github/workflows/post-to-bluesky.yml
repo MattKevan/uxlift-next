@@ -39,6 +39,13 @@ jobs:
             echo "HAS_POST=true" >> $GITHUB_ENV
             echo "POST_ID=$POST_ID" >> $GITHUB_ENV
             echo "POST_TAGS=$POST_TAGS" >> $GITHUB_ENV
+            
+            # Add post content directly to environment variable
+            POST_TEXT=$(cat post_content.txt)
+            echo "POST_TEXT<<EOF" >> $GITHUB_ENV
+            echo "$POST_TEXT" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            
             echo "Found post $POST_ID to publish to Bluesky"
           else
             echo "HAS_POST=false" >> $GITHUB_ENV
@@ -52,7 +59,7 @@ jobs:
           echo "Post content:"
           cat post_content.txt
       
-      # Post to Bluesky if a post was found (using direct text)
+      # Post to Bluesky if a post was found
       - name: Post to Bluesky
         if: env.HAS_POST == 'true'
         uses: myConsciousness/bluesky-post@v5
