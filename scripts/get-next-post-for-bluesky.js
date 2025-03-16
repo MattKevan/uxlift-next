@@ -11,16 +11,8 @@ const supabase = createClient(
 
 // Format a post for Bluesky
 function formatBlueskyPost(post, postTopics, allTopics) {
-  // Start with the title and summary
-  let content = `${post.title}\n\n`;
-  
-  // Add summary if available
-  if (post.summary) {
-    content += `${post.summary}\n\n`;
-  }
-  
-  // Add the link
-  content += `${post.link}\n\n`;
+  // Start with just the title and link - no summary
+  let content = `${post.title}\n\n${post.link}`;
   
   // Add hashtags from post topics
   const hashtags = [];
@@ -45,57 +37,62 @@ function formatBlueskyPost(post, postTopics, allTopics) {
   // Add tags from tags_list if available
   if (post.tags_list) {
     try {
-      // Parse tags if stored as JSON string
-      const tags = typeof post.tags_list === 'string' 
-        ? JSON.parse(post.tags_list) 
-        : post.tags_list;
+      // Try to parse tags if stored as JSON string
+      let tags;
+      if (typeof post.tags_list === 'string') {
+        // Check if it's a JSON string
+        if (post.tags_list.startsWith('[') && post.tags_list.endsWith(']')) {
+          try {
+            tags = JSON.parse(post.tags_list);
+          } catch (jsonError) {
+            // If JSON parsing fails, try to split by comma
+            tags = post.tags_list.split(',').map(t => t.trim());
+          }
+        } else {
+          // Not JSON formatted, treat as comma-separated string
+          tags = post.tags_list.split(',').map(t => t.trim());
+        }
+      } else {
+        tags = post.tags_list;
+      }
       
       if (Array.isArray(tags)) {
         tags.forEach(tag => {
-          const formattedTag = tag.toLowerCase().replace(/\s+/g, '');
-          hashtags.push(`#${formattedTag}`);
+          if (tag) {
+            const formattedTag = tag.toLowerCase().replace(/\s+/g, '');
+            hashtags.push(`#${formattedTag}`);
+          }
         });
       }
     } catch (error) {
       console.error('Error parsing tags_list:', error);
+      // Continue without tags if there's an error
     }
   }
   
-  // Add hashtags to content (limit to 5 max)
-  if (hashtags.length > 0) {
-    content += hashtags.slice(0, 5).join(' ');
+  // Check if we have space for hashtags
+  const baseLength = content.length;
+  const remainingSpace = 280 - baseLength;
+  
+  // Only add hashtags if we have more than 20 characters remaining
+  if (remainingSpace > 20 && hashtags.length > 0) {
+    // Calculate how many hashtags we can fit
+    let hashtagText = '\n\n';
+    let availableTags = [...hashtags];
+    let count = 0;
+    
+    while (availableTags.length > 0 && hashtagText.length + availableTags[0].length + 1 < remainingSpace && count < 3) {
+      hashtagText += availableTags.shift() + ' ';
+      count++;
+    }
+    
+    content += hashtagText.trim();
   }
   
-  // Ensure the content doesn't exceed 300 characters (Bluesky's limit)
-  if (content.length > 300) {
-    // If too long, truncate the summary 
-    const titleLength = post.title.length;
-    const linkLength = post.link.length;
-    const hashtagsLength = hashtags.length > 0 ? hashtags.slice(0, 5).join(' ').length : 0;
-    
-    // Calculate max length for summary to stay under 300 chars
-    // 10 chars are reserved for newlines and spacing
-    const maxSummaryLength = 300 - titleLength - linkLength - hashtagsLength - 10;
-    
-    if (maxSummaryLength > 20) {
-      // Rebuild content with truncated summary
-      content = `${post.title}\n\n`;
-      if (post.summary && post.summary.length > 0) {
-        content += `${post.summary.substring(0, maxSummaryLength - 3)}...\n\n`;
-      }
-      content += `${post.link}\n\n`;
-      
-      if (hashtags.length > 0) {
-        content += hashtags.slice(0, 5).join(' ');
-      }
-    } else {
-      // If summary can't be reasonably included, use just title, link, and tags
-      content = `${post.title}\n\n${post.link}\n\n`;
-      
-      if (hashtags.length > 0) {
-        content += hashtags.slice(0, 5).join(' ');
-      }
-    }
+  // Final check to ensure we're under the limit
+  if (content.length > 280) {
+    // If still too long, just use title and link without hashtags
+    content = `${post.title}\n\n${post.link}`;
   }
   
   return content;
