@@ -17,12 +17,6 @@
           }
         ]
       }
-    ],
-    "crons": [
-    {
-      "path": "/api/process-feeds",
-      "schedule": "0 0 * * *"
-    }
-  ]
+    ]
   }
   
