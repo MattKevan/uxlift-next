@@ -120,7 +120,7 @@ const pinecone = new Pinecone({
 
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
 
-// *** Fix: Using RssParser directly instead of destructuring it ***
+// Use RssParser directly instead of destructuring
 const parser = new RssParser({
   customFields: {
     item: ['content', 'contentSnippet']
@@ -187,15 +187,58 @@ async function fetchAndProcessContent(rawUrl) {
                      $('meta[property="twitter:image"]').attr('content') || 
                      null;
 
-    // Extract content using Readability
+    // Fix: Remove problematic style tags that JSDOM can't parse before creating the DOM
+    let cleanedHtml = html;
+    try {
+      // Use cheerio to remove or clean style tags
+      const $clean = cheerio.load(html);
+      
+      // Replace complex CSS with simple CSS to avoid parsing errors
+      $clean('style').each((index, element) => {
+        $clean(element).text('/* Styles removed for processing */');
+      });
+      
+      cleanedHtml = $clean.html();
+    } catch (cleanError) {
+      console.error('Error cleaning HTML for JSDOM:', cleanError);
+      // Continue with original HTML if cleaning fails
+    }
+
+    // Extract content using Readability with improved error handling
     let content = '';
     try {
-      const dom = new JSDOM(html, { url: validUrl });
+      // Use the cleaned HTML for JSDOM
+      const dom = new JSDOM(cleanedHtml, { 
+        url: validUrl,
+        // Disable CSS processing entirely
+        includeNodeLocations: true,
+        runScripts: "outside-only",
+        resources: "usable" 
+      });
+      
+      // Manually try to clean up possible sources of errors before running Readability
+      try {
+        const styleElements = dom.window.document.querySelectorAll('style');
+        styleElements.forEach(style => {
+          // Remove problematic style elements or clear their content
+          style.textContent = '';
+        });
+      } catch (cleanupError) {
+        console.error('Error during DOM cleanup:', cleanupError);
+      }
+      
       const reader = new Readability(dom.window.document);
       const article = reader.parse();
       content = article ? article.textContent : '';
+      
+      // Fallback if content is too short
+      if (!content || content.length < 100) {
+        console.log('Readability returned insufficient content, falling back to body text');
+        content = $('body').text().trim();
+      }
     } catch (readabilityError) {
       console.error('Readability error:', readabilityError);
+      // Fallback to body text from cheerio parsing
       content = $('body').text().trim();
     }
 
@@ -502,15 +545,38 @@ async function embedPost(postId) {
       encoding_format: "float"
     });
 
-    // Check for existing embeddings and delete them if they exist
+    // Check for existing embeddings
+    // We'll need to query for existing chunks with this post ID
+    // then delete them individually by ID
     try {
-      await index.deleteMany({
+      // First, try to find existing vectors for this post
+      const existingVectors = await index.query({
+        vector: dummyEmbedding.data[0].embedding,
         filter: {
           post_id: { $eq: postId }
-        }
+        },
+        topK: 100,  // Increase this if needed to ensure we get all chunks
+        includeMetadata: true
       });
+
+      // If we found existing vectors, delete them by ID
+      if (existingVectors.matches && existingVectors.matches.length > 0) {
+        console.log(`Found ${existingVectors.matches.length} existing embeddings for post ${postId}`);
+        
+        // Extract the IDs from the matches
+        const idsToDelete = existingVectors.matches.map(match => match.id);
+        
+        // Delete vectors by ID (this works on all Pinecone tiers)
+        if (idsToDelete.length > 0) {
+          await index.deleteMany(idsToDelete);
+          console.log(`Deleted ${idsToDelete.length} existing embeddings for post ${postId}`);
+        }
+      } else {
+        console.log(`No existing embeddings found for post ${postId}`);
+      }
     } catch (error) {
-      console.log('No existing embeddings to delete or error deleting:', error);
+      // If there's an error finding or deleting vectors, log and continue
+      console.log('Error handling existing embeddings:', error.message);
     }
 
     // Fetch the post content
@@ -563,9 +629,13 @@ async function embedPost(postId) {
 
     console.log(`Processing post ${postId} with chunk size ${chunkConfig.size} and ${chunks.length} chunks`);
 
+    // Track IDs of vectors we've created
+    const createdVectorIds = [];
+
     // Process each chunk
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+      const vectorId = `post-${postId}-chunk-${i}`;
       
       try {
         const embedding = await openai.embeddings.create({
@@ -585,24 +655,26 @@ async function embedPost(postId) {
         };
 
         await index.upsert([{
-          id: `post-${postId}-chunk-${i}`,
+          id: vectorId,
           values: embedding.data[0].embedding,
           metadata
         }]);
 
-      } catch (error) {
-        // If error occurs, cleanup vectors for this post
-        try {
-          await index.deleteMany({
-            filter: {
-              post_id: { $eq: postId }
-            }
-          });
-        } catch (deleteError) {
-          console.error('Error cleaning up vectors after failure:', deleteError);
-        }
+        createdVectorIds.push(vectorId);
 
+      } catch (error) {
+        // If error occurs, try to clean up vectors we've created
         console.error('Error processing chunk:', error);
+        
+        if (createdVectorIds.length > 0) {
+          try {
+            await index.deleteMany(createdVectorIds);
+            console.log(`Cleaned up ${createdVectorIds.length} vectors after error`);
+          } catch (deleteError) {
+            console.error('Error cleaning up vectors after failure:', deleteError);
+          }
+        }
+        
         return {
           success: false,
           error: 'Processing error',
@@ -631,7 +703,6 @@ async function embedPost(postId) {
       success: true,
       chunks: chunks.length
     };
-
   } catch (error) {
     console.error('Unexpected error:', error);
     return {
@@ -724,12 +795,13 @@ async function processAllFeeds() {
   console.log('Starting feed processing');
   
   try {
-    // Create a job record
+    // Create a job record without created_by field to avoid foreign key constraint issues
     const { data: job, error: jobError } = await supabase
       .from('feed_processing_jobs')
       .insert([{ 
         status: 'processing',
         is_cron: true
+        // No created_by field to avoid foreign key constraint
       }])
       .select()
       .single();
