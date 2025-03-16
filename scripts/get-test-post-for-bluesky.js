@@ -75,21 +75,25 @@ function formatBlueskyPost(post, postTopics, allTopics, siteName = '') {
   
   // Check if we have space for hashtags
   if (hashtags.length > 0) {
-    content += '\n';
+    content += '\r\n';
     content += hashtags.slice(0, 3).join(' ');
   }
   
   // Final check to ensure we're under the limit
   if (content.length > 280) {
     // If still too long, remove the site name prefix
-    content = `${title}\n${post.link}`;
+    content = `${title}\r\n${post.link}`;
     
     // Add hashtags if possible
     const remainingSpace = 280 - content.length;
     if (remainingSpace > 20 && hashtags.length > 0) {
-      content += '\n' + hashtags.slice(0, Math.min(2, hashtags.length)).join(' ');
+      content += '\r\n' + hashtags.slice(0, Math.min(2, hashtags.length)).join(' ');
     }
   }
+  
+  // Debug the content
+  console.log('Formatted content (with escapes shown):');
+  console.log(JSON.stringify(content));
   
   return content;
 }
@@ -99,14 +103,22 @@ async function getTestPostForBluesky(offset = 0) {
   console.log(`Finding test post for Bluesky with offset: ${offset}`);
   
   try {
-    // Get posts that haven't been posted to Bluesky yet
-    // They should have status 'published', be indexed, and have bluesky_posted as false or null
+    // Get posts that haven't been posted to Bluesky yet AND were added in the last 24 hours
+    // They should have status 'published', be indexed, have bluesky_posted as false or null,
+    // and have been created in the last 24 hours
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+    const yesterdayISOString = yesterday.toISOString();
+    
+    console.log(`Looking for posts created after: ${yesterdayISOString}`);
+    
     const { data: posts, error: fetchError } = await supabase
       .from('content_post')
       .select('id, title, summary, link, tags_list, site_id')
       .eq('status', 'published')
       .eq('indexed', true) 
       .or('bluesky_posted.is.null,bluesky_posted.eq.false')  // Check for both null and false
+      .gte('date_created', yesterdayISOString)  // Only posts from last 24 hours
       .order('date_published', { ascending: true })
       .range(parseInt(offset), parseInt(offset))
       .limit(1);
@@ -205,7 +217,7 @@ async function getTestPostForBluesky(offset = 0) {
     // Write post data to file for GitHub Actions
     const postData = {
       POST_ID: post.id,
-      POST_CONTENT: blueskyContent.replace(/"/g, '\\"').replace(/\n/g, '\\n'), // Escape quotes and newlines for shell
+      POST_CONTENT: blueskyContent.replace(/"/g, '\\"').replace(/\r\n/g, '\\n'), // Escape quotes and convert CRLF to \n
       POST_TAGS: topicTags.slice(0, 5).join(',') // Max 5 tags for Bluesky
     };
     
