@@ -1,6 +1,6 @@
 // scripts/process-feeds.js
 const { createClient } = require('@supabase/supabase-js');
-const { Parser } = require('rss-parser');
+const RssParser = require('rss-parser');
 const { OpenAI } = require('openai');
 const { Pinecone } = require('@pinecone-database/pinecone');
 const fetch = require('node-fetch');
@@ -8,6 +8,7 @@ const { JSDOM } = require('jsdom');
 const { Readability } = require('@mozilla/readability');
 const cheerio = require('cheerio');
 
+// Add dotenv for local development
 require('dotenv').config();
 
 // Debug environment variables availability
@@ -119,7 +120,8 @@ const pinecone = new Pinecone({
 
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
 
-const parser = new Parser({
+// *** Fix: Using RssParser directly instead of destructuring it ***
+const parser = new RssParser({
   customFields: {
     item: ['content', 'contentSnippet']
   }
@@ -143,11 +145,15 @@ async function fetchAndProcessContent(rawUrl) {
     }
 
     // Check if URL already exists
-    const { data: existingPost } = await supabase
+    const { data: existingPost, error: existingError } = await supabase
       .from('content_post')
       .select('*')
       .eq('link', validUrl)
       .single();
+
+    if (existingError && existingError.code !== 'PGRST116') {
+      console.error('Error checking existing post:', existingError);
+    }
 
     if (existingPost) {
       console.log('Post already exists:', validUrl);
@@ -649,6 +655,7 @@ async function processFeed(site) {
   
   try {
     // Parse the RSS feed
+    console.log(`Fetching feed: ${site.feed_url}`);
     const feed = await parser.parseURL(site.feed_url);
     
     console.log(`Found ${feed.items.length} items in feed for ${site.title}`);
@@ -659,11 +666,15 @@ async function processFeed(site) {
         if (!item.link) continue;
         
         // Check if article already exists
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('content_post')
           .select('id')
           .eq('link', item.link)
           .single();
+        
+        if (existingError && existingError.code !== 'PGRST116') {
+          console.error('Error checking existing post:', existingError);
+        }
         
         if (existing) {
           console.log(`Post already exists: ${item.link}`);
@@ -741,6 +752,19 @@ async function processAllFeeds() {
       throw new Error(`Failed to fetch sites: ${sitesError.message}`);
     }
     
+    if (!sites || sites.length === 0) {
+      console.log('No sites found for processing');
+      await supabase
+        .from('feed_processing_jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          error: 'No sites found for processing'
+        })
+        .eq('id', job.id);
+      return { processed: 0, errors: 0 };
+    }
+    
     console.log(`Found ${sites.length} sites to process`);
     
     // Update job with total sites
@@ -755,7 +779,7 @@ async function processAllFeeds() {
     const results = {
       processed: 0,
       errors: 0,
-      sites: sites?.length || 0
+      sites: sites.length
     };
     
     // Process each site
