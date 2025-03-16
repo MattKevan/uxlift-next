@@ -33,18 +33,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Process content
+      - name: Debug environment
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Use the manually selected option
-            npm run process-${{ github.event.inputs.process_type }}
-          else
-            # Default to processing feeds for scheduled runs
-            npm run process-feeds
-          fi
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "Working directory: $(pwd)"
+          ls -la scripts/
+        
+      - name: Process content
+        shell: bash
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           PINECONE_INDEX_NAME: ${{ secrets.PINECONE_INDEX_NAME }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Running with process type: ${{ github.event.inputs.process_type }}"
+            node scripts/process-feeds.js ${{ github.event.inputs.process_type }}
+          else
+            echo "Running scheduled job with process type: feeds"
+            node scripts/process-feeds.js feeds
+          fi

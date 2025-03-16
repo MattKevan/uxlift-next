@@ -1,15 +1,22 @@
 // scripts/process-feeds.js
+const { createClient } = require('@supabase/supabase-js');
+const { Parser } = require('rss-parser');
+const { OpenAI } = require('openai');
+const { Pinecone } = require('@pinecone-database/pinecone');
+const fetch = require('node-fetch');
+const { JSDOM } = require('jsdom');
+const { Readability } = require('@mozilla/readability');
+const cheerio = require('cheerio');
 
-// Add this at the top of your script
-console.log('Environment variables:');
-console.log('SUPABASE_URL present:', !!process.env.SUPABASE_URL);
-console.log('SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-console.log('OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY);
-console.log('PINECONE_API_KEY present:', !!process.env.PINECONE_API_KEY);
-console.log('PINECONE_INDEX_NAME present:', !!process.env.PINECONE_INDEX_NAME);
+// Debug environment variables availability
+console.log('Environment variables check:');
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'present' : 'missing');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'missing');
+console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'present' : 'missing');
+console.log('PINECONE_API_KEY:', process.env.PINECONE_API_KEY ? 'present' : 'missing');
+console.log('PINECONE_INDEX_NAME:', process.env.PINECONE_INDEX_NAME ? 'present' : 'missing');
 
-
-// Replace your current initialization code with this
+// Validate required environment variables
 if (!process.env.SUPABASE_URL) {
   console.error('ERROR: SUPABASE_URL environment variable is missing');
   process.exit(1);
@@ -20,19 +27,20 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
+if (!process.env.OPENAI_API_KEY) {
+  console.error('ERROR: OPENAI_API_KEY environment variable is missing');
+  process.exit(1);
+}
 
+if (!process.env.PINECONE_API_KEY) {
+  console.error('ERROR: PINECONE_API_KEY environment variable is missing');
+  process.exit(1);
+}
 
-// (similar checks for other services)
-
-import { createClient } from '@supabase/supabase-js';
-import { Parser } from 'rss-parser';
-import { OpenAI } from 'openai';
-import { Pinecone } from '@pinecone-database/pinecone';
-import { load } from 'cheerio';
-import fetch from 'node-fetch';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
-// Initialize clients with additional error checking
+if (!process.env.PINECONE_INDEX_NAME) {
+  console.error('ERROR: PINECONE_INDEX_NAME environment variable is missing');
+  process.exit(1);
+}
 
 // Cleanup HTML content
 function cleanHTML(html) {
@@ -42,7 +50,7 @@ function cleanHTML(html) {
     cleaned = cleaned.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
     
     // Use cheerio to parse and clean HTML
-    const $ = load(cleaned);
+    const $ = cheerio.load(cleaned);
     $('script, style, iframe, noscript').remove();
     
     // Get text content
@@ -155,7 +163,7 @@ async function fetchAndProcessContent(rawUrl) {
     }
 
     const html = await response.text();
-    const $ = load(html);
+    const $ = cheerio.load(html);
     
     // Extract metadata
     const title = $('meta[property="og:title"]').attr('content') || 

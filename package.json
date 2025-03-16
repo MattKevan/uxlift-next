@@ -10,7 +10,7 @@
     "update-types": "supabase gen types typescript --project-id nzticqypwdzqhbaestbf --schema public > types/supabase.ts",
     "process-feeds": "node scripts/process-feeds.js feeds",
     "process-embed": "node scripts/process-feeds.js embed",
-    "process-all": "node scripts/process-feeds.js both"
+    "process-both": "node scripts/process-feeds.js both"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
