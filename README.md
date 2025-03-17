@@ -1,9 +1,7 @@
-<h1 align="center">UX Lift</h1>
+# UX Lift
 
-<p align="center">
- UX Lift is the place to discover and share UX articles, news and resources.
-</p>
-
+UX Lift is the place to discover and share UX articles, news and resources.
+ 
 ## Features
 
 ### Content
