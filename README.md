@@ -15,7 +15,8 @@ UX Lift is the place to discover and share UX articles, news and resources.
 
 ### API integrations
 - Integrates with Beehiiv email newsletter platform
-- Auto-posts new articles to Bluesky.
-
+- Auto-posts new articles to Bluesky
+- Auto-downloads new content via RSS.
+  
 ## Tech notes
 The site is built with NextJS, Tailwind and Supabase, with Pinecone for vector storage.
