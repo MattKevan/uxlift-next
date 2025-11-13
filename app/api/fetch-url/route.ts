@@ -1,29 +1,35 @@
 // app/api/fetch-url/route.ts
 import { createClient } from '@/utils/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { fetchAndProcessContent } from '@/utils/post-tools/fetch-content'
+import { logger, logApiRequest, logApiError } from '@/utils/logger'
+import { checkSubmitContentRateLimit } from '@/utils/simple-rate-limit'
+import { validateApiRequest, fetchUrlRequestSchema } from '@/utils/validation'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Check rate limit first
+    const rateLimitResponse = await checkSubmitContentRateLimit(request)
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
     const supabase = await createClient()
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.error('Auth error:', authError)
+      logger.error('Authentication failed in fetch-url', authError)
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in to submit content' }, 
         { status: 401 }
       )
     }
 
-    // Parse request body
-    const { url } = await request.json()
-    
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
-    }
+    // Parse and validate request body
+    const body = await request.json()
+    const { url } = validateApiRequest(fetchUrlRequestSchema, body, '/api/fetch-url')
 
     // Get user profile
     const { data: userProfile, error: profileError } = await supabase
@@ -33,14 +39,15 @@ export async function POST(request: Request) {
       .single()
 
     if (profileError || !userProfile) {
-      console.error('Profile error:', profileError)
+      logger.error('User profile not found', profileError, { userId: user.id })
       return NextResponse.json(
         { error: 'User profile not found' }, 
         { status: 404 }
       )
     }
 
-    console.log('Processing URL:', url, 'for user profile:', userProfile.id)
+    logApiRequest('POST', '/api/fetch-url', user.id)
+    logger.info('Processing URL for content submission', { url, userProfileId: userProfile.id })
 
     // Process content with user ID
     const post = await fetchAndProcessContent(url, supabase, {
@@ -61,12 +68,11 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error('Route error:', error)
+    logApiError('POST', '/api/fetch-url', error as Error)
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : undefined
+        error: 'Failed to process URL. Please try again.'
       },
       { status: 500 }
     )

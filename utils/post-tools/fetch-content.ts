@@ -7,6 +7,7 @@ import { summarisePost } from './summarise'
 import { tagPost } from './tag-posts'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import { logger, logDatabaseQuery } from '@/utils/logger'
 
 function validateAndFormatUrl(urlString: string): string {
   try {
@@ -29,7 +30,7 @@ export async function fetchAndProcessContent(
   }
 ) {
   try {
-    console.log('Starting content fetch for URL:', rawUrl)
+    logger.debug('Starting content fetch', { url: rawUrl })
     const validUrl = validateAndFormatUrl(rawUrl)
 
     // Define the select query properly
@@ -74,7 +75,7 @@ export async function fetchAndProcessContent(
       .single()
 
     if (existingPost) {
-      console.log('Post already exists:', validUrl)
+      logger.debug('Post already exists in database', { url: validUrl, postId: existingPost.id })
       return existingPost
     }
 
@@ -113,7 +114,7 @@ export async function fetchAndProcessContent(
       const article = reader.parse()
       content = article ? article.textContent : ''
     } catch (readabilityError) {
-      console.error('Readability error:', readabilityError)
+      logger.warn('Readability parsing failed, falling back to body text', readabilityError as Error)
       content = $('body').text().trim()
     }
 
@@ -132,7 +133,7 @@ export async function fetchAndProcessContent(
       user_id: options?.user_id || null
     } as const
 
-    console.log('Attempting to insert post with user_id:', options?.user_id)
+    logger.debug('Creating new post', { userId: options?.user_id?.toString(), title: postData.title })
 
     // Create post
     const { data: post, error: postError } = await supabase
@@ -168,7 +169,7 @@ export async function fetchAndProcessContent(
       await summarisePost(post.id, supabase)
       await tagPost(post.id, supabase)
     } catch (processingError) {
-      console.error('Post processing error:', processingError)
+      logger.error('Post processing failed', processingError, { postId: post.id })
     }
 
     // Fetch final post with all relations
@@ -193,7 +194,7 @@ export async function fetchAndProcessContent(
       .single()
 
     if (fetchError) {
-      console.error('Final post fetch error:', fetchError)
+      logger.error('Failed to fetch processed post', fetchError, { postId: post.id })
       throw fetchError
     }
 
@@ -204,7 +205,7 @@ export async function fetchAndProcessContent(
     return finalPost
 
   } catch (error) {
-    console.error('Content fetching error:', error)
+    logger.error('Content fetching failed', error, { url: rawUrl })
     if (error instanceof Error) {
       throw error
     }

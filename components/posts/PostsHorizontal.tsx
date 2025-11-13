@@ -4,6 +4,7 @@ import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
 import { Bookmark, Flag, Like } from '@mynaui/icons-react'
 import { Button } from '../catalyst/button'
+import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -36,9 +37,9 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
          
       <div className=" relative aspect-square :col-span-1 mb-0">
 
-      {post.image_path && (
-          <img 
-            src={post.image_path} 
+      {post.image_path && post.image_path.trim() !== '' && (
+          <img
+            src={post.image_path}
             alt=""
             className="object-cover w-full h-full inset-0"
           />
@@ -84,12 +85,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           )}
           {post.date_published && (
             <time dateTime={post.date_published} className='text-gray-400'>
-              {new Date(post.date_published).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                timeZone: 'Europe/London'
-              })}
+              {format(new Date(post.date_published), 'dd MMM yyyy')}
             </time>
           )}
         </p>

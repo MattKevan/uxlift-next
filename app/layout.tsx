@@ -17,14 +17,7 @@ const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000"
 
-type Params = Promise<{ slug: string }>
-
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: Params 
-}) {
-  const { slug } = await params
+export async function generateMetadata() {
   return {
     metadataBase: new URL(defaultUrl),
     title: "UX Lift",
@@ -32,19 +25,15 @@ export async function generateMetadata({
   }
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: Params
 }) {
-  const { slug } = await params
-
   return (
-    <html>
+    <html lang="en" className={inter.variable}>
 
-      <body className={`bg-background text-foreground  ${inter.variable} font-sans`}>
+      <body className="bg-background text-foreground font-sans">
       <NotificationProvider>
       <Notification />
 

@@ -36,6 +36,33 @@ const nextConfig = {
   
     // Configure headers for security and caching
     async headers() {
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      
+      // More permissive CSP for development, strict for production
+      const cspValue = isDevelopment 
+        ? `
+            default-src 'self' 'unsafe-eval' 'unsafe-inline';
+            script-src 'self' 'unsafe-eval' 'unsafe-inline' https: http: localhost:*;
+            style-src 'self' 'unsafe-inline' https: http: localhost:*;
+            img-src 'self' blob: data: https: http: localhost:*;
+            font-src 'self' https: http: data: localhost:*;
+            connect-src 'self' https: http: ws: wss: localhost:*;
+            frame-src 'self' https: http: localhost:*;
+          `
+        : `
+            default-src 'self';
+            script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com https://beamanalytics.b-cdn.net https://embeds.beehiiv.com;
+            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+            img-src 'self' blob: data: https: http:;
+            font-src 'self' https://fonts.gstatic.com;
+            object-src 'none';
+            base-uri 'self';
+            form-action 'self';
+            frame-src https://embeds.beehiiv.com;
+            frame-ancestors 'none';
+            connect-src 'self' https://*.supabase.co https://*.pinecone.io https://api.openai.com https://api.beehiiv.com https://api.github.com https://challenges.cloudflare.com https://beamanalytics.b-cdn.net;
+          `
+
       return [
         {
           source: '/:path*',
@@ -44,10 +71,10 @@ const nextConfig = {
               key: 'X-DNS-Prefetch-Control',
               value: 'on'
             },
-            {
+            ...(isDevelopment ? [] : [{
               key: 'Strict-Transport-Security',
               value: 'max-age=31536000; includeSubDomains'
-            },
+            }]),
             {
               key: 'X-Frame-Options',
               value: 'SAMEORIGIN'
@@ -59,6 +86,14 @@ const nextConfig = {
             {
               key: 'Referrer-Policy',
               value: 'strict-origin-when-cross-origin'
+            },
+            {
+              key: 'Content-Security-Policy',
+              value: cspValue.replace(/\s{2,}/g, ' ').trim()
+            },
+            {
+              key: 'Permissions-Policy',
+              value: 'camera=(), microphone=(), geolocation=(), payment=(), fullscreen=(self "https://embeds.beehiiv.com")'
             },
           ],
         },

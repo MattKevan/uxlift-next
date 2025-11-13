@@ -4,6 +4,7 @@ import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/components/cat
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { Database } from '@/types/supabase'
+import { MultipleSelector, Option } from '@/components/ui/multiple-selector'
 
 type Post = Database['public']['Tables']['content_post']['Row']
 type Site = Database['public']['Tables']['content_site']['Row']
@@ -41,8 +42,11 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     slug: post.slug 
 
   })
-  const [selectedTopics, setSelectedTopics] = useState<number[]>(
-    post.content_post_topics.map(pt => pt.content_topic.id)
+  const [selectedTopics, setSelectedTopics] = useState<Option[]>(
+    post.content_post_topics.map(pt => ({
+      value: String(pt.content_topic.id),
+      label: pt.content_topic.name
+    }))
   )
   const [availableTopics, setAvailableTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -74,9 +78,8 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     }))
   }
 
-  const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map(option => parseInt(option.value))
-    setSelectedTopics(selectedOptions)
+  const handleTopicChange = (options: Option[]) => {
+    setSelectedTopics(options)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,9 +113,9 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
         const { error: insertError } = await supabase
           .from('content_post_topics')
           .insert(
-            selectedTopics.map(topicId => ({
+            selectedTopics.map(topic => ({
               post_id: post.id,
-              topic_id: topicId
+              topic_id: parseInt(topic.value)
             }))
           )
 
@@ -195,25 +198,20 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Topics
-                <select
-                  multiple
-                  value={selectedTopics.map(String)}
-                  onChange={handleTopicChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                  data-hs-select='{
-                    "placeholder": "Select topics...",
-                    "toggleTag": "<button type=\"button\" aria-expanded=\"false\"></button>",
-                    "toggleClasses": "hs-select-disabled:pointer-events-none hs-select-disabled:opacity-50 relative py-3 ps-4 pe-9 flex gap-x-2 text-nowrap w-full cursor-pointer bg-white border border-gray-200 rounded-lg text-start text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400",
-                    "dropdownClasses": "mt-2 z-50 w-full max-h-72 p-1 space-y-0.5 bg-white border border-gray-200 rounded-lg overflow-hidden overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700",
-                    "optionClasses": "py-2 px-4 w-full text-sm text-gray-800 cursor-pointer hover:bg-gray-100 rounded-lg focus:outline-none focus:bg-gray-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:text-neutral-200"
-                  }'
-                >
-                  {availableTopics.map(topic => (
-                    <option key={topic.id} value={topic.id}>
-                      {topic.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="mt-1">
+                  <MultipleSelector
+                    value={selectedTopics}
+                    onChange={handleTopicChange}
+                    options={availableTopics.map(topic => ({
+                      value: String(topic.id),
+                      label: topic.name
+                    }))}
+                    placeholder="Select topics..."
+                    emptyIndicator={
+                      <p className="text-center text-sm text-gray-500">No topics found</p>
+                    }
+                  />
+                </div>
               </label>
             </div>
 

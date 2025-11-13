@@ -75,19 +75,30 @@ export async function processFeedItems(
         // Parse the RSS feed
         const feed = await parser.parseURL(site.feed_url)
 
-        // Process each feed item
-        for (const item of feed.items) {
+        // Get all feed item links for batch processing
+        const feedLinks = feed.items
+          .map(item => item.link)
+          .filter(link => link && link.trim())
+
+        if (feedLinks.length === 0) continue
+
+        // Single query to check all existing links (batch processing)
+        const { data: existingPosts } = await supabase
+          .from('content_post')
+          .select('link')
+          .in('link', feedLinks)
+
+        const existingLinks = new Set(existingPosts?.map(p => p.link) || [])
+
+        // Process only new items
+        const newItems = feed.items.filter(item => 
+          item.link && !existingLinks.has(item.link)
+        )
+
+        // Process each new feed item
+        for (const item of newItems) {
           try {
             if (!item.link) continue
-
-            // Check if article already exists
-            const { data: existing } = await supabase
-              .from('content_post')
-              .select('id')
-              .eq('link', item.link)
-              .single()
-
-            if (existing) continue
 
             // Process new article
             const newPost = await fetchAndProcessContent(item.link, supabase)

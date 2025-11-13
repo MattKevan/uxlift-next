@@ -1,7 +1,10 @@
 import { createClient } from '@/utils/supabase/server'
 import { OpenAI } from 'openai'
 import { Pinecone, RecordMetadata, QueryOptions } from '@pinecone-database/pinecone'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
+import { checkSearchRateLimit } from '@/utils/simple-rate-limit'
+import { logger } from '@/utils/logger'
+import { validateApiRequest, searchRequestSchema } from '@/utils/validation'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
@@ -28,19 +31,19 @@ interface DocumentMatch {
   similarity: number
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let query: string = ''
   
   try {
-    const body = await request.json()
-    query = body.query
-
-    if (!query) {
-      return NextResponse.json(
-        { error: 'Query is required' },
-        { status: 400 }
-      )
+    // Check rate limit first
+    const rateLimitResponse = await checkSearchRateLimit(request)
+    if (rateLimitResponse) {
+      return rateLimitResponse
     }
+
+    const body = await request.json()
+    const validatedData = validateApiRequest(searchRequestSchema, body, '/api/search')
+    query = validatedData.query
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

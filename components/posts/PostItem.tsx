@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
+import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -22,10 +23,10 @@ export function PostItem({ post }: { post: PostWithSite }) {
   return (
     <article className="border rounded-lg p-6 hover:bg-gray-50">
       <div className="flex gap-6">
-        {post.image_path && (
+        {post.image_path && post.image_path.trim() !== '' && (
           <div className="flex-shrink-0">
-            <img 
-              src={post.image_path} 
+            <img
+              src={post.image_path}
               alt=""
               className="w-32 h-32 object-cover rounded"
             />
@@ -61,12 +62,8 @@ export function PostItem({ post }: { post: PostWithSite }) {
             )}
             {post.date_published && (
               <span className="">
-{new Date(post.date_published).toLocaleDateString('en-GB', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'Europe/London'
-    })}              </span>
+                {format(new Date(post.date_published), 'dd MMMM yyyy')}
+              </span>
             )}
           </div>
         </div>

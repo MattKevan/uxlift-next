@@ -117,20 +117,19 @@ export default function SearchPage() {
       const { data: posts, error: postsError } = await supabase
         .from('content_post')
         .select(`
-          *,
+          id,
+          title,
+          description,
+          link,
+          date_published,
+          image_path,
+          slug,
           site:content_site!left (
             id,
             title,
             slug,
             url,
             site_icon
-          ),
-          content_post_topics!left (
-            topic:content_topic (
-              id,
-              name,
-              slug
-            )
           )
         `)
         .in('id', postIds)
@@ -143,9 +142,15 @@ export default function SearchPage() {
       const transformedPosts: PostWithSite[] = posts?.map(post => ({
         ...post,
         site: Array.isArray(post.site) ? post.site[0] || null : post.site,
-        content_post_topics: post.content_post_topics?.map((pt: any) => ({
-          topic: pt.topic
-        })) || []
+        content_post_topics: [],
+        content: null,
+        date_created: post.date_published || new Date().toISOString(),
+        indexed: false,
+        status: 'published',
+        summary: '',
+        tags_list: null,
+        user_id: null,
+        site_id: null
       })) || []
 
       const sortedPosts = transformedPosts.sort((a, b) => {

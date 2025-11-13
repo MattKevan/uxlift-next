@@ -4,6 +4,7 @@ import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
 import { Bookmark, ExternalLink, Flag, Like, LinkOne } from '@mynaui/icons-react'
 import clsx from 'clsx'
+import { format } from 'date-fns'
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +12,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
   title: string | null
   slug: string | null
@@ -26,7 +26,13 @@ type PostTopic = {
   topic: Topic
 }
 
-interface PostWithSite extends BasePost {
+interface PostWithSite {
+  id: number
+  slug: string | null
+  title: string | null
+  date_published: string | null
+  link: string
+  image_path: string | null
   site: Site | null
   content_post_topics: PostTopic[]
 }
@@ -39,16 +45,17 @@ function truncateToWords(str: string, numWords: number) {
 
 
 export function PostHorizontal({ post }: { post: PostWithSite }) {
+  const hasValidImage = post.image_path && post.image_path.trim() !== ''
 
   return (
-    
+
     <article className={clsx(
       "overflow-hidden grid gap-6 group hover:bg-gray-50 p-4 md:odd:border-r border-b transition duration-200",
-      post.image_path ? "grid-cols-5" : "grid-cols-1"
+      hasValidImage ? "grid-cols-5" : "grid-cols-1"
     )}>
       <div className={clsx(
         "flex flex-col flex-grow justify-between",
-        post.image_path ? "col-span-3" : "col-span-1"
+        hasValidImage ? "col-span-3" : "col-span-1"
       )}>
         <div>
           <div className='flex flex-row justify-between items-center mb-2'>
@@ -74,12 +81,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
             </p>
             {post.date_published && (
               <time dateTime={post.date_published} className='text-gray-400 text-xs'>
-                {new Date(post.date_published).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  timeZone: 'Europe/London'
-                })}
+                {format(new Date(post.date_published), 'dd MMM yyyy')}
               </time>
             )}
           </div>
@@ -125,20 +127,18 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
         </div>
       </div>
 
-      {post.image_path && post.slug && (
+      {hasValidImage && post.slug && (
         <div className="relative aspect-square col-span-2 mb-0">
-          <a 
-            href={post.slug}
-            target="_blank"
-            rel="noopener noreferrer"
+          <a
+            href={`/articles/${post.slug}`}
             className="hover:underline"
           >
-            <img 
-              src={post.image_path} 
+            <img
+              src={post.image_path || undefined}
               alt=""
               className="object-cover w-full h-full inset-0"
             />
-          </a>   
+          </a>
         </div>
       )}
     </article>

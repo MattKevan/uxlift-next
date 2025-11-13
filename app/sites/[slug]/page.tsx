@@ -78,17 +78,14 @@ export default async function SitePage({
     .select(`
       id,
       title,
-      description, 
+      description,
       date_published,
-      date_created,
       link,
       image_path,
-      content,
       slug,
-      site:content_site!left ( 
+      site:content_site!left (
         title,
         slug,
-        url,
         site_icon
       ),
       content_post_topics!left (

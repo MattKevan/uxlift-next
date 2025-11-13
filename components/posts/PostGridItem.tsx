@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { Bookmark, Flag, Like } from '@mynaui/icons-react'
 import { Button } from '../catalyst/button'
+import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -34,17 +35,16 @@ export function PostGridItem({ post }: { post: PostWithSite }) {
             href={post.link}
             target="_blank"
             rel="noopener noreferrer">
-      {post.image_path ? (
+      {post.image_path && post.image_path.trim() !== '' ? (
         <div className="relative aspect-[16/9]">
-          <img 
-            src={post.image_path} 
+          <img
+            src={post.image_path}
             alt=""
             className="object-cover w-full h-full"
           />
         </div>
       ) : (
         <div className='relative aspect-[16/9] bg-blue-100'>
-
         </div>
       )}
       </a>
@@ -71,12 +71,7 @@ export function PostGridItem({ post }: { post: PostWithSite }) {
           )}
           {post.date_published && (
             <time dateTime={post.date_published} >
-              {new Date(post.date_published).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                timeZone: 'Europe/London'
-              })}
+              {format(new Date(post.date_published), 'dd MMM yyyy')}
             </time>
           )}
         </p>

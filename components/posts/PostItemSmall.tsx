@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
+import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -53,12 +54,7 @@ export function PostItemSmall({ post }: { post: PostWithSite }) {
             )}
             {post.date_published && (
               <span className="">
-                {new Date(post.date_published).toLocaleDateString('en-GB', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  timeZone: 'Europe/London'
-                })}              
+                {format(new Date(post.date_published), 'dd MMMM yyyy')}
               </span>
             )}
           </div>

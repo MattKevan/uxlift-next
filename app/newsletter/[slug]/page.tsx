@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { JSDOM } from 'jsdom'
+import DOMPurify from 'isomorphic-dompurify'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -101,7 +102,7 @@ export default async function NewsletterPost({ params }: PageProps) {
           prose-hr:border-gray-200 dark:prose-hr:border-gray-800"
       >
         {cleanedContent ? (
-          <div dangerouslySetInnerHTML={{ __html: cleanedContent }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanedContent) }} />
         ) : (
           <div className="text-center py-12 text-gray-500">
             <p>This content is not available.</p>

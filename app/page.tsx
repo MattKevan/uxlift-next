@@ -1,9 +1,55 @@
 import { createClient } from '@/utils/supabase/server'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { ToolCard } from '@/components/ToolCards'
+import type { Database } from '@/types/supabase'
+import { format } from 'date-fns'
 
 interface GroupedPosts {
   [key: string]: any[]
+}
+
+// Type for our optimized homepage query
+type HomePagePost = {
+  id: number
+  title: string
+  description: string
+  link: string
+  date_published: string | null
+  image_path: string | null
+  slug: string | null
+  site_id: number | null
+  content_site: {
+    id: number
+    title: string
+    slug: string
+    url: string
+    site_icon: string | null
+  }[] | null
+}
+
+// Extended type that matches PostWithSite interface  
+type PostWithSiteCompat = {
+  id: number
+  title: string
+  description: string
+  link: string
+  date_published: string | null
+  image_path: string | null
+  slug: string | null
+  site: {
+    title: string | null
+    slug: string | null
+    site_icon: string | null
+  } | null
+  content_post_topics: any[]
+  content: string | null
+  date_created: string
+  indexed: boolean
+  status: string
+  summary: string
+  tags_list: string | null
+  user_id: number | null
+  site_id: number | null
 }
 
 function groupPostsByDate(posts: any[]): GroupedPosts {
@@ -24,12 +70,7 @@ function groupPostsByDate(posts: any[]): GroupedPosts {
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  return format(date, 'EEEE, dd MMMM yyyy')
 }
 
 function getLastSevenDays(): string[] {
@@ -51,13 +92,20 @@ export default async function HomePage() {
   const { data: posts, error: postsError } = await supabase
   .from('content_post')
   .select(`
-    *,
-    site:site_id (
-   id,
-          title,
-          slug,
-          url,
-          site_icon
+    id,
+    title,
+    description,
+    link,
+    date_published,
+    image_path,
+    slug,
+    site_id,
+    content_site!left (
+      id,
+      title,
+      slug,
+      url,
+      site_icon
     )
   `, { count: 'exact' })
   .eq('status', 'published')
@@ -86,10 +134,34 @@ export default async function HomePage() {
       <h2 id="articles" className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">Latest articles</h2>
 
         <div className='grid grid-cols-1 md:grid-cols-2'>
-          {posts?.map((post) => (
-
-              <PostHorizontal key={post.id} post={post} />
-          ))}
+          {posts?.map((post) => {
+            // Transform the optimized post data to match component expectations
+            const site = post.content_site?.[0] || null
+            const compatPost: PostWithSiteCompat = {
+              id: post.id,
+              title: post.title,
+              description: post.description,
+              link: post.link,
+              date_published: post.date_published,
+              image_path: post.image_path,
+              slug: post.slug,
+              site: site ? {
+                title: site.title,
+                slug: site.slug,
+                site_icon: site.site_icon
+              } : null,
+              content_post_topics: [],
+              content: null,
+              date_created: post.date_published || new Date().toISOString(),
+              indexed: false,
+              status: 'published',
+              summary: '',
+              tags_list: null,
+              user_id: null,
+              site_id: post.site_id
+            }
+            return <PostHorizontal key={post.id} post={compatPost} />
+          })}
         </div>
 
         <section className='mt-24'>

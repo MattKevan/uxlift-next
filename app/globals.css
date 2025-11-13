@@ -1,6 +1,31 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(25% 0 0);
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(3.9% 0 0);
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(3.9% 0 0);
+  --color-primary: oklch(9% 0 0);
+  --color-primary-foreground: oklch(98% 0 0);
+  --color-secondary: oklch(96.1% 0 0);
+  --color-secondary-foreground: oklch(9% 0 0);
+  --color-muted: oklch(96.1% 0 0);
+  --color-muted-foreground: oklch(45.1% 0 0);
+  --color-accent: oklch(96.1% 0 0);
+  --color-accent-foreground: oklch(9% 0 0);
+  --color-destructive: oklch(60.2% 0.177 29);
+  --color-destructive-foreground: oklch(98% 0 0);
+  --color-border: oklch(89.8% 0 0);
+  --color-input: oklch(89.8% 0 0);
+  --color-ring: oklch(3.9% 0 0);
+
+  --radius: 0.5rem;
+}
 
 @layer base {
   :root {
@@ -74,37 +99,37 @@
   }
 
   .bordergrid {
-  
+
     --gap: 2rem;
     --line-offset: calc(var(--gap) / 2);
     --line-thickness: 2px;
     --line-color: red;
-    
+
      display: grid;
      grid-template-columns: repeat(3, minmax(0, 1fr));
      overflow: hidden;
      gap: var(--gap);
   }
-  
+
   .grid__item {
      position: relative;
   }
-  
-  .grid__item::before, 
+
+  .grid__item::before,
   .grid__item::after {
      content: '';
      position: absolute;
      background-color: var(--line-color);
      z-index: 1;
   }
-  
+
   .grid__item::after {
     inline-size: 100vw;
     block-size: var(--line-thickness);
     inset-inline-start: 0;
     inset-block-start: calc(var(--line-offset) * -1);
   }
-  
+
   .grid__item::before {
     inline-size: var(--line-thickness);
     block-size: 100vh;

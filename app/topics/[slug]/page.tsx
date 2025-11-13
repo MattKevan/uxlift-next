@@ -47,7 +47,7 @@ const ITEMS_PER_PAGE = 22
 
 async function getTopicData(slug: string) {
   const supabase = await createClient()
-  
+
   const { data: topic, error: topicError } = await supabase
     .from('content_topic')
     .select('id, name, description')
@@ -179,28 +179,13 @@ export default async function TopicPage({
         title,
         description,
         date_published,
-        date_created,
         link,
         image_path,
-        content,
-        indexed,
-        site_id,
-        status,
-        summary,
-        tags_list,
-        site:content_site!left ( 
+        site:content_site!left (
           id,
           title,
           slug,
-          url,
           site_icon
-        ),
-        content_post_topics!left (
-          topic:content_topic (
-            id,
-            name,
-            slug
-          )
         )
       )
     `)

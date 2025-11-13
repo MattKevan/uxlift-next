@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
+import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -21,18 +22,17 @@ export function PostFeatured({ post }: { post: PostWithSite }) {
   return (
     <article className="bg-white rounded-lg border overflow-hidden shadow hover:shadow-lg transition-shadow duration-200">
       <div className='grid grid-cols-1 md:grid-cols-3'>
-        {post.image_path ? (
+        {post.image_path && post.image_path.trim() !== '' ? (
           <div className="relative aspect-[16/9] md:col-span-2">
-            <img 
-              src={post.image_path} 
+            <img
+              src={post.image_path}
               alt=""
               className="object-cover w-full h-full"
             />
           </div>
-        ): (
-          <div className="relative aspect-[16/9]  md:col-span-2 bg-blue-100">
-            </div>
-
+        ) : (
+          <div className="relative aspect-[16/9] md:col-span-2 bg-blue-100">
+          </div>
         )}
 
         <div className="p-8 md:col-span-1">
@@ -68,12 +68,7 @@ export function PostFeatured({ post }: { post: PostWithSite }) {
                 </div>
                 {post.date_published && (
                   <time dateTime={post.date_published}>
-                    {new Date(post.date_published).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      timeZone: 'Europe/London'
-                    })}
+                    {format(new Date(post.date_published), 'dd MMM yyyy')}
                   </time>
                 )}
               </div>

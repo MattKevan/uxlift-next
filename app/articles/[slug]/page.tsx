@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Database } from '@/types/supabase'
 import { Metadata, ResolvingMetadata } from 'next'
 import PageProps  from 'next/types'
+import { format } from 'date-fns'
 
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import Link from 'next/link'
@@ -33,6 +34,7 @@ type PostTopic = {
 interface PostWithSite extends BasePost {
   site: Site | null
   content_post_topics: PostTopic[]
+  topics?: Topic[]
 }
 interface RelatedPostResponse {
   post: {
@@ -56,10 +58,6 @@ interface RelatedPostResponse {
     } | null
   }
 }
-interface PostWithSite extends BasePost {
-  site: Site | null
-  topics?: Topic[]
-}
 
 
 type Props = {
@@ -72,7 +70,7 @@ type Props = {
 
 async function getPostData(slug: string) {
   const supabase = await createClient()
-  
+
   const { data: post, error } = await supabase
     .from('content_post')
     .select(`
@@ -101,8 +99,10 @@ async function getPostData(slug: string) {
   const transformedPost: PostWithSite = {
     ...post,
     site: {
+      id: post.site_id || 0,
       title: post.site?.title || null,
       slug: post.site?.slug || null,
+      url: null,
       site_icon: post.site?.site_icon || null
     },
     topics: post.content_post_topics?.map((postTopic: PostTopic) => postTopic.topic) || []
@@ -174,7 +174,13 @@ export default async function PostPage({
   const { data: sameSitePosts } = await supabase
     .from('content_post')
     .select(`
-      *,
+      id,
+      slug,
+      title,
+      description,
+      date_published,
+      link,
+      image_path,
       site:content_site (
         title,
         slug,
@@ -188,38 +194,61 @@ export default async function PostPage({
     .limit(12)
 
   // Transform sameSitePosts to match PostWithSite interface
-  const transformedSameSitePosts: PostWithSite[] = sameSitePosts?.map(sitePost => ({
-    ...sitePost,
-    site: {
-      title: sitePost.site?.title || null,
-      slug: sitePost.site?.slug || null,
-      site_icon: sitePost.site?.site_icon || null
+  const transformedSameSitePosts: PostWithSite[] = sameSitePosts?.map((sitePost: any) => {
+    const siteData = Array.isArray(sitePost.site) ? sitePost.site[0] : sitePost.site
+    return {
+      id: sitePost.id,
+      slug: sitePost.slug,
+      title: sitePost.title,
+      description: sitePost.description,
+      date_published: sitePost.date_published,
+      link: sitePost.link,
+      image_path: sitePost.image_path,
+      // Add missing required fields with null/default values
+      content: null,
+      date_created: new Date().toISOString(),
+      indexed: false,
+      site_id: post.site_id,
+      status: 'published',
+      summary: '',
+      tags_list: null,
+      user_id: null,
+      content_post_topics: [],
+      site: {
+        id: post.site_id || 0,
+        title: siteData?.title || null,
+        slug: siteData?.slug || null,
+        url: null,
+        site_icon: siteData?.site_icon || null
+      }
     }
-  })) || []
+  }) || []
 
   function transformPost(post: any): PostWithSite {
+    const siteData = Array.isArray(post.site) ? post.site[0] : post.site
     return {
       id: post.id,
       title: post.title,
       description: post.description,
-      date_created: post.date_created,
       date_published: post.date_published,
       image_path: post.image_path,
-      indexed: post.indexed,
       link: post.link,
-      site_id: post.site_id,
-      status: post.status,
-      summary: post.summary,
-      content: post.content,
-      tags_list: post.tags_list,
-      user_id: post.user_id,
       slug: post.slug,
+      // Add missing required fields with null/default values
+      date_created: post.date_created || new Date().toISOString(),
+      indexed: post.indexed || false,
+      site_id: post.site_id || null,
+      status: post.status || 'published',
+      summary: post.summary || '',
+      content: post.content || null,
+      tags_list: post.tags_list || null,
+      user_id: post.user_id || null,
       site: {
-        title: post.site?.title || null,
-        slug: post.site?.slug || null,
-        site_icon: post.site?.site_icon || null,
-        id: post.site?.id,
-        url: post.site?.url
+        id: siteData?.id || 0,
+        title: siteData?.title || null,
+        slug: siteData?.slug || null,
+        site_icon: siteData?.site_icon || null,
+        url: siteData?.url || null
       },
       // Add the required content_post_topics field
       content_post_topics: post.content_post_topics?.map((pt: any) => ({
@@ -236,36 +265,46 @@ export default async function PostPage({
 
   // Get related posts with same topics
   const topicIds = post.topics?.map(topic => topic.id) || []
-  const { data: relatedPosts } = await supabase
-  .from('content_post_topics')
-  .select(`
-    post:content_post (
-      *,
-      site:content_site (
-        title,
-        slug,
-        site_icon,
-        id,
-        url
-      ),
-      content_post_topics!left (
-        topic:content_topic (
-          id,
-          name,
-          slug
-        )
-      )
-    )
-  `)
-  .in('topic_id', topicIds)
-  .neq('post.id', post.id)
-  .eq('post.status', 'published')
-  .order('post.date_published', { ascending: false })
-  .limit(9)
+  let relatedPosts: any[] = []
 
-  const transformedRelatedPosts: PostWithSite[] = relatedPosts?.map(
+  if (topicIds.length > 0) {
+    const { data } = await supabase
+      .from('content_post_topics')
+      .select(`
+        post:content_post (
+          id,
+          slug,
+          title,
+          description,
+          date_published,
+          link,
+          image_path,
+          site:content_site (
+            title,
+            slug,
+            site_icon
+          ),
+          content_post_topics!left (
+            topic:content_topic (
+              id,
+              name,
+              slug
+            )
+          )
+        )
+      `)
+      .in('topic_id', topicIds)
+      .neq('post.id', post.id)
+      .eq('post.status', 'published')
+      .order('post.date_published', { ascending: false })
+      .limit(9)
+
+    relatedPosts = data || []
+  }
+
+  const transformedRelatedPosts: PostWithSite[] = relatedPosts.map(
     ({ post: relatedPost }) => transformPost(relatedPost)
-  ) || []
+  )
   
 
   return (
@@ -298,12 +337,7 @@ export default async function PostPage({
             )}
             {post.date_published && (
               <time dateTime={post.date_published} className='text-gray-400 text-sm'>
-                {new Date(post.date_published).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  timeZone: 'Europe/London'
-                })}
+                {format(new Date(post.date_published), 'dd MMM yyyy')}
               </time>
             )}
           </div>

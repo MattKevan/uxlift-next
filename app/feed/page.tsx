@@ -131,20 +131,12 @@ export default async function ProfilePage({
       post:content_post!inner (
         id,
         title,
-        description, 
+        description,
         date_published,
-        date_created,
         link,
         image_path,
-        content,
-        indexed,
-        site_id,
-        status,
-        summary,
-        tags_list,
-        user_id,
         slug,
-        site:content_site!left ( 
+        site:content_site!left (
           title,
           slug,
           site_icon

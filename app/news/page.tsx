@@ -36,28 +36,40 @@ export default async function NewsPage({
 
   const supabase = await createClient()
 
-  const { data: posts, count } = await supabase
+  const { data: rawPosts, count } = await supabase
     .from('content_post')
     .select(`
-      *,
-      site:site_id (
-   id,
-          title,
-          slug,
-          url,
-          site_icon
+      id,
+      slug,
+      title,
+      date_published,
+      link,
+      image_path,
+      site:content_site!left (
+        title,
+        slug,
+        site_icon
       ),
-    content_post_topics!inner (
-      topic:topic_id (
-        id,
-        name,
-        slug
+      content_post_topics!left (
+        topic:content_topic!left (
+          id,
+          name,
+          slug
+        )
       )
-    )
     `, { count: 'exact' })
     .eq('status', 'published')
     .order('date_published', { ascending: false })
     .range(startIndex, startIndex + pageSize - 1)
+
+  // Transform the data to ensure site is a single object and content_post_topics have proper structure
+  const posts = rawPosts?.map((post: any) => ({
+    ...post,
+    site: Array.isArray(post.site) ? post.site[0] || null : post.site,
+    content_post_topics: post.content_post_topics?.map((pt: any) => ({
+      topic: Array.isArray(pt.topic) ? pt.topic[0] : pt.topic
+    })).filter((pt: any) => pt.topic) || []
+  }))
 
   const totalPages = count ? Math.ceil(count / pageSize) : 0
 
