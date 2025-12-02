@@ -111,7 +111,8 @@ export async function fetchAndProcessContent(
     try {
       const dom = new JSDOM(html, {
         url: validUrl,
-        resources: 'usable',
+        // Don't load any external resources (CSS, images, fonts, etc.)
+        resources: undefined,
         runScripts: 'outside-only',
         // Remove non-content elements before parsing to avoid errors and improve quality
         beforeParse(window) {
@@ -122,6 +123,7 @@ export async function fetchAndProcessContent(
             'iframe',           // Embedded content (causes 403 errors)
             'script',           // JavaScript
             'style',            // CSS
+            'link[rel="stylesheet"]', // External CSS (causes 404 errors)
             'noscript',         // Fallback content
             'video',            // Video embeds
             'audio',            // Audio embeds
