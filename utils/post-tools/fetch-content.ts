@@ -109,7 +109,45 @@ export async function fetchAndProcessContent(
     // Extract content using Readability
     let content = ''
     try {
-      const dom = new JSDOM(html, { url: validUrl })
+      const dom = new JSDOM(html, {
+        url: validUrl,
+        resources: 'usable',
+        runScripts: 'outside-only',
+        // Remove non-content elements before parsing to avoid errors and improve quality
+        beforeParse(window) {
+          const doc = window.document;
+
+          // Elements that don't contribute to article content
+          const selectorsToRemove = [
+            'iframe',           // Embedded content (causes 403 errors)
+            'script',           // JavaScript
+            'style',            // CSS
+            'noscript',         // Fallback content
+            'video',            // Video embeds
+            'audio',            // Audio embeds
+            'object',           // Flash/embedded objects
+            'embed',            // Other embedded content
+            'nav',              // Navigation menus
+            'header',           // Page headers
+            'footer',           // Page footers
+            'aside',            // Sidebars
+            'form',             // Forms
+            '[role="navigation"]',
+            '[role="banner"]',
+            '[role="contentinfo"]',
+            '[role="complementary"]',
+            '.advertisement',   // Common ad classes
+            '.ad',
+            '.ads',
+            '.social-share',    // Social sharing widgets
+            '.comments',        // Comment sections
+            '#comments'
+          ].join(',');
+
+          const elementsToRemove = doc.querySelectorAll(selectorsToRemove);
+          elementsToRemove.forEach(element => element.remove());
+        }
+      })
       const reader = new Readability(dom.window.document)
       const article = reader.parse()
       content = article ? article.textContent : ''
