@@ -109,24 +109,28 @@ export async function fetchAndProcessContent(
     // Extract content using Readability
     let content = ''
     try {
-      const dom = new JSDOM(html, {
+      // Pre-process HTML to remove problematic elements before JSDOM parses them
+      // This prevents CSS parsing errors and resource loading errors
+      const cleanHtml = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+        .replace(/<video\b[^<]*(?:(?!<\/video>)<[^<]*)*<\/video>/gi, '')
+        .replace(/<audio\b[^<]*(?:(?!<\/audio>)<[^<]*)*<\/audio>/gi, '')
+
+      const dom = new JSDOM(cleanHtml, {
         url: validUrl,
         // Don't load any external resources (CSS, images, fonts, etc.)
         resources: undefined,
         runScripts: 'outside-only',
-        // Remove non-content elements before parsing to avoid errors and improve quality
+        // Remove additional non-content elements
         beforeParse(window) {
           const doc = window.document;
 
-          // Elements that don't contribute to article content
+          // Additional elements to remove that might have survived regex
           const selectorsToRemove = [
-            'iframe',           // Embedded content (causes 403 errors)
-            'script',           // JavaScript
-            'style',            // CSS
-            'link[rel="stylesheet"]', // External CSS (causes 404 errors)
             'noscript',         // Fallback content
-            'video',            // Video embeds
-            'audio',            // Audio embeds
             'object',           // Flash/embedded objects
             'embed',            // Other embedded content
             'nav',              // Navigation menus
