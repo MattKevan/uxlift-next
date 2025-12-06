@@ -18,7 +18,7 @@
     "@langchain/community": "^0.3.14",
     "@langchain/core": "^0.3.18",
     "@marsidev/react-turnstile": "^1.1.0",
-    "@mozilla/readability": "^0.5.0",
+    "@mozilla/readability": "^0.6.0",
     "@mynaui/icons-react": "^0.3.2",
     "@opennextjs/cloudflare": "^1.12.0",
     "@pinecone-database/pinecone": "^4.0.0",
