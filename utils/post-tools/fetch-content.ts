@@ -114,15 +114,24 @@ export async function fetchAndProcessContent(
       const cleanHtml = html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
+        .replace(/<link[^>]*>/gi, '') // Remove all link tags (stylesheets, fonts, etc.)
         .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
         .replace(/<video\b[^<]*(?:(?!<\/video>)<[^<]*)*<\/video>/gi, '')
         .replace(/<audio\b[^<]*(?:(?!<\/audio>)<[^<]*)*<\/audio>/gi, '')
 
+      // Capture and suppress JSDOM errors (CSS parsing, resource loading)
+      const virtualConsole = new (require('jsdom').VirtualConsole)()
+      virtualConsole.on('error', () => {
+        // Silently ignore JSDOM errors (CSS parsing, resource loading, etc.)
+      })
+
       const dom = new JSDOM(cleanHtml, {
         url: validUrl,
-        // Don't load any external resources (CSS, images, fonts, etc.)
-        resources: undefined,
+        virtualConsole,
+        // Completely disable resource loading
+        resources: 'usable',
+        // Prevent any external fetches
+        pretendToBeVisual: false,
         runScripts: 'outside-only',
         // Remove additional non-content elements
         beforeParse(window) {
@@ -138,6 +147,8 @@ export async function fetchAndProcessContent(
             'footer',           // Page footers
             'aside',            // Sidebars
             'form',             // Forms
+            'style',            // Any remaining style tags
+            'link',             // Any remaining link tags
             '[role="navigation"]',
             '[role="banner"]',
             '[role="contentinfo"]',

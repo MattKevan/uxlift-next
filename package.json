@@ -48,7 +48,7 @@
     "jsdom": "^25.0.1",
     "langchain": "^0.3.5",
     "lucide-react": "^0.436.0",
-    "next": "latest",
+    "next": "^15.4.8",
     "next-cloudinary": "^6.16.0",
     "next-sitemap": "^4.2.3",
     "next-themes": "^0.3.0",
