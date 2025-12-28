@@ -7,6 +7,7 @@ import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Pager } from '@/components/Pager'
 import { Button } from '@/components/catalyst/button'
 import { ExternalLink } from '@mynaui/icons-react'
+import type { Metadata } from 'next'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -41,6 +42,47 @@ interface PageProps {
 }
 
 const ITEMS_PER_PAGE = 20
+
+type MetadataProps = {
+  params: Params
+  searchParams: SearchParams
+}
+
+export async function generateMetadata(
+  { params }: MetadataProps,
+): Promise<Metadata> {
+  const { slug } = await params
+  const supabase = await createClient()
+
+  const { data: site } = await supabase
+    .from('content_site')
+    .select('id, title, description, url')
+    .eq('slug', slug)
+    .single()
+
+  if (!site) {
+    return {
+      title: 'Site Not Found | UX Lift'
+    }
+  }
+
+  return {
+    title: `${site.title} Articles | UX Lift`,
+    description: site.description || `Explore articles and resources from ${site.title}`,
+    openGraph: {
+      title: `${site.title} | UX Lift`,
+      description: site.description || `Explore articles and resources from ${site.title}`,
+      url: `/sites/${slug}`,
+      siteName: 'UX Lift',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${site.title} | UX Lift`,
+      description: site.description || `Explore articles and resources from ${site.title}`,
+    },
+  }
+}
 
 export default async function SitePage({ 
   params,

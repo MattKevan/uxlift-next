@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm --version:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:www.uxlift.org)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

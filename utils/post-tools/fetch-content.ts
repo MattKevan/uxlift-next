@@ -167,7 +167,7 @@ export async function fetchAndProcessContent(
       })
       const reader = new Readability(dom.window.document)
       const article = reader.parse()
-      content = article ? article.textContent : ''
+      content = article?.textContent ?? ''
     } catch (readabilityError) {
       logger.warn('Readability parsing failed, falling back to body text', readabilityError as Error)
       content = $('body').text().trim()

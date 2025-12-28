@@ -60,7 +60,7 @@ const nextConfig = {
             form-action 'self';
             frame-src https://embeds.beehiiv.com;
             frame-ancestors 'none';
-            connect-src 'self' https://*.supabase.co https://*.pinecone.io https://api.openai.com https://api.beehiiv.com https://api.github.com https://challenges.cloudflare.com https://beamanalytics.b-cdn.net;
+            connect-src 'self' https://*.supabase.co https://*.pinecone.io https://api.openai.com https://api.beehiiv.com https://api.github.com https://challenges.cloudflare.com https://beamanalytics.b-cdn.net https://*.beamanalytics.io;
           `
 
       return [

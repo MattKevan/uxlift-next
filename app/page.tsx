@@ -3,6 +3,24 @@ import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { ToolCard } from '@/components/ToolCards'
 import type { Database } from '@/types/supabase'
 import { format } from 'date-fns'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'UX Lift - Curated UX Design Articles, Tools & Resources',
+  description: 'Discover and explore the best UX design articles, news, tools and resources. Stay up to date with the latest in user experience design.',
+  openGraph: {
+    title: 'UX Lift - Curated UX Design Articles, Tools & Resources',
+    description: 'Discover and explore the best UX design articles, news, tools and resources. Stay up to date with the latest in user experience design.',
+    url: 'https://www.uxlift.org',
+    siteName: 'UX Lift',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'UX Lift - Curated UX Design Articles, Tools & Resources',
+    description: 'Discover and explore the best UX design articles, news, tools and resources.',
+  },
+}
 
 interface GroupedPosts {
   [key: string]: any[]
