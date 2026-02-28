@@ -8,8 +8,8 @@ import { format } from 'date-fns'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import Link from 'next/link'
 import { CustomImage } from '@/components/Image'
-import { Button } from '@/components/catalyst/button'
-import { Bookmark, ExternalLink, Like } from '@mynaui/icons-react'
+import { Button } from '@/components/ui/button'
+import { ExternalLink } from 'lucide-react'
 
 // Types from PostHorizontalSmall to ensure compatibility
 type BasePost = Database['public']['Tables']['content_post']['Row']
@@ -352,7 +352,7 @@ export default async function PostPage({
                 <Link
                   key={topic.id}
                   href={`/topics/${topic.slug}`}
-                  className="border px-3 py-1 rounded-full text-sm text-gray-600 hover:bg-gray-200"
+                  className="border px-3 py-1 rounded-full text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200"
                 >
                   {topic.name}
                 </Link>
@@ -362,20 +362,19 @@ export default async function PostPage({
 
           {post.summary && (
             <div className="prose max-w-none mb-7">
-              <p className="text-xl text-gray-600">{post.summary}</p>
+              <p className="text-xl text-gray-600 dark:text-gray-400">{post.summary}</p>
             </div>
           )}
 
           <div className="mb-8 flex gap-2">
-            <Button
-              href={post.link}
+            <Button asChild>
+              <Link href={post.link}
               target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink />Read the full article
+              rel="noopener noreferrer">
+              <ExternalLink /> Read the full article
+              </Link>
             </Button>
-            <Button color='white'><Like /> Like </Button>
-            <Button color='white'><Bookmark />Bookmark</Button>
+            
           </div>
         </div>
       </div>
@@ -399,7 +398,7 @@ export default async function PostPage({
       {transformedRelatedPosts.length > 0 && (
         <section className="mt-16">
           <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
-            Related Articles
+            Related articles
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2">
             {transformedRelatedPosts.map((relatedPost) => (

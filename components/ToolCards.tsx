@@ -1,6 +1,5 @@
 'use client'
 
-import { CldImage } from 'next-cloudinary'
 import type { Database } from '@/types/supabase'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
@@ -9,7 +8,20 @@ interface ToolCardProps {
   tool: Tool
 }
 
+function getToolImageUrl(image: string) {
+  if (!image) return ''
+  if (image.startsWith('http://') || image.startsWith('https://')) {
+    return image
+  }
+
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+  if (!cloudName) return ''
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${image}`
+}
+
 export function ToolCard({ tool }: ToolCardProps) {
+  const imageUrl = getToolImageUrl(tool.image)
+
   return (
 
     <a
@@ -25,13 +37,16 @@ export function ToolCard({ tool }: ToolCardProps) {
         {tool.description}
       </p></div>
       
-      <CldImage
-          src={tool.image}
+      {imageUrl && (
+        <img
+          src={imageUrl}
           alt={tool.title}
           width={70}
           height={70}
-          className="w-[70px] h-[70px] flex-none rounded"
+          className="w-[70px] h-[70px] flex-none rounded object-cover"
+          loading="lazy"
         />
+      )}
       </div>
   
     </a>

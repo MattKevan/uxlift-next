@@ -103,6 +103,16 @@ export const fetchUrlRequestSchema = z.object({
   url: urlSchema
 })
 
+export const createToolRequestSchema = z.object({
+  url: urlSchema,
+  status: z.string().min(1).max(32).optional()
+})
+
+export const bulkCreateToolsRequestSchema = z.object({
+  urls: z.array(urlSchema).min(1).max(500),
+  status: z.string().min(1).max(32).optional()
+})
+
 export const searchRequestSchema = z.object({
   query: searchQuerySchema
 })

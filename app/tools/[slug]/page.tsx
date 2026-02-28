@@ -6,7 +6,6 @@ import Markdown from 'react-markdown'
 import { Tag } from '@/components/Tags'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { CustomImage } from '@/components/Image'
 import { ExternalLink } from '@mynaui/icons-react'
 import { ToolCard } from '@/components/ToolCards'
 
@@ -24,6 +23,17 @@ type ToolTopic = {
 
 interface ToolWithTopics extends Tool {
   content_tool_topics: ToolTopic[]
+}
+
+function getToolImageUrl(image: string | null) {
+  if (!image) return null
+  if (image.startsWith('http://') || image.startsWith('https://')) {
+    return image
+  }
+
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+  if (!cloudName) return null
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${image}`
 }
 
 type Params = Promise<{ slug: string }>
@@ -65,6 +75,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug } = await params
   const tool = await getToolData(slug)
+  const imageUrl = getToolImageUrl(tool?.image || null)
 
   if (!tool) {
     return {
@@ -81,13 +92,13 @@ export async function generateMetadata(
       url: `/tools/${tool.slug}`,
       siteName: 'UX Lift',
       type: 'website',
-      images: [tool.image],
+      images: imageUrl ? [imageUrl] : [],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${tool.title} | UX Lift`,
       description: tool.description,
-      images: [tool.image],
+      images: imageUrl ? [imageUrl] : [],
     },
   }
 }
@@ -95,6 +106,7 @@ export async function generateMetadata(
 export default async function ToolPage({ params, searchParams }: PageProps) {
   const { slug } = await params
   const tool = await getToolData(slug)
+  const imageUrl = getToolImageUrl(tool?.image || null)
 
   if (!tool) {
     return notFound()
@@ -126,15 +138,13 @@ export default async function ToolPage({ params, searchParams }: PageProps) {
       <div className='px-4 mb-24 sm:mb-32 mt-6'>
         <div className='max-w-6xl'>
           <div className="flex items-center gap-4 mb-6">
-            {tool.image && (
-              <CustomImage
-                src={tool.image}
+            {imageUrl && (
+              <img
+                src={imageUrl}
                 alt={tool.title || 'Tool logo'}
                 width={50}
                 height={50}
-                className="object-cover"
-                fallback="/images/default-site-icon.png"
-                priority
+                className="object-cover rounded"
               />
             )}
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">

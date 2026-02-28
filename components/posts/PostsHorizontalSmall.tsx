@@ -50,7 +50,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
   return (
 
     <article className={clsx(
-      "overflow-hidden grid gap-6 group hover:bg-gray-50 p-4 md:odd:border-r border-b transition duration-200",
+      "overflow-hidden grid gap-6 group hover:bg-gray-50 dark:hover:bg-gray-900 p-4 md:odd:border-r border-b transition duration-200",
       hasValidImage ? "grid-cols-5" : "grid-cols-1"
     )}>
       <div className={clsx(
@@ -100,7 +100,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
                 <Link
                   key={topic.id}
                   href={`/topics/${topic.slug}`}
-                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 hover:dark:bg-gray-700 transition-colors"
                 >
                   {topic.name}
                 </Link>
