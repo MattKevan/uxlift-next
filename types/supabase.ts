@@ -216,6 +216,132 @@ export type Database = {
           },
         ]
       }
+      content_resource: {
+        Row: {
+          body: string | null
+          date_created: string
+          date_published: string | null
+          description: string
+          id: number
+          image_path: string | null
+          link: string
+          resource_category_id: number | null
+          slug: string
+          status: string
+          summary: string
+          title: string
+          user_id: number | null
+        }
+        Insert: {
+          body?: string | null
+          date_created?: string
+          date_published?: string | null
+          description?: string
+          id?: number
+          image_path?: string | null
+          link: string
+          resource_category_id?: number | null
+          slug?: string
+          status?: string
+          summary?: string
+          title: string
+          user_id?: number | null
+        }
+        Update: {
+          body?: string | null
+          date_created?: string
+          date_published?: string | null
+          description?: string
+          id?: number
+          image_path?: string | null
+          link?: string
+          resource_category_id?: number | null
+          slug?: string
+          status?: string
+          summary?: string
+          title?: string
+          user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_resource_resource_category_id_fkey"
+            columns: ["resource_category_id"]
+            isOneToOne: false
+            referencedRelation: "content_resource_category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_resource_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_resource_category: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      content_resource_topics: {
+        Row: {
+          id: number
+          resource_id: number
+          topic_id: number
+        }
+        Insert: {
+          id?: number
+          resource_id: number
+          topic_id: number
+        }
+        Update: {
+          id?: number
+          resource_id?: number
+          topic_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_resource_topics_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "content_resource"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_resource_topics_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "content_topic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_site: {
         Row: {
           content: string | null

@@ -1,8 +1,13 @@
 // /utils/post-tools/tag-posts.ts
 
-import { OpenAI } from 'openai'
 import type { Database } from '@/types/supabase'
 import { createClient } from '@supabase/supabase-js'
+import {
+  contentLlmClient,
+  contentLlmModel,
+  contentLlmProvider,
+  hasContentLlmCredentials,
+} from '@/utils/llm'
 
 type Topic = Database['public']['Tables']['content_topic']['Row']
 type Post = Database['public']['Tables']['content_post']['Row']
@@ -33,10 +38,6 @@ interface TagPostResult {
   error?: string;
   details?: string;
 }
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '' // Provide empty string as fallback
-})
 
 export async function tagPost(postId: number, supabase: SupabaseClient): Promise<TagPostResult> {
   try {
@@ -104,8 +105,15 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
       .map(topic => `${topic.name}${topic.description ? ` (${topic.description})` : ''}`)
       .join('\n')
 
+    if (!hasContentLlmCredentials) {
+      return {
+        success: false,
+        error: 'No LLM credentials configured for tagging',
+      }
+    }
+
     try {
-      const completion = await openai.chat.completions.create({
+      const completion = await contentLlmClient.chat.completions.create({
         messages: [
           {
             role: 'system',
@@ -119,7 +127,7 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
             content: `Please categorize this article:\n${contentToAnalyze}`
           }
         ],
-        model: 'gpt-4o-mini',
+        model: contentLlmModel,
       })
 
       const suggestedTopics = completion.choices[0].message.content
@@ -222,11 +230,15 @@ export async function tagPost(postId: number, supabase: SupabaseClient): Promise
       }
 
     } catch (error) {
-      console.error('OpenAI API error:', error)
+      console.error('LLM tagging error:', {
+        provider: contentLlmProvider,
+        model: contentLlmModel,
+        error,
+      })
       return {
         success: false,
-        error: 'OpenAI API error',
-        details: error instanceof Error ? error.message : 'Unknown OpenAI error'
+        error: 'LLM tagging error',
+        details: error instanceof Error ? error.message : 'Unknown LLM error'
       }
     }
   } catch (error) {

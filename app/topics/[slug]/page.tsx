@@ -9,6 +9,8 @@ import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Book, FileText, Tool } from '@mynaui/icons-react'
 import { BookCard } from '@/components/BookCards'
 import { BookWithTopics } from '@/components/BookCards'  // Import the interface
+import { ResourceCard } from '@/components/ResourceCard'
+import { Layers } from 'lucide-react'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -119,6 +121,22 @@ export default async function TopicPage({
     .eq('status', 'published')
     .order('date', { ascending: false })
 
+  // Get resources for this topic
+  const { data: resources, error: resourcesError } = await supabase
+    .from('content_resource')
+    .select(`
+      *,
+      resource_category:content_resource_category (
+        id,
+        name,
+        slug
+      ),
+      content_resource_topics!inner (topic_id)
+    `)
+    .eq('content_resource_topics.topic_id', topic.id)
+    .eq('status', 'published')
+    .order('date_published', { ascending: false, nullsFirst: false })
+
   // Get total counts
   const { count: totalPostsCount } = await supabase
     .from('content_post_topics')
@@ -137,6 +155,19 @@ export default async function TopicPage({
     .from('content_tool_topics')
     .select('*', { count: 'exact', head: true })
     .eq('topic_id', topic.id)
+
+  const { count: totalResourcesCount } = await supabase
+    .from('content_resource_topics')
+    .select(`
+      resource:content_resource!inner (
+        id
+      )
+    `, {
+      count: 'exact',
+      head: true
+    })
+    .eq('topic_id', topic.id)
+    .eq('resource.status', 'published')
 
   // Get books for this topic
   const { data: booksData, count: totalBooksCount } = await supabase
@@ -204,13 +235,14 @@ export default async function TopicPage({
       }))
     : []
 
-  if (postsError || toolsError) {
-    console.error('Error fetching content:', postsError || toolsError)
+  if (postsError || toolsError || resourcesError) {
+    console.error('Error fetching content:', postsError || toolsError || resourcesError)
     return <div>Error loading content</div>
   }
 
   const totalPages = totalPostsCount ? Math.ceil(totalPostsCount / ITEMS_PER_PAGE) : 0
   const uniqueTools = Array.from(new Map(tools?.map(tool => [tool.id, tool])).values())
+  const uniqueResources = Array.from(new Map(resources?.map(resource => [resource.id, resource])).values())
 
   return (
     <main>
@@ -262,6 +294,19 @@ export default async function TopicPage({
         </section>
       )}
 
+      {uniqueResources.length > 0 && (
+        <section className="mb-12 pt-12" id="resources">
+          <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
+            {totalResourcesCount} {topic.name} resources
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {uniqueResources.map((resource) => (
+              <ResourceCard key={resource.id} resource={resource} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {books && books.length > 0 && (
         <section className="mb-12 pt-12" id="books">
           <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
@@ -285,6 +330,11 @@ export default async function TopicPage({
         {uniqueTools.length > 0 && (
           <a href="#tools" className='p-4 hover:bg-gray-200 rounded-full'>
             <Tool className='size-6'/>
+          </a>
+        )}
+        {uniqueResources.length > 0 && (
+          <a href="#resources" className='p-4 hover:bg-gray-200 rounded-full'>
+            <Layers className='size-6'/>
           </a>
         )}
           {books && books.length > 0 && (

@@ -1,7 +1,12 @@
 // /utils/post-tools/summarise.ts
-import { OpenAI } from 'openai'
 import type { Database } from '@/types/supabase'
 import { createClient } from '@supabase/supabase-js'
+import {
+  contentLlmClient,
+  contentLlmModel,
+  contentLlmProvider,
+  hasContentLlmCredentials,
+} from '@/utils/llm'
 
 type SupabaseClient = ReturnType<typeof createClient<Database>>
 
@@ -12,10 +17,6 @@ interface SummariseResult {
   error?: string;
   details?: string;
 }
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 export async function summarisePost(postId: number, supabase: SupabaseClient): Promise<SummariseResult> {
   try {
@@ -40,7 +41,14 @@ export async function summarisePost(postId: number, supabase: SupabaseClient): P
       }
     }
 
-    const completion = await openai.chat.completions.create({
+    if (!hasContentLlmCredentials) {
+      return {
+        success: false,
+        error: 'No LLM credentials configured for summarisation',
+      }
+    }
+
+    const completion = await contentLlmClient.chat.completions.create({
       messages: [
         {
           role: 'system',
@@ -51,7 +59,7 @@ export async function summarisePost(postId: number, supabase: SupabaseClient): P
           content: `Please summarize the following article: ${post.content}`
         }
       ],
-      model: 'gpt-4o-mini',
+      model: contentLlmModel,
     })
 
     const summary = completion.choices[0].message.content
@@ -81,7 +89,11 @@ export async function summarisePost(postId: number, supabase: SupabaseClient): P
       summary
     }
   } catch (error) {
-    console.error('Summarization error:', error)
+    console.error('Summarization error:', {
+      provider: contentLlmProvider,
+      model: contentLlmModel,
+      error,
+    })
     return {
       success: false,
       error: 'Summarization failed',

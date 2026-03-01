@@ -105,10 +105,50 @@ export const fetchUrlRequestSchema = z.object({
 
 export const createToolRequestSchema = z.object({
   url: urlSchema,
+  description: descriptionSchema,
   status: z.string().min(1).max(32).optional()
 })
 
+export const reprocessToolRequestSchema = z.object({
+  toolId: z.number().int().positive(),
+  description: descriptionSchema,
+})
+
+const bulkCreateToolItemSchema = z.object({
+  url: urlSchema,
+  description: descriptionSchema,
+})
+
 export const bulkCreateToolsRequestSchema = z.object({
+  urls: z.array(urlSchema).min(1).max(500).optional(),
+  items: z.array(bulkCreateToolItemSchema).min(1).max(500).optional(),
+  status: z.string().min(1).max(32).optional()
+}).refine(
+  (data) => {
+    const urlCount = data.urls?.length || 0
+    const itemCount = data.items?.length || 0
+    return urlCount > 0 || itemCount > 0
+  },
+  {
+    message: 'At least one URL or item is required',
+  }
+).refine(
+  (data) => {
+    const urlCount = data.urls?.length || 0
+    const itemCount = data.items?.length || 0
+    return (urlCount + itemCount) <= 500
+  },
+  {
+    message: 'Maximum of 500 URLs/items per request',
+  }
+)
+
+export const createResourceRequestSchema = z.object({
+  url: urlSchema,
+  status: z.string().min(1).max(32).optional()
+})
+
+export const bulkCreateResourcesRequestSchema = z.object({
   urls: z.array(urlSchema).min(1).max(500),
   status: z.string().min(1).max(32).optional()
 })

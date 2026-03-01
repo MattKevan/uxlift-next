@@ -1,0 +1,115 @@
+title,description,url,category
+Aider,"Open-source terminal coding agent that edits files, runs commands, and iterates against your codebase.",https://aider.chat/,coding_agents
+Akiflow,Productivity workspace that unifies tasks and calendar planning for focused execution.,https://akiflow.com/,notes_productivity
+Amazon Q Developer,"AWS coding assistant with agentic workflows for code generation, modernization, and troubleshooting.",https://aws.amazon.com/q/developer/,coding_agents
+Amp,Coding agent focused on autonomous code edits and multi-step software tasks from natural language.,https://ampcode.com/,coding_agents
+Amplenote,Notes and task manager combining idea capture with planning and calendar workflows.,https://www.amplenote.com/,notes_productivity
+Anytype,Local-first note and knowledge app for organizing personal information and projects.,https://anytype.io/,notes_productivity
+Apple Notes,"Apple’s built-in note-taking app for capture, organization, and cross-device sync.",https://apps.apple.com/us/app/notes/id1110145109,notes_productivity
+Asana,"Work management platform for project planning, tracking, and team productivity.",https://asana.com/,notes_productivity
+Augment Code,AI coding platform for larger codebases with repository-aware assistance and agentic execution modes.,https://www.augmentcode.com/,coding_agents
+Avoma,AI meeting assistant and conversation intelligence platform for team productivity.,https://www.avoma.com/,notes_productivity
+Bardeen,AI workflow automation app for productivity tasks across tools and browser workflows.,https://www.bardeen.ai/,notes_productivity
+Bear,Markdown-focused note-taking app for Apple devices with fast tagging and organization.,https://bear.app/,notes_productivity
+Bito,AI coding assistant for developers with code generation and review support inside development workflows.,https://bito.ai/,coding_agents
+Bolt.new,Prompt-to-app builder that generates full-stack applications directly in the browser.,https://bolt.new/,coding_agents
+Capacities,Object-based knowledge app for note-taking and personal knowledge management.,https://capacities.io/,notes_productivity
+Claude Code,Anthropic’s coding agent product for terminal and IDE-driven software engineering tasks.,https://www.anthropic.com/claude-code,coding_agents
+ClickUp,"All-in-one productivity platform for tasks, docs, and team planning.",https://clickup.com/,notes_productivity
+Cline,"Open-source autonomous coding agent extension for editor-based planning, editing, and command execution.",https://cline.bot/,coding_agents
+Clockwise,AI calendar assistant for optimizing meeting schedules and focus time.,https://www.getclockwise.com/,notes_productivity
+Coda,"Collaborative docs platform for notes, planning, and structured productivity workflows.",https://coda.io/,notes_productivity
+Codeium,AI coding platform with code generation and assistant capabilities across IDEs.,https://codeium.com/,coding_agents
+CodeRabbit,AI code review agent that analyzes pull requests and suggests concrete fixes.,https://coderabbit.ai/,coding_agents
+Codex,"OpenAI coding agent platform for parallel software tasks across CLI, IDE, cloud, and desktop workflows.",https://openai.com/codex/,coding_agents
+Continue,Open-source developer assistant framework used to create agent-like coding workflows in the IDE.,https://continue.dev/,coding_agents
+Craft,"Writing and documents app for note-taking, publishing, and personal organization.",https://www.craft.do/,notes_productivity
+Cursor,"AI code editor with agentic workflows for planning, editing, and executing software tasks.",https://cursor.com/,coding_agents
+Databutton,AI app builder that generates and deploys full-stack products from product intent and prompts.,https://databutton.com/,coding_agents
+Day One,"Journaling app for capturing daily notes, memories, and reflections.",https://dayoneapp.com/,notes_productivity
+Devin,Autonomous software engineering agent designed to complete coding tasks end to end.,https://devin.ai/,coding_agents
+Drafts,Capture-first text app for quickly collecting notes and routing them into workflows.,https://getdrafts.com/,notes_productivity
+Evernote,"Note-taking app for capturing documents, ideas, and personal knowledge.",https://evernote.com/,notes_productivity
+Factory,AI-native software development platform for agentic engineering and code automation.,https://www.factory.ai/,coding_agents
+Fathom,AI meeting assistant that records calls and produces searchable summaries and action items.,https://fathom.video/,notes_productivity
+Fellow,"Meeting productivity platform with AI note capture, agendas, and follow-up workflows.",https://fellow.app/,notes_productivity
+Fibery,"Connected workspace for knowledge, projects, and process documentation.",https://fibery.io/,notes_productivity
+Firebase Studio,Google’s AI-assisted app development workspace for generating and iterating product code.,https://firebase.studio/,coding_agents
+Fireflies.ai,"AI meeting assistant for automatic transcription, summaries, and searchable conversation notes.",https://fireflies.ai/,notes_productivity
+Gemini Code Assist,"Google coding assistant for code completion, generation, and development guidance in IDE workflows.",https://cloud.google.com/products/gemini/code-assist,coding_agents
+GitHub Copilot,"GitHub’s AI coding assistant with chat, edits, and agentic coding capabilities in developer tools.",https://github.com/features/copilot,coding_agents
+GitLab Duo,"GitLab’s AI development suite supporting code suggestions, explanations, and workflow automation.",https://about.gitlab.com/gitlab-duo/,coding_agents
+GoCodeo,AI coding agent tool for accelerating feature delivery and coding workflows.,https://www.gocodeo.com/,coding_agents
+Google Jules,Google’s asynchronous coding agent designed to tackle software tasks in parallel.,https://jules.google/,coding_agents
+Google Keep,"Google’s note app for quick capture, lists, and lightweight organization.",https://keep.google.com/,notes_productivity
+Goose,Open-source local coding agent from Block for autonomous software engineering workflows.,https://block.github.io/goose/,coding_agents
+Granola,AI note-taking app that turns meeting audio into structured notes and decisions.,https://www.granola.ai/,notes_productivity
+Heptabase,Visual thinking and note-taking app for deep research and knowledge structuring.,https://heptabase.com/,notes_productivity
+iA Writer,Focused writing and note app emphasizing distraction-free drafting.,https://ia.net/writer,notes_productivity
+JetBrains Junie,JetBrains AI coding agent designed for software development workflows in JetBrains IDEs.,https://www.jetbrains.com/junie/,coding_agents
+Joplin,Open-source note-taking and to-do app with local-first synchronization options.,https://joplinapp.org/,notes_productivity
+Kilo Code,Open-source coding agent available in terminal and IDE environments for automated coding tasks.,https://kilocode.ai/,coding_agents
+Linear,Project planning and issue tracking tool for software and product teams.,https://linear.app/,notes_productivity
+Logseq,Open-source outliner and knowledge base app for linked thought and note organization.,https://logseq.com/,notes_productivity
+Lovable,AI product builder that turns prompts into editable full-stack applications.,https://lovable.dev/,coding_agents
+Magic,AI software platform building autonomous coding systems for enterprise engineering tasks.,https://magic.dev/,coding_agents
+Make,No-code automation platform for connecting apps and productivity workflows.,https://www.make.com/,notes_productivity
+MarsCode,AI coding assistant and development environment for code generation and debugging support.,https://www.marscode.com/,coding_agents
+Mem,AI note app for capturing ideas and retrieving context across personal knowledge.,https://mem.ai/,notes_productivity
+Microsoft Loop,"Collaborative workspace app for shared notes, components, and team planning.",https://www.microsoft.com/en-us/microsoft-loop,notes_productivity
+Milanote,"Visual workspace for organizing notes, ideas, and creative project planning.",https://milanote.com/,notes_productivity
+monday.com,"Work OS platform for planning, tracking, and productivity management.",https://monday.com/,notes_productivity
+Morgen,Calendar and task planning app for unified personal productivity.,https://www.morgen.so/,notes_productivity
+Motion,"AI planner for automated scheduling of tasks, priorities, and deadlines.",https://www.usemotion.com/,notes_productivity
+mymind,Private bookmarking and note app that uses AI to auto-organize captured content.,https://mymind.com/,notes_productivity
+NotebookLM,"Google’s AI notebook app for grounded research, synthesis, and source-aware notes.",https://notebooklm.google.com/,notes_productivity
+Notion,"Workspace platform combining notes, docs, projects, and AI assistance.",https://www.notion.com/,notes_productivity
+Notta,AI transcription and meeting notes app for summarizing calls and conversations.,https://www.notta.ai/,notes_productivity
+Nuclino,Lightweight team knowledge base and note-sharing workspace.,https://www.nuclino.com/,notes_productivity
+Obsidian,Markdown-based knowledge app for linked notes and personal knowledge management.,https://obsidian.md/,notes_productivity
+OneNote,"Microsoft note-taking app for notebooks, structured organization, and collaboration.",https://www.onenote.com/,notes_productivity
+OpenCode,"Open-source coding agent that works in terminal, IDE, and desktop environments.",https://opencode.ai/,coding_agents
+OpenHands,Open-source software development agent framework for autonomous engineering tasks.,https://www.all-hands.dev/,coding_agents
+Otter,"AI meeting productivity app for live transcription, summaries, and searchable meeting history.",https://otter.ai/,notes_productivity
+PearAI,AI coding environment focused on agentic coding workflows and development productivity.,https://trypear.ai/,coding_agents
+Poolside,AI company building software engineering models and agentic tooling for code generation workflows.,https://poolside.ai/,coding_agents
+Pythagora,AI development platform for generating and shipping full-stack applications from prompts.,https://pythagora.ai/,coding_agents
+Qodo,"AI coding and code quality platform for generation, testing, and review workflows.",https://www.qodo.ai/,coding_agents
+Read AI,"AI meeting and productivity platform for transcripts, summaries, and engagement insights.",https://www.read.ai/,notes_productivity
+Reclaim,AI scheduling assistant that protects focus time and automatically plans tasks.,https://reclaim.ai/,notes_productivity
+Refact.ai,Open-source AI coding assistant with self-hostable options and agent-style automation.,https://refact.ai/,coding_agents
+Reflect,Networked note-taking app with AI-assisted retrieval and writing support.,https://reflect.app/,notes_productivity
+RemNote,Note-taking and spaced-repetition app for learning and long-term retention.,https://www.remnote.com/,notes_productivity
+Replit,Cloud development platform with AI agent features for generating and shipping apps from prompts.,https://replit.com/,coding_agents
+Roam Research,Networked thought app for bidirectional linking and knowledge graph note-taking.,https://roamresearch.com/,notes_productivity
+Roo Code,"Open-source coding agent for editor-driven planning, implementation, and iteration.",https://roocode.com/,coding_agents
+Routine,"Productivity app that combines tasks, notes, and calendar workflows.",https://routine.co/,notes_productivity
+Sembly AI,"AI meeting assistant for transcripts, tasks, and collaboration summaries.",https://www.sembly.ai/,notes_productivity
+Simplenote,Minimal note-taking app for cross-device text capture and sync.,https://simplenote.com/,notes_productivity
+Slite,Team knowledge and note-taking workspace with AI-enabled documentation support.,https://slite.com/,notes_productivity
+Sourcegraph Cody,"AI coding assistant for code search, editing, and repository-scale development support.",https://sourcegraph.com/cody,coding_agents
+Standard Notes,Privacy-focused notes app with end-to-end encryption and productivity extensions.,https://standardnotes.com/,notes_productivity
+Sunsama,Daily planning app that unifies tasks and calendar execution.,https://www.sunsama.com/,notes_productivity
+Supermaven,AI coding assistant focused on fast inline suggestions and developer productivity.,https://supermaven.com/,coding_agents
+Supernotes,Fast note-taking app built around connected cards and collaboration.,https://supernotes.app/,notes_productivity
+Sweep,AI coding agent that automates code changes from issues and pull request workflows.,https://sweep.dev/,coding_agents
+Tabnine,"AI coding assistant for completion, chat, and secure development workflows.",https://www.tabnine.com/,coding_agents
+Tana,AI-native knowledge workspace for structured notes and workflows.,https://tana.inc/,notes_productivity
+Taskade,"AI productivity workspace for notes, tasks, mind maps, and team collaboration.",https://www.taskade.com/,notes_productivity
+Tempo,AI-assisted design-to-code workflow product for generating React interfaces and product UI.,https://www.tempo.new/,coding_agents
+Things 3,Task management app for Apple users focused on structured personal productivity.,https://culturedcode.com/things/,notes_productivity
+TickTick,Task and habit management app for everyday productivity planning.,https://ticktick.com/,notes_productivity
+tl;dv,AI meeting recorder and summarizer for video-call productivity workflows.,https://tldv.io/,notes_productivity
+Todoist,Task management app for planning personal and team work.,https://todoist.com/,notes_productivity
+Trae,AI development environment for accelerated coding and product engineering workflows.,https://www.trae.ai/,coding_agents
+Typefully,Writing and scheduling tool for social content productivity and draft management.,https://typefully.com/,notes_productivity
+Ulysses,Long-form writing and note organization app for Apple platforms.,https://ulysses.app/,notes_productivity
+UpNote,Cross-platform note-taking app for structured notebooks and quick capture.,https://getupnote.com/,notes_productivity
+v0,AI UI and app generation tool for prompt-to-React product development workflows.,https://v0.dev/,coding_agents
+Warp,Terminal platform with AI agent capabilities for command execution and development workflows.,https://www.warp.dev/,coding_agents
+Weava,Research note and web-highlighting tool for productivity and information capture.,https://www.weavatools.com/,notes_productivity
+Windsurf,AI coding environment with agentic software development capabilities.,https://windsurf.com/,coding_agents
+Workflowy,Outline-based note and task app for nested planning and capture.,https://workflowy.com/,notes_productivity
+Zapier,Automation platform used to connect apps and streamline productivity workflows.,https://zapier.com/,notes_productivity
+Zed AI,AI-powered coding features integrated into the Zed editor for faster software development.,https://zed.dev/ai,coding_agents
+Zoho Notebook,"Notebook app for multimedia notes, organization, and sync.",https://www.zoho.com/notebook/,notes_productivity

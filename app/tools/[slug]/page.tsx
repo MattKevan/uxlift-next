@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ExternalLink } from '@mynaui/icons-react'
 import { ToolCard } from '@/components/ToolCards'
+import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 
@@ -83,11 +84,13 @@ export async function generateMetadata(
     }
   }
 
+  const displayTitle = sanitizeToolTitle(tool.title, tool.title)
+
   return {
-    title: `${tool.title} | UX Lift`,
+    title: `${displayTitle} | UX Lift`,
     description: tool.description,
     openGraph: {
-      title: `${tool.title} | UX Lift`,
+      title: `${displayTitle} | UX Lift`,
       description: tool.description,
       url: `/tools/${tool.slug}`,
       siteName: 'UX Lift',
@@ -96,7 +99,7 @@ export async function generateMetadata(
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${tool.title} | UX Lift`,
+      title: `${displayTitle} | UX Lift`,
       description: tool.description,
       images: imageUrl ? [imageUrl] : [],
     },
@@ -111,6 +114,8 @@ export default async function ToolPage({ params, searchParams }: PageProps) {
   if (!tool) {
     return notFound()
   }
+
+  const displayTitle = sanitizeToolTitle(tool.title, tool.title)
 
   // Get related tools with same topics
   const supabase = await createClient()
@@ -141,14 +146,14 @@ export default async function ToolPage({ params, searchParams }: PageProps) {
             {imageUrl && (
               <img
                 src={imageUrl}
-                alt={tool.title || 'Tool logo'}
+                alt={displayTitle || 'Tool logo'}
                 width={50}
                 height={50}
                 className="object-cover rounded"
               />
             )}
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              {tool.title}
+              {displayTitle}
             </h1>
           </div>
 

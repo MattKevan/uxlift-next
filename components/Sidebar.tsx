@@ -20,6 +20,7 @@ export default function MobileSidebar({ onClose }: MobileSidebarProps) {
           { href: '/news', label: 'News' },
           { href: '/topics', label: 'Topics' },
           { href: '/tools', label: 'Tools' },
+          { href: '/resources', label: 'Resources' },
           { href: '/courses', label: 'Courses' },
           { href: '/newsletter', label: 'Newsletter' },
         ].map((item) => (

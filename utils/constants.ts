@@ -65,6 +65,8 @@ export const DATABASE_TABLES = {
   CONTENT_POST: 'content_post',
   CONTENT_SITE: 'content_site', 
   CONTENT_TOOL: 'content_tool',
+  CONTENT_RESOURCE: 'content_resource',
+  CONTENT_RESOURCE_CATEGORY: 'content_resource_category',
   CONTENT_BOOK: 'content_book',
   CONTENT_TOPIC: 'content_topic',
   USER_PROFILES: 'user_profiles',

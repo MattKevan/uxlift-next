@@ -6,6 +6,13 @@ import TurndownService from 'turndown'
 import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { tagTool } from './tag-tools'
+import {
+  hasToolsLlmCredentials,
+  toolsLlmClient,
+  toolsLlmModel,
+  toolsLlmProvider,
+} from './llm'
+import { sanitizeToolTitle } from './sanitize-tool-title'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
@@ -18,11 +25,19 @@ type ToolWithRelations = Tool & {
 interface FetchToolOptions {
   user_id?: number
   status?: string
+  description?: string
 }
 
 interface FetchToolResult {
   tool: ToolWithRelations
   created: boolean
+}
+
+interface ProcessedToolContent {
+  title: string
+  description: string
+  body: string
+  image: string
 }
 
 const turndownService = new TurndownService({
@@ -41,6 +56,161 @@ function convertHtmlToMarkdown(contentHtml: string): string {
     .turndown(trimmed)
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
+
+function toSentenceList(sourceText: string): string[] {
+  return sourceText
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0)
+}
+
+function buildDeterministicToolBody(params: {
+  title: string
+  sourceText: string
+  sourceMarkdown: string
+}): string {
+  const sentences = toSentenceList(params.sourceText)
+  const overview = sentences[0] || `\`${params.title}\` is a software tool.`
+
+  const featureCandidates = sentences
+    .slice(1)
+    .filter((sentence) => sentence.length >= 30)
+    .slice(0, 5)
+
+  const features =
+    featureCandidates.length > 0
+      ? featureCandidates
+      : (params.sourceMarkdown
+          .split('\n')
+          .map((line) => line.replace(/^[-*]\s*/, '').trim())
+          .filter((line) => line.length >= 20)
+          .slice(0, 5))
+
+  const valueProposition =
+    sentences.find((sentence) =>
+      /(help|improve|faster|productivity|workflow|automation|quality|scale|value)/i.test(sentence)
+    ) ||
+    sentences[1] ||
+    'It helps teams work more effectively by reducing manual effort and making core workflows clearer.'
+
+  const featureLines = features.length > 0
+    ? features.map((feature) => `- ${feature}`)
+    : ['- Core product capabilities are extracted from the source page content.']
+
+  return [
+    '## Overview',
+    overview,
+    '',
+    '## Key Features',
+    ...featureLines,
+    '',
+    '## Value Proposition',
+    valueProposition,
+  ].join('\n').trim()
+}
+
+async function rewriteToolBodyToFormattedMarkdown(params: {
+  title: string
+  url: string
+  sourceMarkdown: string
+  sourceText: string
+}): Promise<string> {
+  const source = params.sourceMarkdown.trim() || params.sourceText.trim()
+  const deterministicFallback = buildDeterministicToolBody(params)
+
+  if (!source) return ''
+  if (!hasToolsLlmCredentials) return deterministicFallback
+
+  try {
+    const completion = await toolsLlmClient.chat.completions.create({
+      model: toolsLlmModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You rewrite scraped product content into clean, factual markdown for a UX tool directory. Keep claims grounded in source text only. Do not add unsupported facts.',
+        },
+        {
+          role: 'user',
+          content: `Rewrite this source into a polished tool profile in Markdown.
+
+Requirements:
+- Use headings and short paragraphs.
+- Include sections:
+  - "## Overview" (1 short paragraph)
+  - "## Features" (3-6 concise bullet points)
+  - An additional short paragraph of supporting text 
+- Keep total length around 140-260 words.
+- Preserve only information supported by source text.
+- Avoid hype and marketing language. Tone should be knowledgable but friendly, as if explaining to a colleague.
+
+Tool title: ${params.title}
+URL: ${params.url}
+
+Source content:
+${source.slice(0, 12000)}`,
+        },
+      ],
+      temperature: 0.2,
+    })
+
+    return completion.choices[0]?.message?.content?.trim() || deterministicFallback
+  } catch (error) {
+    console.warn('[fetchAndProcessTool] AI rewrite failed, using deterministic fallback:', {
+      provider: toolsLlmProvider,
+      model: toolsLlmModel,
+      error,
+    })
+    return deterministicFallback
+  }
+}
+
+async function generateShortDescriptionIfMissing(params: {
+  title: string
+  url: string
+  sourceText: string
+  fallbackBody: string
+}): Promise<string> {
+  if (!hasToolsLlmCredentials) {
+    return toSentenceList(params.sourceText)[0]?.slice(0, 180).trim() || ''
+  }
+
+  const source = params.sourceText.trim() || params.fallbackBody.trim()
+  if (!source) return ''
+
+  try {
+    const completion = await toolsLlmClient.chat.completions.create({
+      model: toolsLlmModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write concise factual product descriptions for a UX tools directory. Keep it to one sentence.',
+        },
+        {
+          role: 'user',
+          content: `Write one concise sentence (max 180 characters) describing this tool's core value. No hype.
+
+Tool title: ${params.title}
+URL: ${params.url}
+Source:
+${source.slice(0, 5000)}`,
+        },
+      ],
+      temperature: 0.2,
+    })
+
+    return completion.choices[0]?.message?.content?.replace(/\s+/g, ' ').trim() || ''
+  } catch (error) {
+    console.warn('[fetchAndProcessTool] AI description generation failed, using deterministic fallback:', {
+      provider: toolsLlmProvider,
+      model: toolsLlmModel,
+      error,
+    })
+    return toSentenceList(params.sourceText)[0]?.slice(0, 180).trim() || ''
+  }
 }
 
 export function normalizeToolUrl(urlString: string): string {
@@ -140,26 +310,10 @@ async function getToolWithRelations(id: number, supabase: SupabaseClient<Databas
   return data as ToolWithRelations
 }
 
-export async function fetchAndProcessTool(
-  rawUrl: string,
-  supabase: SupabaseClient<Database>,
-  options?: FetchToolOptions
-): Promise<FetchToolResult> {
-  const validUrl = normalizeToolUrl(rawUrl)
-  const lookupUrls = getToolUrlLookupVariants(validUrl)
-
-  const { data: existingTools } = await supabase
-    .from('content_tool')
-    .select('id')
-    .in('link', lookupUrls)
-    .limit(1)
-
-  const existingTool = existingTools?.[0]
-  if (existingTool) {
-    const tool = await getToolWithRelations(existingTool.id, supabase)
-    return { tool, created: false }
-  }
-
+async function buildProcessedToolContentFromUrl(
+  validUrl: string,
+  options?: { description?: string }
+): Promise<ProcessedToolContent> {
   const response = await fetch(validUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; UXLift/1.0; +https://uxlift.org)',
@@ -197,7 +351,7 @@ export async function fetchAndProcessTool(
     ''
   ).trim()
 
-  let body = ''
+  let rawBodyMarkdown = ''
   let bodyText = ''
   try {
     const cleanHtml = html
@@ -218,20 +372,79 @@ export async function fetchAndProcessTool(
     const reader = new Readability(dom.window.document)
     const article = reader.parse()
 
-    body = convertHtmlToMarkdown(article?.content || '')
+    rawBodyMarkdown = convertHtmlToMarkdown(article?.content || '')
     bodyText = article?.textContent?.replace(/\s+/g, ' ').trim() || ''
   } catch {
-    body = convertHtmlToMarkdown($('body').html() || '')
+    rawBodyMarkdown = convertHtmlToMarkdown($('body').html() || '')
     bodyText = $('body').text().replace(/\s+/g, ' ').trim()
   }
 
   const urlObj = new URL(validUrl)
   const fallbackTitle = urlObj.hostname.replace(/^www\./, '')
-  const title = pageTitle || fallbackTitle
-  const description =
-    pageDescription || bodyText.slice(0, 500) || body.slice(0, 500) || `Tool from ${fallbackTitle}`
+  const title = sanitizeToolTitle(pageTitle || fallbackTitle, fallbackTitle)
+  const body = await rewriteToolBodyToFormattedMarkdown({
+    title,
+    url: validUrl,
+    sourceMarkdown: rawBodyMarkdown,
+    sourceText: bodyText,
+  })
+
+  let description = (options?.description || '').trim() || pageDescription
+
+  if (!description) {
+    description = await generateShortDescriptionIfMissing({
+      title,
+      url: validUrl,
+      sourceText: bodyText,
+      fallbackBody: body || rawBodyMarkdown,
+    })
+  }
+
+  if (!description) {
+    description = bodyText.slice(0, 500) || body.slice(0, 500) || `Tool from ${fallbackTitle}`
+  }
+
   const image = toAbsoluteUrl(logoCandidate, validUrl) || ''
-  const slug = await generateUniqueSlug(slugify(title), supabase)
+
+  return {
+    title: title.slice(0, 255),
+    description: description.slice(0, 500),
+    body,
+    image,
+  }
+}
+
+export async function fetchAndProcessTool(
+  rawUrl: string,
+  supabase: SupabaseClient<Database>,
+  options?: FetchToolOptions
+): Promise<FetchToolResult> {
+  console.log('[fetchAndProcessTool] starting', {
+    url: rawUrl,
+    llmProvider: toolsLlmProvider,
+    llmModel: toolsLlmModel,
+    hasCredentials: hasToolsLlmCredentials,
+  })
+
+  const validUrl = normalizeToolUrl(rawUrl)
+  const lookupUrls = getToolUrlLookupVariants(validUrl)
+
+  const { data: existingTools } = await supabase
+    .from('content_tool')
+    .select('id')
+    .in('link', lookupUrls)
+    .limit(1)
+
+  const existingTool = existingTools?.[0]
+  if (existingTool) {
+    const tool = await getToolWithRelations(existingTool.id, supabase)
+    return { tool, created: false }
+  }
+
+  const processed = await buildProcessedToolContentFromUrl(validUrl, {
+    description: options?.description,
+  })
+  const slug = await generateUniqueSlug(slugify(processed.title), supabase)
 
   let createdTool: { id: number } | null = null
   let createError: PostgrestError | null = null
@@ -239,11 +452,11 @@ export async function fetchAndProcessTool(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const toolData: Database['public']['Tables']['content_tool']['Insert'] = {
       id: Math.floor(Math.random() * 1_000_000_000),
-      title: title.slice(0, 255),
-      description: description.slice(0, 500),
-      body: body || null,
+      title: processed.title,
+      description: processed.description,
+      body: processed.body || null,
       link: validUrl,
-      image,
+      image: processed.image,
       status: options?.status || 'D',
       date: new Date().toISOString(),
       slug,
@@ -289,11 +502,68 @@ export async function fetchAndProcessTool(
   }
 
   try {
-    await tagTool(createdTool.id, supabase)
-  } catch {
+    const tagResult = await tagTool(createdTool.id, supabase)
+    if (!tagResult.success) {
+      console.warn('[fetchAndProcessTool] Tool tagging did not complete successfully:', tagResult.error, tagResult.details)
+    }
+  } catch (error) {
     // Tool creation should succeed even if tagging fails.
+    console.warn('[fetchAndProcessTool] Unexpected tool tagging failure:', error)
   }
 
   const tool = await getToolWithRelations(createdTool.id, supabase)
   return { tool, created: true }
+}
+
+export async function reprocessTool(
+  toolId: number,
+  supabase: SupabaseClient<Database>,
+  options?: { description?: string }
+): Promise<ToolWithRelations> {
+  console.log('[reprocessTool] starting', { toolId })
+
+  const { data: existingTool, error: existingToolError } = await supabase
+    .from('content_tool')
+    .select('id, link')
+    .eq('id', toolId)
+    .single()
+
+  if (existingToolError || !existingTool) {
+    throw new Error(existingToolError?.message || 'Tool not found')
+  }
+
+  const validUrl = normalizeToolUrl(existingTool.link)
+  const processed = await buildProcessedToolContentFromUrl(validUrl, {
+    description: options?.description,
+  })
+
+  const updatePayload: Database['public']['Tables']['content_tool']['Update'] = {
+    title: processed.title,
+    description: processed.description,
+    body: processed.body || null,
+    image: processed.image,
+    link: validUrl,
+  }
+
+  const { error: updateError } = await supabase
+    .from('content_tool')
+    .update(updatePayload)
+    .eq('id', toolId)
+
+  if (updateError) {
+    throw new Error(updateError.message || 'Failed to update tool')
+  }
+
+  try {
+    const tagResult = await tagTool(toolId, supabase)
+    if (!tagResult.success) {
+      console.warn('[reprocessTool] Tool tagging did not complete successfully:', tagResult.error, tagResult.details)
+    }
+  } catch (error) {
+    console.warn('[reprocessTool] Unexpected tool tagging failure:', error)
+  }
+
+  const tool = await getToolWithRelations(toolId, supabase)
+  console.log('[reprocessTool] completed', { toolId })
+  return tool
 }

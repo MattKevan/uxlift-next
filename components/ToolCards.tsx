@@ -1,6 +1,7 @@
 'use client'
 
 import type { Database } from '@/types/supabase'
+import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 
@@ -21,6 +22,7 @@ function getToolImageUrl(image: string) {
 
 export function ToolCard({ tool }: ToolCardProps) {
   const imageUrl = getToolImageUrl(tool.image)
+  const displayTitle = sanitizeToolTitle(tool.title, tool.title)
 
   return (
 
@@ -32,7 +34,7 @@ export function ToolCard({ tool }: ToolCardProps) {
       <div className='flex flex-row gap-4'>
         <div className='flex-1'>
         <h3 className="font-bold mb-2 text-lg tracking-tight">
-      {tool.title}
+      {displayTitle}
       </h3><p className="line-clamp-3 text-gray-500">
         {tool.description}
       </p></div>
@@ -40,7 +42,7 @@ export function ToolCard({ tool }: ToolCardProps) {
       {imageUrl && (
         <img
           src={imageUrl}
-          alt={tool.title}
+          alt={displayTitle}
           width={70}
           height={70}
           className="w-[70px] h-[70px] flex-none rounded object-cover"

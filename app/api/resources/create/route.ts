@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { fetchAndProcessTool } from '@/utils/tool-tools/fetch-tool-content'
-import { validateApiRequest, createToolRequestSchema } from '@/utils/validation'
+import { fetchAndProcessResource } from '@/utils/resource-tools/fetch-resource-content'
+import { validateApiRequest, createResourceRequestSchema } from '@/utils/validation'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,33 +26,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { url, description, status } = validateApiRequest(createToolRequestSchema, body, '/api/tools/create')
+    const { url, status } = validateApiRequest(createResourceRequestSchema, body, '/api/resources/create')
 
-    const result = await fetchAndProcessTool(url, supabase, {
+    const result = await fetchAndProcessResource(url, supabase, {
       user_id: profile.id,
-      status: status || 'D',
-      description,
-    })
-
-    console.log('[tools create] completed', {
-      url,
-      created: result.created,
-      toolId: result.tool.id,
+      status: status || 'draft',
     })
 
     return NextResponse.json({
       success: true,
       created: result.created,
-      tool: result.tool,
+      resource: result.resource,
     })
   } catch (error) {
-    console.error('[tools create] failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create tool',
+        error: error instanceof Error ? error.message : 'Failed to create resource',
       },
       { status: 500 }
     )

@@ -1,5 +1,17 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+
+const adminLinks = [
+  { href: '/admin/posts', label: 'Posts' },
+  { href: '/admin/newsletter', label: 'Newsletter' },
+  { href: '/admin/activity-logs', label: 'Activity logs' },
+  { href: '/admin/tools', label: 'Tools' },
+  { href: '/admin/topics', label: 'Topics' },
+  { href: '/admin/resources', label: 'Resources' },
+  { href: '/admin/sites', label: 'Sites' },
+  { href: '/admin/books', label: 'Books' },
+]
 
 export default async function AdminLayout({
   children,
@@ -35,27 +47,28 @@ export default async function AdminLayout({
                 <span className="text-xl font-bold">Admin</span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <a href="/admin/posts" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Posts
-                </a>
-                <a href="/admin/newsletter" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Newsletter
-                </a>
-                <a href="/admin/activity-logs" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Activity logs
-                </a>
-                <a href="/admin/tools" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Tools
-                </a>
-                <a href="/admin/sites" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Sites
-                </a>
-                <a href="/admin/books" className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Books
-                </a>
-                {/* Add more admin navigation items here */}
+                {adminLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="border-b-2 border-transparent hover:border-gray-300 inline-flex items-center px-1 pt-1 text-sm font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
               </div>
             </div>
+          </div>
+          <div className="sm:hidden flex gap-2 overflow-x-auto pb-3">
+            {adminLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="whitespace-nowrap rounded border px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </nav>

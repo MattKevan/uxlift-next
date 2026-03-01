@@ -28,6 +28,14 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env*.backup
+.env.local.live.backup
+
+# local data dumps / temp artifacts
+.temp/
+supabase/live_*.sql
+supabase/*.sync.sql
+supabase/*.filtered.sql
 
 # vercel
 .vercel

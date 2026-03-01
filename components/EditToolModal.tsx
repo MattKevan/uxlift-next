@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import type { Database } from '@/types/supabase'
 import { CldUploadWidget } from 'next-cloudinary'
+import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
@@ -177,10 +178,13 @@ export default function EditToolModal({
   const handleUpdateSubmit = async () => {
     if (!tool) return
 
+    const sanitizedTitle = sanitizeToolTitle(formData.title, formData.title)
+
     const { error: updateError } = await supabase
       .from('content_tool')
       .update({
         ...formData,
+        title: sanitizedTitle,
       })
       .eq('id', tool.id)
 

@@ -5,9 +5,15 @@ import { NextResponse, NextRequest } from 'next/server'
 import { checkSearchRateLimit } from '@/utils/simple-rate-limit'
 import { logger } from '@/utils/logger'
 import { validateApiRequest, searchRequestSchema } from '@/utils/validation'
+import {
+  contentLlmClient,
+  contentLlmModel,
+  contentLlmProvider,
+  hasContentLlmCredentials,
+} from '@/utils/llm'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
+const embeddingClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
 })
 
 const pinecone = new Pinecone()
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     // Generate embedding for the search query
-    const embedding = await openai.embeddings.create({
+    const embedding = await embeddingClient.embeddings.create({
       model: "text-embedding-3-small",
       input: query,
       dimensions: 1536,
@@ -140,13 +146,15 @@ export async function POST(request: NextRequest) {
       .join('\n\n')
       .slice(0, 2000)
 
-    // Generate summary using GPT-4
-    const summary = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert UX design educator. Your role is to provide clear, accurate, and helpful answers about UX design concepts.
+    // Generate summary answer using content LLM provider (Nebius by default).
+    let summaryText: string | null = null
+    if (hasContentLlmCredentials) {
+      const summary = await contentLlmClient.chat.completions.create({
+        model: contentLlmModel,
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert UX design educator. Your role is to provide clear, accurate, and helpful answers about UX design concepts.
 When answering questions, follow these guidelines:
 - Provide concrete explanations with real-world examples where relevant
 - Focus on practical applications and industry best practices
@@ -156,17 +164,22 @@ When answering questions, follow these guidelines:
 - Format your response with Markdown if necessary
 - Write it as though you are giving the information, not 'the context...' or 'the query asks...'
 Use the provided context to enhance your answer, but also draw from fundamental UX knowledge for basic questions. Do not make things up if you don't know the answer, just say you don't know.`
-        },
-        {
-          role: "user",
-          content: `Query: "${query}"\n\nContext:\n${contextText}\n\nProvide a brief summary of how these results relate to the query.`
-        }
-      ],
-      temperature: 0,
-      max_tokens: 1000
-    })
-
-    const summaryText = summary.choices[0].message.content
+          },
+          {
+            role: "user",
+            content: `Query: "${query}"\n\nContext:\n${contextText}\n\nProvide a brief summary of how these results relate to the query.`
+          }
+        ],
+        temperature: 0,
+        max_tokens: 1000
+      })
+      summaryText = summary.choices[0]?.message?.content?.trim() || null
+    } else {
+      logger.warn('Search summary LLM unavailable; returning results without generated answer', {
+        provider: contentLlmProvider,
+        model: contentLlmModel,
+      })
+    }
 
   // Log all searches with user_id if available, null if not
   await supabase.from('search_history').insert({

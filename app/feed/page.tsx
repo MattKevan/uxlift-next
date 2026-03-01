@@ -5,7 +5,7 @@ import { Pager } from '@/components/Pager'
 import type { Database } from '@/types/supabase'
 import Link from 'next/link'
 import { Lightning } from '@mynaui/icons-react'
-import { Button } from '@/components/catalyst/button'
+import { Button } from '@/components/ui/button'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
 type Site = {
@@ -175,11 +175,13 @@ export default async function ProfilePage({
           ))}
           
         </div>
-        <Button
+        <Button variant="outline" asChild>
+          <Link
             href="/profile/edit"
             className="text-sm bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1 rounded-full"
           >
             Customise feed
+            </Link>
           </Button>
       </div>
       <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">

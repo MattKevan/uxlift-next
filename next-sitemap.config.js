@@ -61,6 +61,14 @@ const config = {
       }
     }
 
+    if (path.startsWith('/resources/')) {
+      return {
+        ...defaultTransform,
+        changefreq: 'weekly',
+        priority: 0.7,
+      }
+    }
+
     return defaultTransform
   },
 
@@ -95,6 +103,22 @@ const config = {
         results.push({
           loc: `/tools/${tool.slug}`,
           lastmod: tool.date,
+          changefreq: 'weekly',
+          priority: 0.7,
+        })
+      })
+
+      // Fetch and add resources
+      const { data: resources } = await supabase
+        .from('content_resource')
+        .select('slug, date_published')
+        .eq('status', 'published')
+        .not('slug', 'is', null)
+
+      resources?.forEach((resource) => {
+        results.push({
+          loc: `/resources/${resource.slug}`,
+          lastmod: resource.date_published || new Date().toISOString(),
           changefreq: 'weekly',
           priority: 0.7,
         })

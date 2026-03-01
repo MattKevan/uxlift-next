@@ -1,29 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import {
-  fetchAndProcessTool,
-  getToolUrlLookupVariants,
-  normalizeToolUrl
-} from '@/utils/tool-tools/fetch-tool-content'
-import { validateApiRequest, bulkCreateToolsRequestSchema } from '@/utils/validation'
+  fetchAndProcessResource,
+  getResourceUrlLookupVariants,
+  normalizeResourceUrl,
+} from '@/utils/resource-tools/fetch-resource-content'
+import { validateApiRequest, bulkCreateResourcesRequestSchema } from '@/utils/validation'
 
 interface BulkResultItem {
   url: string
   status: 'created' | 'existing' | 'failed'
-  toolId?: number
+  resourceId?: number
   title?: string
   error?: string
-}
-
-interface BulkInputItem {
-  url: string
-  description?: string
 }
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -40,69 +38,49 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { urls, items, status } = validateApiRequest(
-      bulkCreateToolsRequestSchema,
+    const { urls, status } = validateApiRequest(
+      bulkCreateResourcesRequestSchema,
       body,
-      '/api/tools/bulk-create'
+      '/api/resources/bulk-create'
     )
 
-    const requestItems: BulkInputItem[] = [
-      ...(items || []),
-      ...((urls || []).map((url) => ({ url }))),
-    ]
-
-    const uniqueItems: BulkInputItem[] = []
-    const seenUrls = new Set<string>()
-
-    for (const item of requestItems) {
-      const normalized = normalizeToolUrl(item.url.trim())
-      if (seenUrls.has(normalized)) {
-        continue
-      }
-
-      seenUrls.add(normalized)
-      uniqueItems.push({
-        url: normalized,
-        description: item.description?.trim() || undefined,
-      })
-    }
-
+    const uniqueUrls = Array.from(new Set(urls.map((url) => url.trim())))
     const results: BulkResultItem[] = []
 
-    for (const item of uniqueItems) {
-      let normalizedUrlForResult = item.url
+    for (const rawUrl of uniqueUrls) {
+      let normalizedUrlForResult = rawUrl
       try {
-        const url = normalizeToolUrl(item.url.trim())
+        const url = normalizeResourceUrl(rawUrl)
         normalizedUrlForResult = url
-        const lookupUrls = getToolUrlLookupVariants(url)
-        const { data: existingTools } = await supabase
-          .from('content_tool')
+        const lookupUrls = getResourceUrlLookupVariants(url)
+
+        const { data: existingResources } = await supabase
+          .from('content_resource')
           .select('id, title')
           .in('link', lookupUrls)
           .limit(1)
 
-        const existingTool = existingTools?.[0]
-        if (existingTool) {
+        const existingResource = existingResources?.[0]
+        if (existingResource) {
           results.push({
             url,
             status: 'existing',
-            toolId: existingTool.id,
-            title: existingTool.title,
+            resourceId: existingResource.id,
+            title: existingResource.title,
           })
           continue
         }
 
-        const result = await fetchAndProcessTool(url, supabase, {
+        const result = await fetchAndProcessResource(url, supabase, {
           user_id: profile.id,
-          status: status || 'D',
-          description: item.description,
+          status: status || 'draft',
         })
 
         results.push({
           url,
           status: result.created ? 'created' : 'existing',
-          toolId: result.tool.id,
-          title: result.tool.title,
+          resourceId: result.resource.id,
+          title: result.resource.title,
         })
       } catch (error) {
         results.push({
@@ -117,13 +95,6 @@ export async function POST(request: NextRequest) {
     const existing = results.filter((item) => item.status === 'existing').length
     const failed = results.filter((item) => item.status === 'failed').length
 
-    console.log('[tools bulk-create] completed', {
-      total: results.length,
-      created,
-      existing,
-      failed,
-    })
-
     return NextResponse.json({
       success: true,
       total: results.length,
@@ -133,9 +104,6 @@ export async function POST(request: NextRequest) {
       results,
     })
   } catch (error) {
-    console.error('[tools bulk-create] failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
     return NextResponse.json(
       {
         success: false,

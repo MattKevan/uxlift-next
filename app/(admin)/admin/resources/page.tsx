@@ -3,15 +3,16 @@
 import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
 import type { Database } from '@/types/supabase'
-import EditToolModal from '@/components/EditToolModal'
+import EditResourceModal from '@/components/EditResourceModal'
 import { format, isValid, parseISO } from 'date-fns'
-import Link from 'next/link'
-import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
 
-type Tool = Database['public']['Tables']['content_tool']['Row']
+type Resource = Database['public']['Tables']['content_resource']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
-type ToolWithRelations = Tool & {
-  content_tool_topics: {
+type ResourceCategory = Database['public']['Tables']['content_resource_category']['Row']
+
+type ResourceWithRelations = Resource & {
+  resource_category: ResourceCategory | null
+  content_resource_topics: {
     content_topic: Topic
   }[]
 }
@@ -24,139 +25,48 @@ interface BulkUploadSummary {
   results: Array<{
     url: string
     status: 'created' | 'existing' | 'failed'
-    toolId?: number
+    resourceId?: number
     title?: string
     error?: string
   }>
 }
 
-interface ToolImportItem {
-  url: string
-  description?: string
-}
-
-const TOOLS_PER_PAGE = 50
-type SortField = 'date'
+const RESOURCES_PER_PAGE = 50
+type SortField = 'date_published'
 type SortDirection = 'asc' | 'desc'
 
-function parseCsvRows(content: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let inQuotes = false
-
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i]
-    const next = content[i + 1]
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        cell += '"'
-        i += 1
-      } else {
-        inQuotes = !inQuotes
-      }
-      continue
-    }
-
-    if (char === ',' && !inQuotes) {
-      row.push(cell)
-      cell = ''
-      continue
-    }
-
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') {
-        i += 1
-      }
-
-      row.push(cell)
-      if (row.some((value) => value.trim().length > 0)) {
-        rows.push(row)
-      }
-
-      row = []
-      cell = ''
-      continue
-    }
-
-    cell += char
-  }
-
-  row.push(cell)
-  if (row.some((value) => value.trim().length > 0)) {
-    rows.push(row)
-  }
-
-  return rows
-}
-
-function extractToolImportItemsFromCsv(content: string): ToolImportItem[] {
-  const rows = parseCsvRows(content)
-  if (rows.length === 0) return []
-
-  const headerRow = rows[0].map((value) => value.trim().toLowerCase())
-  const hasHeader = headerRow.includes('url')
-  const urlIndex = headerRow.indexOf('url')
-  const descriptionIndex = headerRow.indexOf('description')
-
-  const dataRows = hasHeader ? rows.slice(1) : rows
-  const items: ToolImportItem[] = []
-
-  for (const row of dataRows) {
-    let rawUrl = ''
-    if (urlIndex >= 0) {
-      rawUrl = row[urlIndex] || ''
-    } else {
-      rawUrl = row.find((value) => /^https?:\/\//i.test(value.trim())) || ''
-    }
-
-    const url = rawUrl.trim().replace(/[)\];]+$/, '')
-    if (!url) continue
-
-    const description =
-      descriptionIndex >= 0
-        ? (row[descriptionIndex] || '').trim()
-        : ''
-
-    items.push({
-      url,
-      description: description || undefined,
-    })
-  }
-
-  const deduped = new Map<string, ToolImportItem>()
-  for (const item of items) {
-    const key = item.url.toLowerCase()
-    if (!deduped.has(key)) {
-      deduped.set(key, item)
-    }
-  }
-
-  return Array.from(deduped.values())
+function extractUrlsFromCsv(content: string): string[] {
+  const urlMatches = content.match(/https?:\/\/[^\s",]+/g) || []
+  return Array.from(
+    new Set(
+      urlMatches
+        .map((url) => url.trim().replace(/[)\];]+$/, ''))
+        .filter(Boolean)
+    )
+  )
 }
 
 function getStatusLabel(status: string) {
   if (status === 'P' || status === 'published') return 'Published'
   if (status === 'D' || status === 'draft') return 'Draft'
+  if (status === 'archived') return 'Archived'
   return status
 }
 
-function isPublishedStatus(status: string) {
-  return status === 'P' || status === 'published'
-}
-
 function getStatusClasses(status: string) {
-  if (isPublishedStatus(status)) {
+  if (status === 'P' || status === 'published') {
     return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
   }
   if (status === 'D' || status === 'draft') {
     return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
   }
+  if (status === 'archived') {
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+  }
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
 }
 
-function formatToolDate(dateString: string | null | undefined) {
+function formatResourceDate(dateString: string | null | undefined) {
   if (!dateString) return '—'
 
   try {
@@ -168,50 +78,56 @@ function formatToolDate(dateString: string | null | undefined) {
   }
 }
 
-export default function AdminTools() {
-  const [tools, setTools] = useState<ToolWithRelations[]>([])
+export default function AdminResources() {
+  const [resources, setResources] = useState<ResourceWithRelations[]>([])
   const [count, setCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const supabase = createClient()
-  const [selectedTool, setSelectedTool] = useState<ToolWithRelations | null>(null)
+  const [selectedResource, setSelectedResource] = useState<ResourceWithRelations | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [isBulkUploading, setIsBulkUploading] = useState(false)
   const [bulkSummary, setBulkSummary] = useState<BulkUploadSummary | null>(null)
   const [bulkError, setBulkError] = useState('')
-  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortField, setSortField] = useState<SortField>('date_published')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [reprocessingToolId, setReprocessingToolId] = useState<number | null>(null)
-  const [togglingStatusToolId, setTogglingStatusToolId] = useState<number | null>(null)
 
-  const fetchTools = async () => {
+  const fetchResources = async () => {
     let query = supabase
-      .from('content_tool')
-      .select(`
+      .from('content_resource')
+      .select(
+        `
         *,
-        content_tool_topics (
+        resource_category:content_resource_category (
+          id,
+          name,
+          slug
+        ),
+        content_resource_topics (
           content_topic (
             id,
             name,
             slug
           )
         )
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' }
+      )
 
-    if (sortField === 'date') {
-      query = query.order('date', {
+    if (sortField === 'date_published') {
+      query = query.order('date_published', {
         ascending: sortDirection === 'asc',
         nullsFirst: false,
       })
     }
 
-    const { data: toolsData, count: totalCount } = await query
+    const { data: resourcesData, count: totalCount } = await query
       .order('id', { ascending: false })
-      .range((currentPage - 1) * TOOLS_PER_PAGE, currentPage * TOOLS_PER_PAGE - 1)
+      .range((currentPage - 1) * RESOURCES_PER_PAGE, currentPage * RESOURCES_PER_PAGE - 1)
 
-    if (toolsData) {
-      setTools(toolsData as ToolWithRelations[])
+    if (resourcesData) {
+      setResources(resourcesData as ResourceWithRelations[])
     }
     if (totalCount !== null) {
       setCount(totalCount)
@@ -219,125 +135,65 @@ export default function AdminTools() {
   }
 
   useEffect(() => {
-    fetchTools()
+    fetchResources()
   }, [currentPage, sortField, sortDirection])
 
   const handleDateSort = () => {
-    if (sortField !== 'date') {
-      setSortField('date')
+    if (sortField !== 'date_published') {
+      setSortField('date_published')
       setSortDirection('desc')
       return
     }
 
-    setSortDirection((currentDirection) => (
-      currentDirection === 'desc' ? 'asc' : 'desc'
-    ))
+    setSortDirection((currentDirection) => (currentDirection === 'desc' ? 'asc' : 'desc'))
   }
 
-  const handleEdit = (tool: ToolWithRelations) => {
-    setSelectedTool(tool)
+  const handleEdit = (resource: ResourceWithRelations) => {
+    setSelectedResource(resource)
     setIsEditModalOpen(true)
   }
 
-  const handleUpdate = (updatedTool: ToolWithRelations) => {
-    setTools((currentTools) =>
-      currentTools.map((tool) =>
-        tool.id === updatedTool.id ? updatedTool : tool
-      )
+  const handleUpdate = (updatedResource: ResourceWithRelations) => {
+    setResources((currentResources) =>
+      currentResources.map((resource) => (resource.id === updatedResource.id ? updatedResource : resource))
     )
   }
 
-  const handleCreate = async (_newTool: ToolWithRelations) => {
-    await fetchTools()
+  const handleCreate = async (_newResource: ResourceWithRelations) => {
+    await fetchResources()
   }
 
-  const handleDelete = async (toolId: number) => {
-    if (!confirm('Are you sure you want to delete this tool? This action cannot be undone.')) {
+  const handleDelete = async (resourceId: number) => {
+    if (!confirm('Are you sure you want to delete this resource? This action cannot be undone.')) {
       return
     }
 
     try {
       const { error: topicsError } = await supabase
-        .from('content_tool_topics')
+        .from('content_resource_topics')
         .delete()
-        .eq('tool_id', toolId)
+        .eq('resource_id', resourceId)
 
       if (topicsError) {
-        throw new Error('Failed to delete tool topics')
+        throw new Error('Failed to delete resource topics')
       }
 
-      const { error: toolError } = await supabase
-        .from('content_tool')
+      const { error: resourceError } = await supabase
+        .from('content_resource')
         .delete()
-        .eq('id', toolId)
+        .eq('id', resourceId)
 
-      if (toolError) {
-        throw new Error('Failed to delete tool')
+      if (resourceError) {
+        throw new Error('Failed to delete resource')
       }
 
-      setTools((currentTools) =>
-        currentTools.filter((tool) => tool.id !== toolId)
+      setResources((currentResources) =>
+        currentResources.filter((resource) => resource.id !== resourceId)
       )
       setCount((prevCount) => prevCount - 1)
     } catch (error) {
-      console.error('Error deleting tool:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete tool')
-    }
-  }
-
-  const handleTogglePublish = async (tool: ToolWithRelations) => {
-    const nextStatus = isPublishedStatus(tool.status) ? 'draft' : 'published'
-
-    try {
-      setTogglingStatusToolId(tool.id)
-
-      const { error } = await supabase
-        .from('content_tool')
-        .update({ status: nextStatus })
-        .eq('id', tool.id)
-
-      if (error) {
-        throw new Error(error.message || 'Failed to update tool status')
-      }
-
-      setTools((currentTools) =>
-        currentTools.map((currentTool) =>
-          currentTool.id === tool.id
-            ? { ...currentTool, status: nextStatus }
-            : currentTool
-        )
-      )
-    } catch (error) {
-      console.error('Error updating tool status:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update tool status')
-    } finally {
-      setTogglingStatusToolId(null)
-    }
-  }
-
-  const handleReprocess = async (toolId: number) => {
-    try {
-      setReprocessingToolId(toolId)
-
-      const response = await fetch('/api/tools/reprocess', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ toolId }),
-      })
-
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to reprocess tool')
-      }
-
-      await fetchTools()
-    } catch (error) {
-      console.error('Error reprocessing tool:', error)
-      alert(error instanceof Error ? error.message : 'Failed to reprocess tool')
-    } finally {
-      setReprocessingToolId(null)
+      console.error('Error deleting resource:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete resource')
     }
   }
 
@@ -353,18 +209,18 @@ export default function AdminTools() {
       setBulkSummary(null)
 
       const content = await csvFile.text()
-      const items = extractToolImportItemsFromCsv(content)
+      const urls = extractUrlsFromCsv(content)
 
-      if (items.length === 0) {
+      if (urls.length === 0) {
         throw new Error('No valid URLs found in CSV.')
       }
 
-      const response = await fetch('/api/tools/bulk-create', {
+      const response = await fetch('/api/resources/bulk-create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ urls }),
       })
 
       const data = await response.json()
@@ -374,7 +230,7 @@ export default function AdminTools() {
 
       setBulkSummary(data as BulkUploadSummary)
       setCsvFile(null)
-      await fetchTools()
+      await fetchResources()
     } catch (error) {
       setBulkError(error instanceof Error ? error.message : 'Bulk upload failed')
     } finally {
@@ -382,24 +238,24 @@ export default function AdminTools() {
     }
   }
 
-  const totalPages = Math.ceil(count / TOOLS_PER_PAGE)
+  const totalPages = Math.ceil(count / RESOURCES_PER_PAGE)
 
   return (
-    <div className="">
+    <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Manage Tools</h1>
+        <h1 className="text-2xl font-bold">Manage Resources</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          Add Tool
+          Add Resource
         </button>
       </div>
 
       <div className="mb-6 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold mb-2">Bulk Upload Tool URLs (CSV)</h2>
+        <h2 className="text-lg font-semibold mb-2">Bulk Upload Resource URLs (CSV)</h2>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-          Upload a CSV containing a `url` column and optional `description` column. Existing URLs will be skipped.
+          Upload a CSV containing resource URLs. Each URL will be scraped, summarized, categorized, and saved.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <input
@@ -420,7 +276,8 @@ export default function AdminTools() {
         {bulkSummary && (
           <div className="mt-3 text-sm">
             <p>
-              Processed {bulkSummary.total} URLs: {bulkSummary.created} created, {bulkSummary.existing} already existed, {bulkSummary.failed} failed.
+              Processed {bulkSummary.total} URLs: {bulkSummary.created} created, {bulkSummary.existing} already
+              existed, {bulkSummary.failed} failed.
             </p>
             {bulkSummary.failed > 0 && (
               <ul className="mt-2 list-disc pl-5">
@@ -428,7 +285,9 @@ export default function AdminTools() {
                   .filter((result) => result.status === 'failed')
                   .slice(0, 10)
                   .map((result) => (
-                    <li key={result.url}>{result.url} - {result.error}</li>
+                    <li key={result.url}>
+                      {result.url} - {result.error}
+                    </li>
                   ))}
               </ul>
             )}
@@ -440,8 +299,9 @@ export default function AdminTools() {
         <table className="min-w-full bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700 font-sans">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tool</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resource</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Link</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topics</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 <button
@@ -449,7 +309,7 @@ export default function AdminTools() {
                   onClick={handleDateSort}
                   className="inline-flex items-center gap-1 hover:text-gray-700"
                 >
-                  Date Added
+                  Published
                   <span className="normal-case text-[11px] text-gray-400">
                     {sortDirection === 'desc' ? '↓ Newest' : '↑ Oldest'}
                   </span>
@@ -460,25 +320,19 @@ export default function AdminTools() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tools.map((tool) => (
-              <tr key={tool.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+            {resources.map((resource) => (
+              <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <Link
-                      href={`/tools/${tool.slug}`}
-                      target="_blank"
-                      className="font-medium dark:text-white text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {sanitizeToolTitle(tool.title, tool.title)}
-                    </Link>
+                    <span className="font-medium dark:text-white">{resource.title}</span>
                     <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">
-                      {tool.description}
+                      {resource.description}
                     </span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <a
-                    href={tool.link}
+                    href={resource.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline dark:text-blue-400"
@@ -487,8 +341,13 @@ export default function AdminTools() {
                   </a>
                 </td>
                 <td className="px-6 py-4">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {resource.resource_category?.name || '—'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {tool.content_tool_topics.map(({ content_topic }) => (
+                    {resource.content_resource_topics.map(({ content_topic }) => (
                       <span
                         key={content_topic.id}
                         className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -500,42 +359,24 @@ export default function AdminTools() {
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {formatToolDate(tool.date)}
+                    {formatResourceDate(resource.date_published)}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusClasses(tool.status)}`}>
-                    {getStatusLabel(tool.status)}
+                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusClasses(resource.status)}`}>
+                    {getStatusLabel(resource.status)}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => handleTogglePublish(tool)}
-                      disabled={togglingStatusToolId === tool.id}
-                      className="text-emerald-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-emerald-400"
-                    >
-                      {togglingStatusToolId === tool.id
-                        ? 'Saving...'
-                        : isPublishedStatus(tool.status)
-                          ? 'Unpublish'
-                          : 'Publish'}
-                    </button>
-                    <button
-                      onClick={() => handleReprocess(tool.id)}
-                      disabled={reprocessingToolId === tool.id}
-                      className="text-indigo-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-indigo-400"
-                    >
-                      {reprocessingToolId === tool.id ? 'Reprocessing...' : 'Reprocess'}
-                    </button>
-                    <button
-                      onClick={() => handleEdit(tool)}
+                      onClick={() => handleEdit(resource)}
                       className="text-blue-600 hover:underline dark:text-blue-400"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(tool.id)}
+                      onClick={() => handleDelete(resource.id)}
                       className="text-red-600 hover:underline dark:text-red-400"
                     >
                       Delete
@@ -550,7 +391,7 @@ export default function AdminTools() {
 
       <div className="flex items-center justify-between mt-6">
         <div className="text-sm text-gray-700 dark:text-gray-300">
-          Showing {((currentPage - 1) * TOOLS_PER_PAGE) + 1} to {Math.min(currentPage * TOOLS_PER_PAGE, count)} of {count} results
+          Showing {((currentPage - 1) * RESOURCES_PER_PAGE) + 1} to {Math.min(currentPage * RESOURCES_PER_PAGE, count)} of {count} results
         </div>
         <div className="flex space-x-2">
           {currentPage > 1 && (
@@ -572,19 +413,19 @@ export default function AdminTools() {
         </div>
       </div>
 
-      {selectedTool && (
-        <EditToolModal
-          tool={selectedTool}
+      {selectedResource && (
+        <EditResourceModal
+          resource={selectedResource}
           isOpen={isEditModalOpen}
           onClose={() => {
             setIsEditModalOpen(false)
-            setSelectedTool(null)
+            setSelectedResource(null)
           }}
           onUpdate={handleUpdate}
         />
       )}
 
-      <EditToolModal
+      <EditResourceModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreate}

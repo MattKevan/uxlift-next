@@ -16,6 +16,7 @@ console.log('Environment variables check:');
 console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'present' : 'missing');
 console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'missing');
 console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'present' : 'missing');
+console.log('NEBIUS_API_KEY:', process.env.NEBIUS_API_KEY ? 'present' : 'missing');
 console.log('PINECONE_API_KEY:', process.env.PINECONE_API_KEY ? 'present' : 'missing');
 console.log('PINECONE_INDEX_NAME:', process.env.PINECONE_INDEX_NAME ? 'present' : 'missing');
 
@@ -32,6 +33,11 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 if (!process.env.OPENAI_API_KEY) {
   console.error('ERROR: OPENAI_API_KEY environment variable is missing');
+  process.exit(1);
+}
+
+if (!process.env.NEBIUS_API_KEY) {
+  console.error('ERROR: NEBIUS_API_KEY environment variable is missing');
   process.exit(1);
 }
 
@@ -112,6 +118,14 @@ const supabase = createClient(
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+const nebiusApiKey = process.env.NEBIUS_API_KEY ? process.env.NEBIUS_API_KEY.trim() : '';
+const contentLlmProvider = 'nebius';
+const contentLlmModel = process.env.NEBIUS_LLM_MODEL || 'openai/gpt-oss-120b';
+const contentLlm = new OpenAI({
+  apiKey: nebiusApiKey,
+  baseURL: 'https://api.tokenfactory.nebius.com/v1/',
 });
 
 const pinecone = new Pinecone({
@@ -324,7 +338,7 @@ async function summarisePost(postId) {
       };
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await contentLlm.chat.completions.create({
       messages: [
         {
           role: 'system',
@@ -335,7 +349,7 @@ async function summarisePost(postId) {
           content: `Please summarize the following article: ${post.content}`
         }
       ],
-      model: 'gpt-4o-mini',
+      model: contentLlmModel,
     });
 
     const summary = completion.choices[0].message.content;
@@ -441,7 +455,7 @@ async function tagPost(postId) {
       .join('\n');
 
     try {
-      const completion = await openai.chat.completions.create({
+      const completion = await contentLlm.chat.completions.create({
         messages: [
           {
             role: 'system',
@@ -455,7 +469,7 @@ async function tagPost(postId) {
             content: `Please categorize this article:\n${contentToAnalyze}`
           }
         ],
-        model: 'gpt-4o-mini',
+        model: contentLlmModel,
       });
 
       const suggestedTopics = completion.choices[0].message.content
@@ -518,11 +532,15 @@ async function tagPost(postId) {
       };
 
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('LLM API error:', {
+        provider: contentLlmProvider,
+        model: contentLlmModel,
+        error,
+      });
       return {
         success: false,
-        error: 'OpenAI API error',
-        details: error instanceof Error ? error.message : 'Unknown OpenAI error'
+        error: 'LLM API error',
+        details: error instanceof Error ? error.message : 'Unknown LLM error'
       };
     }
   } catch (error) {
