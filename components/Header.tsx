@@ -19,7 +19,6 @@ const menuItems = [
   { href: '/news', label: 'News' },
   { href: '/topics', label: 'Topics' },
   { href: '/tools', label: 'Tools' },
-  { href: '/resources', label: 'Resources' },
   { href: '/newsletter', label: 'Newsletter' },
   { href: '/search', label: 'Search' },
 ]
@@ -35,6 +34,12 @@ const moreItems = [
     label: 'Publications',
     description: 'Leading UX and design publications.'
   },
+    { 
+      href: '/resources', 
+      label: 'Resources',
+      description:'Fonts, icon libraries, UI kits, and toolkits.'
+     },
+
   
 ]
 

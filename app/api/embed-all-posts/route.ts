@@ -35,6 +35,23 @@ interface RequestBody {
   }
   
   export async function POST(request: Request) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('is_admin')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile?.is_admin) {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+    }
+
     const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
@@ -45,19 +62,18 @@ interface RequestBody {
   
     const processAllPosts = async () => {
       try {
-        const supabase = await createClient();
-        
-        // Get total count of posts that need processing
-        const { count: totalPosts, error: countError } = await supabase
+        const { data: postsToProcess, error: queueError } = await supabase
           .from('content_post')
-          .select('*', { count: 'exact', head: true })
+          .select('id, title, content')
           .eq('indexed', false)
-          .eq('status', 'published'); // Only process published posts
-  
-        if (countError) {
-          throw new Error(`Failed to get post count: ${countError.message}`);
+          .eq('status', 'published')
+          .order('id');
+
+        if (queueError) {
+          throw new Error(`Failed to fetch posts for embedding: ${queueError.message}`);
         }
-  
+
+        const totalPosts = postsToProcess?.length || 0;
         if (!totalPosts) {
           await sendUpdate({
             type: 'complete',
@@ -78,28 +94,10 @@ interface RequestBody {
         };
   
         // Process posts in chunks
-        const pageSize = 100;
         const batchSize = 3;
-  
-        for (let offset = 0; offset < totalPosts; offset += pageSize) {
-          // Fetch chunk of unindexed posts
-          const { data: posts, error: fetchError } = await supabase
-            .from('content_post')
-            .select('id, title, content')
-            .eq('indexed', false)
-            .eq('status', 'published')
-            .range(offset, offset + pageSize - 1)
-            .order('id');
-  
-          if (fetchError) {
-            throw new Error(`Failed to fetch posts: ${fetchError.message}`);
-          }
-  
-          if (!posts || posts.length === 0) continue;
-  
-          // Process posts in smaller batches
-          for (let i = 0; i < posts.length; i += batchSize) {
-            const batch = posts.slice(i, i + batchSize);
+
+        for (let i = 0; i < totalPosts; i += batchSize) {
+            const batch = (postsToProcess || []).slice(i, i + batchSize);
             
             await Promise.all(
               batch.map(async (post) => {
@@ -125,29 +123,6 @@ interface RequestBody {
                     results.errors.push(errorUpdate);
                     await sendUpdate(errorUpdate);
                     return;
-                  }
-  
-                  // Check for existing embeddings
-                  const { count: existingCount, error: checkError } = await supabase
-                    .from('documents')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('metadata->post_id', post.id);
-  
-                  if (checkError) {
-                    console.error(`Error checking existing embeddings for post ${post.id}:`, checkError);
-                  }
-  
-                  if (existingCount && existingCount > 0) {
-                    console.log(`Removing ${existingCount} existing embeddings for post ${post.id}`);
-                    // Delete existing embeddings
-                    const { error: deleteError } = await supabase
-                      .from('documents')
-                      .delete()
-                      .eq('metadata->post_id', post.id);
-  
-                    if (deleteError) {
-                      throw new Error(`Failed to delete existing embeddings: ${deleteError.message}`);
-                    }
                   }
   
                   // Proceed with embedding
@@ -197,10 +172,9 @@ interface RequestBody {
             );
   
             // Rate limiting delay
-            if (i + batchSize < posts.length) {
+            if (i + batchSize < totalPosts) {
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
-          }
         }
   
         await sendUpdate({

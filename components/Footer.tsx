@@ -26,7 +26,7 @@ export default async function Footer() {
         />
             </div>
         <div className="text-sm p-4 mt-12 flex gap-4">
-            <p className="">&copy; 2024. Made in Manchester by <a href="https://www.kevan.tv" className="hover:underline">Matt Kevan</a>.</p>
+            <p className="">&copy; 2026. Made in Manchester by <a href="https://www.kevan.tv" className="hover:underline">Matt Kevan</a>.</p>
             <p className="text-gray-400"><a href="/privacy" className="hover:underline">Privacy</a></p>
             <p className="text-gray-400"><a href="/cookies" className="hover:underline">Cookies</a></p>
 

@@ -19,6 +19,35 @@ type PostWithRelations = Post & {
   }[]
 }
 
+interface EmbedProgressUpdate {
+  type: 'progress'
+  total: number
+  processed: number
+  succeeded: number
+  failed: number
+  currentPost?: {
+    id: number
+    title?: string
+  }
+}
+
+interface EmbedErrorUpdate {
+  type: 'error'
+  postId: number
+  error: string
+  details?: string
+}
+
+interface EmbedCompletionUpdate {
+  type: 'complete'
+  total: number
+  succeeded: number
+  failed: number
+  errors: EmbedErrorUpdate[]
+}
+
+type EmbedStreamUpdate = EmbedProgressUpdate | EmbedErrorUpdate | EmbedCompletionUpdate
+
 const POSTS_PER_PAGE = 50
 
 // Helper function to call the GitHub Actions trigger API
@@ -66,6 +95,7 @@ export default function AdminPosts() {
   const [showErrors, setShowErrors] = useState(false)
   const [embedding, setEmbedding] = useState<number | null>(null);
   const [batchEmbedding, setBatchEmbedding] = useState(false);
+  const [embeddingUnindexed, setEmbeddingUnindexed] = useState(false);
   
   const [processingJobId, setProcessingJobId] = useState<number | null>(null);
  
@@ -195,6 +225,119 @@ export default function AdminPosts() {
       setBatchEmbedding(false);
     }
   };
+
+  const handleEmbedUnindexed = async () => {
+    if (!confirm('Embed only posts that are currently marked as not embedded?')) {
+      return
+    }
+
+    let completed = false
+
+    try {
+      setEmbeddingUnindexed(true)
+      setShowErrors(false)
+      setBatchErrors([])
+      setBatchProgress({
+        total: 0,
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        currentPost: null,
+        processType: 'embedding',
+      })
+
+      const response = await fetch('/api/embed-all-posts', {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null)
+        throw new Error(errorPayload?.error || 'Failed to start embedding unindexed posts')
+      }
+
+      if (!response.body) {
+        throw new Error('Embedding stream did not return a response body')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+
+        for (const event of events) {
+          const line = event
+            .split('\n')
+            .find((candidate) => candidate.startsWith('data: '))
+
+          if (!line) continue
+
+          const rawPayload = line.slice(6).trim()
+          if (!rawPayload) continue
+
+          let payload: EmbedStreamUpdate
+          try {
+            payload = JSON.parse(rawPayload) as EmbedStreamUpdate
+          } catch {
+            continue
+          }
+
+          if (payload.type === 'progress') {
+            setBatchProgress({
+              total: payload.total,
+              processed: payload.processed,
+              succeeded: payload.succeeded,
+              failed: payload.failed,
+              currentPost: payload.currentPost || null,
+              processType: 'embedding',
+            })
+            continue
+          }
+
+          if (payload.type === 'error') {
+            if (payload.postId !== 0) {
+              const errorPayload = {
+                postId: payload.postId,
+                error: payload.error,
+                details: payload.details,
+              }
+              setBatchErrors((current) => [...current, errorPayload])
+            }
+            continue
+          }
+
+          if (payload.type === 'complete') {
+            completed = true
+            setBatchProgress({
+              total: payload.total,
+              processed: payload.total,
+              succeeded: payload.succeeded,
+              failed: payload.failed,
+              currentPost: null,
+              processType: 'embedding',
+            })
+            setBatchErrors(payload.errors || [])
+            await fetchPosts()
+            alert(`Embedding complete. ${payload.succeeded} succeeded, ${payload.failed} failed.`)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error embedding unindexed posts:', error)
+      alert(error instanceof Error ? error.message : 'Failed to embed unindexed posts')
+    } finally {
+      setEmbeddingUnindexed(false)
+      if (!completed) {
+        await fetchPosts()
+      }
+    }
+  }
 
   const fetchPosts = async () => {
     const { data: postsData, count: totalCount } = await supabase
@@ -488,12 +631,57 @@ export default function AdminPosts() {
             : 'Re-embed all posts (GitHub Action)'}
         </button>
         <button
+          onClick={handleEmbedUnindexed}
+          disabled={embeddingUnindexed || batchEmbedding || batchTagging}
+          className={`px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800 transition-colors
+            ${(embeddingUnindexed || batchEmbedding || batchTagging) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {embeddingUnindexed
+            ? `Embedding ${batchProgress.processed}/${batchProgress.total || '?'}...`
+            : 'Embed Unindexed Posts'}
+        </button>
+        <button
           onClick={handleResetAllEmbeddings}
           className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
         >
           Reset All Embeddings
         </button>
       </div>
+
+      {embeddingUnindexed && (
+        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/20">
+          <h3 className="font-medium">Embedding Unindexed Posts</h3>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+            Processed {batchProgress.processed} of {batchProgress.total || '...'}.
+            {' '}Succeeded: {batchProgress.succeeded}, Failed: {batchProgress.failed}.
+          </p>
+          {batchProgress.currentPost && (
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Current post: #{batchProgress.currentPost.id}
+              {batchProgress.currentPost.title ? ` - ${batchProgress.currentPost.title}` : ''}
+            </p>
+          )}
+          {batchErrors.length > 0 && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowErrors((current) => !current)}
+                className="text-sm font-medium text-red-700 hover:underline dark:text-red-300"
+              >
+                {showErrors ? 'Hide errors' : `Show errors (${batchErrors.length})`}
+              </button>
+              {showErrors && (
+                <ul className="mt-2 max-h-40 overflow-auto rounded bg-white p-2 text-sm dark:bg-gray-900">
+                  {batchErrors.slice(0, 100).map((item, index) => (
+                    <li key={`${item.postId}-${index}`} className="py-1 text-red-700 dark:text-red-300">
+                      #{item.postId}: {item.error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {processingJobId && (
         <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
