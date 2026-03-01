@@ -1,6 +1,9 @@
 name: Reprocess Tool
 
 on:
+  repository_dispatch:
+    types:
+      - tool_reprocess
   workflow_dispatch:
     inputs:
       tool_id:
@@ -40,8 +43,16 @@ jobs:
 
       - name: Reprocess tool
         run: |
-          if [ -n "${{ github.event.inputs.description }}" ]; then
-            npx --yes tsx scripts/reprocess-tool.ts "${{ github.event.inputs.tool_id }}" "${{ github.event.inputs.description }}"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TOOL_ID="${{ github.event.client_payload.tool_id }}"
+            DESCRIPTION="${{ github.event.client_payload.description }}"
           else
-            npx --yes tsx scripts/reprocess-tool.ts "${{ github.event.inputs.tool_id }}"
+            TOOL_ID="${{ github.event.inputs.tool_id }}"
+            DESCRIPTION="${{ github.event.inputs.description }}"
+          fi
+
+          if [ -n "$DESCRIPTION" ]; then
+            npx --yes tsx scripts/reprocess-tool.ts "$TOOL_ID" "$DESCRIPTION"
+          else
+            npx --yes tsx scripts/reprocess-tool.ts "$TOOL_ID"
           fi

@@ -3,45 +3,64 @@ import { createClient } from '@/utils/supabase/server'
 import { reprocessTool } from '@/utils/tool-tools/fetch-tool-content'
 import { reprocessToolRequestSchema, validateApiRequest } from '@/utils/validation'
 
+interface GitHubDispatchRequest {
+  event_type: string
+  client_payload: {
+    tool_id: number
+    description?: string
+  }
+}
+
 async function queueToolReprocess(params: {
   toolId: number
   description?: string
 }) {
-  const githubToken = process.env.GITHUB_PAT
-  const owner = process.env.GITHUB_REPO_OWNER
-  const repo = process.env.GITHUB_REPO_NAME
-  const workflowFile = process.env.GITHUB_TOOL_REPROCESS_WORKFLOW || 'reprocess-tool.yml'
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF || 'main'
-
+  const githubToken = (
+    process.env.GITHUB_WORKFLOW_TOKEN ||
+    process.env.GITHUB_PAT ||
+    process.env.GITHUB_TOKEN ||
+    process.env.GH_TOKEN ||
+    ''
+  ).trim()
+  const owner = (process.env.GITHUB_REPO_OWNER || '').trim()
+  const repo = (process.env.GITHUB_REPO_NAME || '').trim()
   if (!githubToken || !owner || !repo) {
     return { queued: false as const, reason: 'missing_github_config' as const }
   }
 
+  const dispatchRequest: GitHubDispatchRequest = {
+    event_type: 'tool_reprocess',
+    client_payload: {
+      tool_id: params.toolId,
+      description: params.description?.trim() || undefined,
+    },
+  }
+
   const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`,
+    `https://api.github.com/repos/${owner}/${repo}/dispatches`,
     {
       method: 'POST',
       headers: {
         Authorization: `token ${githubToken}`,
-        Accept: 'application/vnd.github+json',
+        Accept: 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ref: workflowRef,
-        inputs: {
-          tool_id: String(params.toolId),
-          description: params.description?.trim() || '',
-        },
-      }),
+      body: JSON.stringify(dispatchRequest),
     }
   )
 
   if (!response.ok) {
     const details = await response.text()
+    if (response.status === 401) {
+      throw new Error(
+        'Failed to queue GitHub workflow (401). Check token validity and set GITHUB_WORKFLOW_TOKEN/GITHUB_PAT in your host env.'
+      )
+    }
+
     throw new Error(`Failed to queue GitHub workflow (${response.status}): ${details}`)
   }
 
-  return { queued: true as const, workflowFile, workflowRef }
+  return { queued: true as const, eventType: dispatchRequest.event_type }
 }
 
 export async function POST(request: NextRequest) {
@@ -81,8 +100,7 @@ export async function POST(request: NextRequest) {
     if (queueResult.queued) {
       console.log('[tools reprocess] queued', {
         toolId,
-        workflowFile: queueResult.workflowFile,
-        workflowRef: queueResult.workflowRef,
+        eventType: queueResult.eventType,
       })
 
       return NextResponse.json(

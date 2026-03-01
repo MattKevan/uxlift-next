@@ -77,9 +77,15 @@ export async function POST(request: Request) {
     }
 
     // Trigger GitHub Action
-    const githubToken = process.env.GITHUB_PAT;
-    const owner = process.env.GITHUB_REPO_OWNER;
-    const repo = process.env.GITHUB_REPO_NAME;
+    const githubToken = (
+      process.env.GITHUB_WORKFLOW_TOKEN ||
+      process.env.GITHUB_PAT ||
+      process.env.GITHUB_TOKEN ||
+      process.env.GH_TOKEN ||
+      ''
+    ).trim();
+    const owner = (process.env.GITHUB_REPO_OWNER || '').trim();
+    const repo = (process.env.GITHUB_REPO_NAME || '').trim();
     
     if (!githubToken || !owner || !repo) {
       return NextResponse.json(
