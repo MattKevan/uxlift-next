@@ -1,0 +1,47 @@
+name: Reprocess Tool
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool_id:
+        description: 'Tool ID to reprocess'
+        required: true
+        type: string
+      description:
+        description: 'Optional description override'
+        required: false
+        type: string
+
+jobs:
+  reprocess:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+          echo "NEBIUS_API_KEY=${{ secrets.NEBIUS_API_KEY }}" >> .env
+          echo "NEBIUS_LLM_MODEL=${{ secrets.NEBIUS_LLM_MODEL }}" >> .env
+
+      - name: Reprocess tool
+        run: |
+          if [ -n "${{ github.event.inputs.description }}" ]; then
+            npx --yes tsx scripts/reprocess-tool.ts "${{ github.event.inputs.tool_id }}" "${{ github.event.inputs.description }}"
+          else
+            npx --yes tsx scripts/reprocess-tool.ts "${{ github.event.inputs.tool_id }}"
+          fi

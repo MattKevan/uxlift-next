@@ -114,6 +114,11 @@ export const reprocessToolRequestSchema = z.object({
   description: descriptionSchema,
 })
 
+export const convertToolTypeRequestSchema = z.object({
+  toolId: z.number().int().positive(),
+  destinationType: z.enum(['post', 'resource']),
+})
+
 const bulkCreateToolItemSchema = z.object({
   url: urlSchema,
   description: descriptionSchema,

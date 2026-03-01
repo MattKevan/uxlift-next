@@ -38,6 +38,8 @@ jobs:
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "NEBIUS_API_KEY=${{ secrets.NEBIUS_API_KEY }}" >> .env
+          echo "NEBIUS_LLM_MODEL=${{ secrets.NEBIUS_LLM_MODEL }}" >> .env
           echo "PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}" >> .env
           echo "PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}" >> .env
       

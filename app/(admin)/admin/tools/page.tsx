@@ -7,6 +7,7 @@ import EditToolModal from '@/components/EditToolModal'
 import { format, isValid, parseISO } from 'date-fns'
 import Link from 'next/link'
 import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
@@ -38,6 +39,7 @@ interface ToolImportItem {
 const TOOLS_PER_PAGE = 50
 type SortField = 'date'
 type SortDirection = 'asc' | 'desc'
+type DestinationType = 'post' | 'resource'
 
 function parseCsvRows(content: string): string[][] {
   const rows: string[][] = []
@@ -184,6 +186,11 @@ export default function AdminTools() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [reprocessingToolId, setReprocessingToolId] = useState<number | null>(null)
   const [togglingStatusToolId, setTogglingStatusToolId] = useState<number | null>(null)
+  const [changeTypeTool, setChangeTypeTool] = useState<ToolWithRelations | null>(null)
+  const [isChangeTypeModalOpen, setIsChangeTypeModalOpen] = useState(false)
+  const [destinationType, setDestinationType] = useState<DestinationType>('post')
+  const [isChangingType, setIsChangingType] = useState(false)
+  const [changeTypeError, setChangeTypeError] = useState('')
 
   const fetchTools = async () => {
     let query = supabase
@@ -327,9 +334,29 @@ export default function AdminTools() {
         body: JSON.stringify({ toolId }),
       })
 
-      const data = await response.json()
+      const responseText = await response.text()
+      let data: {
+        error?: string
+        queued?: boolean
+      } = {}
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText) as typeof data
+        } catch {
+          data = {}
+        }
+      }
+
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to reprocess tool')
+        throw new Error(
+          data.error || responseText || `Failed to reprocess tool (HTTP ${response.status})`
+        )
+      }
+
+      if (data.queued) {
+        alert('Tool reprocess queued in GitHub Actions. Refresh in a minute to see updates.')
+        return
       }
 
       await fetchTools()
@@ -338,6 +365,52 @@ export default function AdminTools() {
       alert(error instanceof Error ? error.message : 'Failed to reprocess tool')
     } finally {
       setReprocessingToolId(null)
+    }
+  }
+
+  const openChangeTypeModal = (tool: ToolWithRelations) => {
+    setChangeTypeTool(tool)
+    setDestinationType('post')
+    setChangeTypeError('')
+    setIsChangeTypeModalOpen(true)
+  }
+
+  const closeChangeTypeModal = () => {
+    setIsChangeTypeModalOpen(false)
+    setChangeTypeTool(null)
+    setChangeTypeError('')
+    setDestinationType('post')
+  }
+
+  const handleChangeType = async () => {
+    if (!changeTypeTool) return
+
+    try {
+      setIsChangingType(true)
+      setChangeTypeError('')
+
+      const response = await fetch('/api/tools/change-type', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toolId: changeTypeTool.id,
+          destinationType,
+        }),
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to change content type')
+      }
+
+      closeChangeTypeModal()
+      await fetchTools()
+    } catch (error) {
+      setChangeTypeError(error instanceof Error ? error.message : 'Failed to change content type')
+    } finally {
+      setIsChangingType(false)
     }
   }
 
@@ -535,6 +608,13 @@ export default function AdminTools() {
                       Edit
                     </button>
                     <button
+                      onClick={() => openChangeTypeModal(tool)}
+                      disabled={isChangingType && changeTypeTool?.id === tool.id}
+                      className="text-amber-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-amber-400"
+                    >
+                      {isChangingType && changeTypeTool?.id === tool.id ? 'Converting...' : 'Change type'}
+                    </button>
+                    <button
                       onClick={() => handleDelete(tool.id)}
                       className="text-red-600 hover:underline dark:text-red-400"
                     >
@@ -589,6 +669,55 @@ export default function AdminTools() {
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreate}
       />
+
+      <Dialog open={isChangeTypeModalOpen} onOpenChange={(open) => !open && closeChangeTypeModal()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Tool Type</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Move <span className="font-medium">{changeTypeTool?.title || 'this tool'}</span> to another content type.
+              This removes it from Tools after conversion.
+            </p>
+
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+              Destination type
+              <select
+                value={destinationType}
+                onChange={(event) => setDestinationType(event.target.value as DestinationType)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
+              >
+                <option value="post">Post</option>
+                <option value="resource">Resource</option>
+              </select>
+            </label>
+
+            {changeTypeError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{changeTypeError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={closeChangeTypeModal}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleChangeType}
+              disabled={!changeTypeTool || isChangingType}
+              className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {isChangingType ? 'Converting...' : 'Convert'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

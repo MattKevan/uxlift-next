@@ -123,10 +123,18 @@ const openai = new OpenAI({
 const nebiusApiKey = process.env.NEBIUS_API_KEY ? process.env.NEBIUS_API_KEY.trim() : '';
 const contentLlmProvider = 'nebius';
 const contentLlmModel = process.env.NEBIUS_LLM_MODEL || 'openai/gpt-oss-120b';
-const contentLlm = new OpenAI({
+const nebiusLlm = new OpenAI({
   apiKey: nebiusApiKey,
   baseURL: 'https://api.tokenfactory.nebius.com/v1/',
 });
+
+async function createNebiusCompletion(messages) {
+  return nebiusLlm.chat.completions.create({
+    model: contentLlmModel,
+    messages,
+    temperature: 0.2,
+  });
+}
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY,
@@ -338,19 +346,16 @@ async function summarisePost(postId) {
       };
     }
 
-    const completion = await contentLlm.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a helpful assistant that creates concise summaries of articles. Keep summaries under 30 words while maintaining key points. It should read like an introduction to the article.'
-        },
-        {
-          role: 'user',
-          content: `Please summarize the following article: ${post.content}`
-        }
-      ],
-      model: contentLlmModel,
-    });
+    const completion = await createNebiusCompletion([
+      {
+        role: 'system',
+        content: 'You are a helpful assistant that creates concise summaries of articles. Keep summaries under 30 words while maintaining key points. It should read like an introduction to the article.'
+      },
+      {
+        role: 'user',
+        content: `Please summarize the following article: ${post.content}`
+      }
+    ]);
 
     const summary = completion.choices[0].message.content;
 
@@ -455,22 +460,19 @@ async function tagPost(postId) {
       .join('\n');
 
     try {
-      const completion = await contentLlm.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: `You are a content categorization expert. You will be given an article and a list of available topics. 
+      const completion = await createNebiusCompletion([
+        {
+          role: 'system',
+          content: `You are a content categorization expert. You will be given an article and a list of available topics. 
             Select up to 4 of the most relevant topics for the article, but it's ok not to return any tags if there are no direct matches. 
             Only select from the provided topics list. Respond with only the exact topic names, separated by commas. Do not include descriptions or explanations.
             Available topics:\n${topicsString}`
-          },
-          {
-            role: 'user',
-            content: `Please categorize this article:\n${contentToAnalyze}`
-          }
-        ],
-        model: contentLlmModel,
-      });
+        },
+        {
+          role: 'user',
+          content: `Please categorize this article:\n${contentToAnalyze}`
+        }
+      ]);
 
       const suggestedTopics = completion.choices[0].message.content
         ?.split(',')
