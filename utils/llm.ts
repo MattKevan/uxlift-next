@@ -12,4 +12,3 @@ export const contentLlmClient = new OpenAI({
   apiKey: nebiusApiKey || '',
   baseURL: NEBIUS_BASE_URL,
 })
-git
