@@ -130,23 +130,25 @@ export async function embedPost(postId: number, supabase: SupabaseClient): Promi
       encoding_format: "float"
     })
 
-    // Check for existing embeddings
-    const existingVectors = await index.query({
-      vector: dummyEmbedding.data[0].embedding,
-      filter: {
-        post_id: { $eq: postId }
-      },
-      topK: 1
-    })
-
-    // If embeddings exist, delete them
-    if (existingVectors.matches && existingVectors.matches.length > 0) {
-      console.log(`Removing existing embeddings for post ${postId}`)
-      await index.deleteMany({
+    // Check for existing embeddings and clear them. Do not fail the whole
+    // embedding flow if cleanup cannot run for a particular metadata filter.
+    try {
+      const existingVectors = await index.query({
+        vector: dummyEmbedding.data[0].embedding,
         filter: {
-          post_id: { $eq: postId }
-        }
+          post_id: postId,
+        },
+        topK: 1,
       })
+
+      if (existingVectors.matches && existingVectors.matches.length > 0) {
+        console.log(`Removing existing embeddings for post ${postId}`)
+        await index.deleteMany({
+          post_id: postId,
+        })
+      }
+    } catch (cleanupError) {
+      console.warn(`Skipping pre-cleanup for post ${postId}:`, cleanupError)
     }
 
     // Fetch the post content
@@ -239,12 +241,14 @@ export async function embedPost(postId: number, supabase: SupabaseClient): Promi
         }])
 
       } catch (error) {
-        // If error occurs, cleanup vectors for this post
-        await index.deleteMany({
-          filter: {
-            post_id: { $eq: postId }
-          }
-        })
+        // If error occurs, cleanup vectors for this post.
+        try {
+          await index.deleteMany({
+            post_id: postId,
+          })
+        } catch (cleanupError) {
+          console.warn(`Cleanup after chunk failure did not complete for post ${postId}:`, cleanupError)
+        }
 
         console.error('Error processing chunk:', error)
         return {
