@@ -11,21 +11,51 @@ interface GitHubDispatchRequest {
   }
 }
 
+interface GitHubTokenCandidate {
+  source: string
+  token: string
+}
+
+interface GitHubDispatchAttempt {
+  source: string
+  status: number
+  details: string
+}
+
+function truncateDetails(details: string, maxLength = 300): string {
+  if (details.length <= maxLength) return details
+  return `${details.slice(0, maxLength)}...`
+}
+
+function getGitHubTokenCandidates(): GitHubTokenCandidate[] {
+  const candidates: GitHubTokenCandidate[] = [
+    { source: 'GITHUB_PAT', token: (process.env.GITHUB_PAT || '').trim() },
+    { source: 'GITHUB_WORKFLOW_TOKEN', token: (process.env.GITHUB_WORKFLOW_TOKEN || '').trim() },
+    { source: 'GITHUB_TOKEN', token: (process.env.GITHUB_TOKEN || '').trim() },
+    { source: 'GH_TOKEN', token: (process.env.GH_TOKEN || '').trim() },
+  ].filter((candidate) => candidate.token.length > 0)
+
+  const seen = new Set<string>()
+  return candidates.filter((candidate) => {
+    if (seen.has(candidate.token)) return false
+    seen.add(candidate.token)
+    return true
+  })
+}
+
 async function queueToolReprocess(params: {
   toolId: number
   description?: string
 }) {
-  const githubToken = (
-    process.env.GITHUB_WORKFLOW_TOKEN ||
-    process.env.GITHUB_PAT ||
-    process.env.GITHUB_TOKEN ||
-    process.env.GH_TOKEN ||
-    ''
-  ).trim()
   const owner = (process.env.GITHUB_REPO_OWNER || '').trim()
   const repo = (process.env.GITHUB_REPO_NAME || '').trim()
-  if (!githubToken || !owner || !repo) {
-    return { queued: false as const, reason: 'missing_github_config' as const }
+  const tokenCandidates = getGitHubTokenCandidates()
+  if (!owner || !repo || tokenCandidates.length === 0) {
+    return {
+      queued: false as const,
+      reason: 'missing_github_config' as const,
+      details: `owner_set=${Boolean(owner)} repo_set=${Boolean(repo)} token_candidates=${tokenCandidates.length}`,
+    }
   }
 
   const dispatchRequest: GitHubDispatchRequest = {
@@ -36,31 +66,42 @@ async function queueToolReprocess(params: {
     },
   }
 
-  const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/dispatches`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(dispatchRequest),
-    }
-  )
+  const attempts: GitHubDispatchAttempt[] = []
 
-  if (!response.ok) {
-    const details = await response.text()
-    if (response.status === 401) {
-      throw new Error(
-        'Failed to queue GitHub workflow (401). Check token validity and set GITHUB_WORKFLOW_TOKEN/GITHUB_PAT in your host env.'
-      )
+  for (const candidate of tokenCandidates) {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${candidate.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dispatchRequest),
+      }
+    )
+
+    if (response.ok) {
+      return {
+        queued: true as const,
+        eventType: dispatchRequest.event_type,
+        source: candidate.source,
+      }
     }
 
-    throw new Error(`Failed to queue GitHub workflow (${response.status}): ${details}`)
+    attempts.push({
+      source: candidate.source,
+      status: response.status,
+      details: truncateDetails(await response.text()),
+    })
   }
 
-  return { queued: true as const, eventType: dispatchRequest.event_type }
+  return {
+    queued: false as const,
+    reason: 'dispatch_failed' as const,
+    attempts,
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -101,6 +142,7 @@ export async function POST(request: NextRequest) {
       console.log('[tools reprocess] queued', {
         toolId,
         eventType: queueResult.eventType,
+        tokenSource: queueResult.source,
       })
 
       return NextResponse.json(
@@ -119,6 +161,21 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'GitHub workflow configuration missing for tool reprocess',
+          details: queueResult.details,
+        },
+        { status: 500 }
+      )
+    }
+
+    if (queueResult.reason === 'dispatch_failed') {
+      const details = queueResult.attempts
+        .map((attempt) => `${attempt.source}:${attempt.status}:${attempt.details}`)
+        .join(' | ')
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to queue GitHub workflow',
+          details,
         },
         { status: 500 }
       )

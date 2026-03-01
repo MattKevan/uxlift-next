@@ -3,6 +3,9 @@ name: Process Content
 on:
   schedule:
     - cron: '0 5 * * *'  # Run once a day at 5:00 AM UTC
+  repository_dispatch:
+    types:
+      - manual_trigger
   workflow_dispatch:
     inputs:
       process_type:
@@ -45,7 +48,9 @@ jobs:
       
       - name: Process content
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            node -r dotenv/config scripts/process-feeds.js "${{ github.event.client_payload.process_type }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             node -r dotenv/config scripts/process-feeds.js ${{ github.event.inputs.process_type }}
           else
             node -r dotenv/config scripts/process-feeds.js feeds

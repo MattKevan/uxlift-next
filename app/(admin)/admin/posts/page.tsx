@@ -62,7 +62,8 @@ const triggerGitHubAction = async (processType: 'feeds' | 'embed' | 'both') => {
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to trigger GitHub workflow');
+    const detailSuffix = errorData.details ? ` Details: ${errorData.details}` : '';
+    throw new Error((errorData.error || 'Failed to trigger GitHub workflow') + detailSuffix);
   }
   
   return response.json();
@@ -301,14 +302,16 @@ export default function AdminPosts() {
           }
 
           if (payload.type === 'error') {
-            if (payload.postId !== 0) {
-              const errorPayload = {
-                postId: payload.postId,
-                error: payload.error,
-                details: payload.details,
-              }
-              setBatchErrors((current) => [...current, errorPayload])
+            if (payload.postId === 0) {
+              throw new Error(payload.details ? `${payload.error}: ${payload.details}` : payload.error)
             }
+
+            const errorPayload = {
+              postId: payload.postId,
+              error: payload.error,
+              details: payload.details,
+            }
+            setBatchErrors((current) => [...current, errorPayload])
             continue
           }
 
@@ -674,6 +677,7 @@ export default function AdminPosts() {
                   {batchErrors.slice(0, 100).map((item, index) => (
                     <li key={`${item.postId}-${index}`} className="py-1 text-red-700 dark:text-red-300">
                       #{item.postId}: {item.error}
+                      {item.details ? ` (${item.details})` : ''}
                     </li>
                   ))}
                 </ul>

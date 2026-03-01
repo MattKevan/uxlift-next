@@ -106,6 +106,22 @@ function getChunkConfig(contentLength: number): ChunkConfig {
 
 export async function embedPost(postId: number, supabase: SupabaseClient): Promise<EmbedPostResult> {
   try {
+    if (!(process.env.OPENAI_API_KEY || '').trim()) {
+      return {
+        success: false,
+        error: 'Embedding configuration error',
+        details: 'OPENAI_API_KEY is missing on the server environment',
+      }
+    }
+
+    if (!(process.env.PINECONE_INDEX_NAME || '').trim()) {
+      return {
+        success: false,
+        error: 'Embedding configuration error',
+        details: 'PINECONE_INDEX_NAME is missing on the server environment',
+      }
+    }
+
     // First generate a dummy embedding to use for the initial query
     const dummyEmbedding = await openai.embeddings.create({
       model: "text-embedding-3-small",

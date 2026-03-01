@@ -337,6 +337,7 @@ export default function AdminTools() {
       const responseText = await response.text()
       let data: {
         error?: string
+        details?: string
         queued?: boolean
       } = {}
 
@@ -350,7 +351,9 @@ export default function AdminTools() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || responseText || `Failed to reprocess tool (HTTP ${response.status})`
+          data.error
+            ? `${data.error}${data.details ? ` Details: ${data.details}` : ''}`
+            : responseText || `Failed to reprocess tool (HTTP ${response.status})`
         )
       }
 

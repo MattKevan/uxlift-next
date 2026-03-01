@@ -15,6 +15,82 @@ interface GitHubDispatchRequest {
   };
 }
 
+interface GitHubTokenCandidate {
+  source: string;
+  token: string;
+}
+
+interface GitHubDispatchAttempt {
+  source: string;
+  status: number;
+  details: string;
+}
+
+function truncateDetails(details: string, maxLength = 300): string {
+  if (details.length <= maxLength) return details;
+  return `${details.slice(0, maxLength)}...`;
+}
+
+function getGitHubTokenCandidates(): GitHubTokenCandidate[] {
+  const candidates: GitHubTokenCandidate[] = [
+    { source: 'GITHUB_PAT', token: (process.env.GITHUB_PAT || '').trim() },
+    { source: 'GITHUB_WORKFLOW_TOKEN', token: (process.env.GITHUB_WORKFLOW_TOKEN || '').trim() },
+    { source: 'GITHUB_TOKEN', token: (process.env.GITHUB_TOKEN || '').trim() },
+    { source: 'GH_TOKEN', token: (process.env.GH_TOKEN || '').trim() },
+  ].filter((candidate) => candidate.token.length > 0);
+
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    if (seen.has(candidate.token)) return false;
+    seen.add(candidate.token);
+    return true;
+  });
+}
+
+async function dispatchWithAnyGitHubToken(params: {
+  owner: string;
+  repo: string;
+  dispatchRequest: GitHubDispatchRequest;
+  tokenCandidates: GitHubTokenCandidate[];
+}) {
+  const { owner, repo, dispatchRequest, tokenCandidates } = params;
+  const attempts: GitHubDispatchAttempt[] = [];
+
+  for (const candidate of tokenCandidates) {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${candidate.token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dispatchRequest),
+      }
+    );
+
+    if (response.ok) {
+      return {
+        ok: true as const,
+        source: candidate.source,
+      };
+    }
+
+    const details = truncateDetails(await response.text());
+    attempts.push({
+      source: candidate.source,
+      status: response.status,
+      details,
+    });
+  }
+
+  return {
+    ok: false as const,
+    attempts,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -77,19 +153,16 @@ export async function POST(request: Request) {
     }
 
     // Trigger GitHub Action
-    const githubToken = (
-      process.env.GITHUB_WORKFLOW_TOKEN ||
-      process.env.GITHUB_PAT ||
-      process.env.GITHUB_TOKEN ||
-      process.env.GH_TOKEN ||
-      ''
-    ).trim();
     const owner = (process.env.GITHUB_REPO_OWNER || '').trim();
     const repo = (process.env.GITHUB_REPO_NAME || '').trim();
+    const tokenCandidates = getGitHubTokenCandidates();
     
-    if (!githubToken || !owner || !repo) {
+    if (!owner || !repo || tokenCandidates.length === 0) {
       return NextResponse.json(
-        { error: 'GitHub credentials not configured' }, 
+        {
+          error: 'GitHub credentials not configured',
+          details: `owner_set=${Boolean(owner)} repo_set=${Boolean(repo)} token_candidates=${tokenCandidates.length}`,
+        }, 
         { status: 500 }
       );
     }
@@ -101,34 +174,31 @@ export async function POST(request: Request) {
       }
     };
 
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `token ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dispatchRequest)
-      }
-    );
+    const dispatchResult = await dispatchWithAnyGitHubToken({
+      owner,
+      repo,
+      dispatchRequest,
+      tokenCandidates,
+    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GitHub API error:', response.status, errorText);
+    if (!dispatchResult.ok) {
+      const details = dispatchResult.attempts
+        .map((attempt) => `${attempt.source}:${attempt.status}:${attempt.details}`)
+        .join(' | ');
+
+      console.error('GitHub API error:', details);
       
       // Update job status to failed
       await supabase
         .from('feed_processing_jobs')
         .update({ 
           status: 'failed',
-          error: `GitHub API error: ${response.status} - ${errorText}`
+          error: `GitHub API error: ${details}`
         })
         .eq('id', job.id);
       
       return NextResponse.json(
-        { error: 'Failed to trigger GitHub workflow', details: errorText }, 
+        { error: 'Failed to trigger GitHub workflow', details }, 
         { status: 500 }
       );
     }
@@ -140,7 +210,8 @@ export async function POST(request: Request) {
         status: 'initiated',
         metadata: {
           github_workflow: 'process-content',
-          process_type
+          process_type,
+          token_source: dispatchResult.source,
         }
       })
       .eq('id', job.id);

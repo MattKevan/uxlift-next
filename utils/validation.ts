@@ -153,6 +153,10 @@ export const createResourceRequestSchema = z.object({
   status: z.string().min(1).max(32).optional()
 })
 
+export const reprocessResourceRequestSchema = z.object({
+  resourceId: z.number().int().positive(),
+})
+
 export const bulkCreateResourcesRequestSchema = z.object({
   urls: z.array(urlSchema).min(1).max(500),
   status: z.string().min(1).max(32).optional()

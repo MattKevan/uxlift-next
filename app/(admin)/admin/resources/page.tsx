@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import type { Database } from '@/types/supabase'
 import EditResourceModal from '@/components/EditResourceModal'
 import { format, isValid, parseISO } from 'date-fns'
+import Link from 'next/link'
 
 type Resource = Database['public']['Tables']['content_resource']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
@@ -54,7 +55,7 @@ function getStatusLabel(status: string) {
 }
 
 function getStatusClasses(status: string) {
-  if (status === 'P' || status === 'published') {
+  if (isPublishedStatus(status)) {
     return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
   }
   if (status === 'D' || status === 'draft') {
@@ -64,6 +65,10 @@ function getStatusClasses(status: string) {
     return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
   }
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+}
+
+function isPublishedStatus(status: string) {
+  return status === 'P' || status === 'published'
 }
 
 function formatResourceDate(dateString: string | null | undefined) {
@@ -92,6 +97,8 @@ export default function AdminResources() {
   const [bulkError, setBulkError] = useState('')
   const [sortField, setSortField] = useState<SortField>('date_published')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [reprocessingResourceId, setReprocessingResourceId] = useState<number | null>(null)
+  const [togglingStatusResourceId, setTogglingStatusResourceId] = useState<number | null>(null)
 
   const fetchResources = async () => {
     let query = supabase
@@ -194,6 +201,74 @@ export default function AdminResources() {
     } catch (error) {
       console.error('Error deleting resource:', error)
       alert(error instanceof Error ? error.message : 'Failed to delete resource')
+    }
+  }
+
+  const handleTogglePublish = async (resource: ResourceWithRelations) => {
+    const nextStatus = isPublishedStatus(resource.status) ? 'draft' : 'published'
+
+    try {
+      setTogglingStatusResourceId(resource.id)
+
+      const { error } = await supabase
+        .from('content_resource')
+        .update({ status: nextStatus })
+        .eq('id', resource.id)
+
+      if (error) {
+        throw new Error(error.message || 'Failed to update resource status')
+      }
+
+      setResources((currentResources) =>
+        currentResources.map((currentResource) =>
+          currentResource.id === resource.id
+            ? { ...currentResource, status: nextStatus }
+            : currentResource
+        )
+      )
+    } catch (error) {
+      console.error('Error updating resource status:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update resource status')
+    } finally {
+      setTogglingStatusResourceId(null)
+    }
+  }
+
+  const handleReprocess = async (resourceId: number) => {
+    try {
+      setReprocessingResourceId(resourceId)
+
+      const response = await fetch('/api/resources/reprocess', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ resourceId }),
+      })
+
+      const responseText = await response.text()
+      let data: { error?: string } = {}
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText) as typeof data
+        } catch {
+          data = {}
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || responseText || `Failed to reprocess resource (HTTP ${response.status})`
+        )
+      }
+
+      await fetchResources()
+    } catch (error) {
+      console.error('Error reprocessing resource:', error)
+      alert(error instanceof Error ? error.message : 'Failed to reprocess resource')
+    } finally {
+      setReprocessingResourceId(null)
     }
   }
 
@@ -324,7 +399,13 @@ export default function AdminResources() {
               <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="font-medium dark:text-white">{resource.title}</span>
+                    <Link
+                      href={`/resources/${resource.slug}`}
+                      target="_blank"
+                      className="font-medium dark:text-white text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {resource.title}
+                    </Link>
                     <span className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-md">
                       {resource.description}
                     </span>
@@ -369,6 +450,24 @@ export default function AdminResources() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleTogglePublish(resource)}
+                      disabled={togglingStatusResourceId === resource.id}
+                      className="text-emerald-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-emerald-400"
+                    >
+                      {togglingStatusResourceId === resource.id
+                        ? 'Saving...'
+                        : isPublishedStatus(resource.status)
+                          ? 'Unpublish'
+                          : 'Publish'}
+                    </button>
+                    <button
+                      onClick={() => handleReprocess(resource.id)}
+                      disabled={reprocessingResourceId === resource.id}
+                      className="text-indigo-600 hover:underline disabled:opacity-50 disabled:no-underline dark:text-indigo-400"
+                    >
+                      {reprocessingResourceId === resource.id ? 'Reprocessing...' : 'Reprocess'}
+                    </button>
                     <button
                       onClick={() => handleEdit(resource)}
                       className="text-blue-600 hover:underline dark:text-blue-400"

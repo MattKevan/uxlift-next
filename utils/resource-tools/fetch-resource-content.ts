@@ -29,6 +29,13 @@ interface FetchResourceResult {
   created: boolean
 }
 
+interface ProcessedResourceContent {
+  title: string
+  description: string
+  body: string
+  imagePath: string | null
+}
+
 const turndownService = new TurndownService({
   headingStyle: 'atx',
   bulletListMarker: '-',
@@ -152,26 +159,7 @@ async function getResourceWithRelations(id: number, supabase: SupabaseClient<Dat
   return data as ResourceWithRelations
 }
 
-export async function fetchAndProcessResource(
-  rawUrl: string,
-  supabase: SupabaseClient<Database>,
-  options?: FetchResourceOptions
-): Promise<FetchResourceResult> {
-  const validUrl = normalizeResourceUrl(rawUrl)
-  const lookupUrls = getResourceUrlLookupVariants(validUrl)
-
-  const { data: existingResources } = await supabase
-    .from('content_resource')
-    .select('id')
-    .in('link', lookupUrls)
-    .limit(1)
-
-  const existingResource = existingResources?.[0]
-  if (existingResource) {
-    const resource = await getResourceWithRelations(existingResource.id, supabase)
-    return { resource, created: false }
-  }
-
+async function buildProcessedResourceContentFromUrl(validUrl: string): Promise<ProcessedResourceContent> {
   const response = await fetch(validUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; UXLift/1.0; +https://uxlift.org)',
@@ -241,19 +229,49 @@ export async function fetchAndProcessResource(
   const title = pageTitle || fallbackTitle
   const description = pageDescription || bodyText.slice(0, 500) || `Resource from ${fallbackTitle}`
   const imagePath = toAbsoluteUrl(imageCandidate, validUrl)
-  const slug = await generateUniqueSlug(slugify(title), supabase)
+
+  return {
+    title: title.slice(0, 255),
+    description: description.slice(0, 500),
+    body,
+    imagePath,
+  }
+}
+
+export async function fetchAndProcessResource(
+  rawUrl: string,
+  supabase: SupabaseClient<Database>,
+  options?: FetchResourceOptions
+): Promise<FetchResourceResult> {
+  const validUrl = normalizeResourceUrl(rawUrl)
+  const lookupUrls = getResourceUrlLookupVariants(validUrl)
+
+  const { data: existingResources } = await supabase
+    .from('content_resource')
+    .select('id')
+    .in('link', lookupUrls)
+    .limit(1)
+
+  const existingResource = existingResources?.[0]
+  if (existingResource) {
+    const resource = await getResourceWithRelations(existingResource.id, supabase)
+    return { resource, created: false }
+  }
+
+  const processed = await buildProcessedResourceContentFromUrl(validUrl)
+  const slug = await generateUniqueSlug(slugify(processed.title), supabase)
 
   let createdResource: { id: number } | null = null
   let createError: PostgrestError | null = null
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const resourceData: Database['public']['Tables']['content_resource']['Insert'] = {
-      title: title.slice(0, 255),
-      description: description.slice(0, 500),
+      title: processed.title,
+      description: processed.description,
       summary: '',
-      body: body || null,
+      body: processed.body || null,
       link: validUrl,
-      image_path: imagePath,
+      image_path: processed.imagePath,
       status: options?.status || 'draft',
       date_created: new Date().toISOString(),
       date_published: new Date().toISOString(),
@@ -314,4 +332,53 @@ export async function fetchAndProcessResource(
 
   const resource = await getResourceWithRelations(createdResource.id, supabase)
   return { resource, created: true }
+}
+
+export async function reprocessResource(
+  resourceId: number,
+  supabase: SupabaseClient<Database>
+): Promise<ResourceWithRelations> {
+  const { data: existingResource, error: existingResourceError } = await supabase
+    .from('content_resource')
+    .select('id, link')
+    .eq('id', resourceId)
+    .single()
+
+  if (existingResourceError || !existingResource) {
+    throw new Error(existingResourceError?.message || 'Resource not found')
+  }
+
+  const validUrl = normalizeResourceUrl(existingResource.link)
+  const processed = await buildProcessedResourceContentFromUrl(validUrl)
+
+  const updatePayload: Database['public']['Tables']['content_resource']['Update'] = {
+    title: processed.title,
+    description: processed.description,
+    body: processed.body || null,
+    image_path: processed.imagePath,
+    link: validUrl,
+  }
+
+  const { error: updateError } = await supabase
+    .from('content_resource')
+    .update(updatePayload)
+    .eq('id', resourceId)
+
+  if (updateError) {
+    throw new Error(updateError.message || 'Failed to update resource')
+  }
+
+  try {
+    await summariseResource(resourceId, supabase)
+  } catch {
+    // Resource update should still succeed if summary fails.
+  }
+
+  try {
+    await tagResource(resourceId, supabase)
+  } catch {
+    // Resource update should still succeed if tagging fails.
+  }
+
+  return getResourceWithRelations(resourceId, supabase)
 }
