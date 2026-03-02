@@ -114,7 +114,8 @@ export default async function Header() {
                                   <SubmitContentButton user={user} profile={profile} />
 
             <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
-              <Lightning/>
+              <Lightning aria-hidden="true" />
+              <span className="sr-only">Go to your personalised feed</span>
             </Link>
      
             <UserMenuButton user={user} profile={profile} />
@@ -125,7 +126,15 @@ export default async function Header() {
   <Link href="/sign-in">Submit content</Link>
 </Button>
           <Popover>
-            <PopoverTrigger className='p-4 border-x'><Lightning/></PopoverTrigger>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className='p-4 border-x hover:bg-accent transition-colors'
+                aria-label="Learn about the personalised feed"
+              >
+                <Lightning aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
             <PopoverContent className='text-sm'>Sign in or sign up to create a personalised feed of UX articles and news.</PopoverContent>
           </Popover>
       

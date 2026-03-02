@@ -25,6 +25,8 @@ export function NewsletterModal({ isOpen, setIsOpen }: NewsletterModalProps) {
           data-test-id="beehiiv-embed" 
           width="100%" 
           height="320" 
+          title="Subscribe to the UX Lift newsletter"
+          loading="lazy"
           className="dark:bg-gray-950 bg-white"
         />
       </div>

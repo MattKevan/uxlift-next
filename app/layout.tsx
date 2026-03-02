@@ -1,10 +1,10 @@
 import Link from "next/link"
+import Script from "next/script"
 import "./globals.css"
 import Header from "@/components/Header"
 
 import { Inter } from "next/font/google"
 import Footer from "@/components/Footer"
-import { Analytics } from "@vercel/analytics/react"
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import Notification from '@/components/Notification';
 
@@ -55,12 +55,11 @@ export default function RootLayout({
 
         </div>
         </NotificationProvider>
-        <script
+        <Script
           src="https://beamanalytics.b-cdn.net/beam.min.js"
           data-token="a553d71c-0bd2-4e65-b850-858918a0d2a9"
-          async
-        >
-        </script>
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )

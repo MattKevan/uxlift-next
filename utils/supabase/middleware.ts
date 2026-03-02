@@ -3,7 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 
 const publicApiRoutes: string[] = [
   '/api/search',
-  '/api/fetch-url'
+  '/api/fetch-url',
+  '/api/image-proxy',
 ];
 
 export const updateSession = async (request: NextRequest) => {

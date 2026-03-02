@@ -3,9 +3,18 @@ User-agent: *
 Allow: /
 Disallow: /api/*
 Disallow: /admin/*
+Disallow: /auth/*
+Disallow: /confirm
+Disallow: /confirmed
+Disallow: /feed
+Disallow: /forgot-password
 Disallow: /login
-Disallow: /signup
+Disallow: /profile/*
+Disallow: /protected/*
 Disallow: /reset-password
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /signup
 
 # Host
 Host: https://www.uxlift.org

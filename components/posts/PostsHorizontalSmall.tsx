@@ -1,8 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
-import { Bookmark, ExternalLink, Flag, Like, LinkOne } from '@mynaui/icons-react'
+import { ExternalLink } from '@mynaui/icons-react'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import {
@@ -36,16 +35,32 @@ interface PostWithSite {
   site: Site | null
   content_post_topics: PostTopic[]
 }
-function truncateToWords(str: string, numWords: number) {
-  const words = str.trim().split(/\s+/)
-  if (words.length <= numWords) return str
-  return words.slice(0, numWords).join(' ') + '...'
+
+function getDisplayTitle(title: string | null) {
+  const trimmedTitle = title?.trim()
+  return trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : 'this article'
+}
+
+function getProxiedImageSrc(imagePath: string) {
+  if (imagePath.startsWith('/')) return imagePath
+
+  try {
+    const parsedUrl = new URL(imagePath)
+    if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+      return `/api/image-proxy?url=${encodeURIComponent(imagePath)}`
+    }
+  } catch {
+    return imagePath
+  }
+
+  return imagePath
 }
 
 
-
 export function PostHorizontal({ post }: { post: PostWithSite }) {
-  const hasValidImage = post.image_path && post.image_path.trim() !== ''
+  const hasValidImage = Boolean(post.image_path && post.image_path.trim() !== '')
+  const displayTitle = getDisplayTitle(post.title)
+  const proxiedImageSrc = hasValidImage && post.image_path ? getProxiedImageSrc(post.image_path) : null
 
   return (
 
@@ -80,7 +95,7 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
               )}
             </p>
             {post.date_published && (
-              <time dateTime={post.date_published} className='text-gray-400 text-xs'>
+              <time dateTime={post.date_published} className='text-gray-600 dark:text-gray-300 text-xs'>
                 {format(new Date(post.date_published), 'dd MMM yyyy')}
               </time>
             )}
@@ -88,9 +103,9 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold mb-3 tracking-tight leading-tight md:leading-tight">
             <a 
               href={`/articles/${post.slug}`}
-       
+              className="hover:underline"
             >
-              {post.title}
+              {displayTitle}
             </a>
 
           </h2>
@@ -110,13 +125,21 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
         </div>
         <div className="mt-auto pt-4 text-sm text-gray-400 items-center gap-2 flex">
           <div>
-        <TooltipProvider>
+<TooltipProvider>
   <Tooltip>
-    <TooltipTrigger>
-        <Link href={post.link}  target="_blank" rel="noopener noreferrer" className='text-primary hover:text-gray-500'><ExternalLink/>
-            </Link>
+    <TooltipTrigger asChild>
+        <Link
+          href={post.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className='text-primary hover:text-gray-500'
+          aria-label={`Read full article: ${displayTitle} (opens in a new tab)`}
+        >
+          <ExternalLink aria-hidden="true" />
+          <span className="sr-only">Read full article</span>
+        </Link>
           
-          </TooltipTrigger>
+    </TooltipTrigger>
     <TooltipContent>
       <p>Read the full article</p>
     </TooltipContent>
@@ -132,11 +155,13 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
           <a
             href={`/articles/${post.slug}`}
             className="hover:underline"
+            aria-label={`Read article: ${displayTitle}`}
           >
             <img
-              src={post.image_path || undefined}
-              alt=""
+              src={proxiedImageSrc || undefined}
+              alt={`Thumbnail for ${displayTitle}`}
               className="object-cover w-full h-full inset-0"
+              loading="lazy"
             />
           </a>
         </div>
