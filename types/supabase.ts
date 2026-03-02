@@ -1000,6 +1000,7 @@ export type Database = {
           created_at: string
           id: number
           query: string
+          result_payload: Json | null
           summary: string | null
           total_results: number | null
           user_id: string | null
@@ -1008,6 +1009,7 @@ export type Database = {
           created_at?: string
           id?: never
           query: string
+          result_payload?: Json | null
           summary?: string | null
           total_results?: number | null
           user_id?: string | null
@@ -1016,6 +1018,7 @@ export type Database = {
           created_at?: string
           id?: never
           query?: string
+          result_payload?: Json | null
           summary?: string | null
           total_results?: number | null
           user_id?: string | null

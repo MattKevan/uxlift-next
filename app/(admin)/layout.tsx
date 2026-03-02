@@ -5,12 +5,14 @@ import Link from 'next/link'
 const adminLinks = [
   { href: '/admin/posts', label: 'Posts' },
   { href: '/admin/newsletter', label: 'Newsletter' },
+  { href: '/admin/searches', label: 'Searches' },
   { href: '/admin/activity-logs', label: 'Activity logs' },
   { href: '/admin/tools', label: 'Tools' },
   { href: '/admin/topics', label: 'Topics' },
   { href: '/admin/resources', label: 'Resources' },
   { href: '/admin/sites', label: 'Sites' },
   { href: '/admin/books', label: 'Books' },
+  { href: '/admin/users', label: 'Users' },
 ]
 
 export default async function AdminLayout({

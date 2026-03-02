@@ -61,6 +61,7 @@
     "react-dom": "18.2.0",
     "react-markdown": "^9.0.1",
     "readability": "^0.1.0",
+    "remark-gfm": "^4.0.1",
     "rss-parser": "^3.13.0",
     "sanitize-html": "^2.13.1",
     "turndown": "^7.2.2",

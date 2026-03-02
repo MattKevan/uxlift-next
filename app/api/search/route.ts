@@ -1,6 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient as createServerClient } from '@/utils/supabase/server'
 import { OpenAI } from 'openai'
 import { Pinecone, RecordMetadata, QueryOptions } from '@pinecone-database/pinecone'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, NextRequest } from 'next/server'
 import { checkSearchRateLimit } from '@/utils/simple-rate-limit'
 import { logger } from '@/utils/logger'
@@ -11,6 +12,7 @@ import {
   contentLlmProvider,
   hasContentLlmCredentials,
 } from '@/utils/llm'
+import type { Database, Json } from '@/types/supabase'
 
 const embeddingClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -18,6 +20,9 @@ const embeddingClient = new OpenAI({
 
 const pinecone = new Pinecone()
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || '')
+
+const ANON_SEARCH_COOKIE = 'uxlift_anon_search_used'
+const ANON_SEARCH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
 interface PineconeMetadata extends RecordMetadata {
   post_id: number
@@ -37,11 +42,91 @@ interface DocumentMatch {
   similarity: number
 }
 
-export async function POST(request: NextRequest) {
-  let query: string = ''
-  
+interface SearchPayloadResult {
+  post_id: number
+  title: string
+  link: string
+  similarity: number
+  excerpt: string
+}
+
+interface SearchHistoryPayload {
+  answer: string | null
+  results: SearchPayloadResult[]
+  error: string | null
+}
+
+const createServiceClient = () => createSupabaseClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+)
+
+function withAnonSearchCookie(response: NextResponse, shouldSetCookie: boolean) {
+  if (!shouldSetCookie) {
+    return response
+  }
+
+  response.cookies.set({
+    name: ANON_SEARCH_COOKIE,
+    value: '1',
+    maxAge: ANON_SEARCH_COOKIE_MAX_AGE_SECONDS,
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
+
+  return response
+}
+
+function buildSearchPayload(answer: string | null, results: DocumentMatch[], error: string | null): SearchHistoryPayload {
+  return {
+    answer,
+    error,
+    results: results.map((result) => ({
+      post_id: result.metadata.post_id,
+      title: result.metadata.title,
+      link: result.metadata.link,
+      similarity: result.similarity,
+      excerpt: result.content.slice(0, 280),
+    })),
+  }
+}
+
+async function saveSearchHistory(
+  query: string,
+  userId: string | null,
+  totalResults: number,
+  summary: string | null,
+  payload: SearchHistoryPayload
+) {
   try {
-    // Check rate limit first
+    const serviceClient = createServiceClient()
+    await serviceClient.from('search_history').insert({
+      query: query.trim(),
+      user_id: userId,
+      total_results: totalResults,
+      summary,
+      result_payload: payload as unknown as Json,
+    })
+  } catch (error) {
+    console.error('Failed to save search history:', error)
+  }
+}
+
+export async function POST(request: NextRequest) {
+  let query = ''
+  let userId: string | null = null
+  let isAnonymousSearch = false
+  let consumeAnonymousSearch = false
+
+  try {
     const rateLimitResponse = await checkSearchRateLimit(request)
     if (rateLimitResponse) {
       return rateLimitResponse
@@ -51,50 +136,59 @@ export async function POST(request: NextRequest) {
     const validatedData = validateApiRequest(searchRequestSchema, body, '/api/search')
     query = validatedData.query
 
-    const supabase = await createClient()
+    const supabase = await createServerClient()
     const { data: { user } } = await supabase.auth.getUser()
+    userId = user?.id || null
+    isAnonymousSearch = !userId
 
-    // Generate embedding for the search query
+    if (isAnonymousSearch && request.cookies.get(ANON_SEARCH_COOKIE)?.value === '1') {
+      return NextResponse.json(
+        {
+          error: 'Please create an account or sign in to continue searching.',
+          code: 'AUTH_REQUIRED',
+        },
+        { status: 401 }
+      )
+    }
+
+    consumeAnonymousSearch = isAnonymousSearch
+
     const embedding = await embeddingClient.embeddings.create({
-      model: "text-embedding-3-small",
+      model: 'text-embedding-3-small',
       input: query,
       dimensions: 1536,
-      encoding_format: "float"
+      encoding_format: 'float',
     })
 
     let documents: DocumentMatch[] = []
 
-    // Configure query options
     const strictQueryOptions: QueryOptions = {
       vector: embedding.data[0].embedding,
       topK: 12,
       includeMetadata: true,
     }
 
-    // First attempt with stricter threshold
     try {
       const strictResults = await index.query(strictQueryOptions)
 
       if (strictResults.matches && strictResults.matches.length > 0) {
-        // Filter results with score >= 0.75
         documents = strictResults.matches
-          .filter(match => (match.score || 0) >= 0.75)
-          .map(match => ({
+          .filter((match) => (match.score || 0) >= 0.75)
+          .map((match) => ({
             id: match.id,
             content: (match.metadata as PineconeMetadata).content,
             metadata: {
               post_id: (match.metadata as PineconeMetadata).post_id,
               title: (match.metadata as PineconeMetadata).title,
-              link: (match.metadata as PineconeMetadata).link
+              link: (match.metadata as PineconeMetadata).link,
             },
-            similarity: match.score || 0
+            similarity: match.score || 0,
           }))
       }
     } catch (firstTryError) {
       console.error('First attempt failed:', firstTryError)
     }
 
-    // If no results, try with relaxed parameters
     if (documents.length === 0) {
       const relaxedQueryOptions: QueryOptions = {
         vector: embedding.data[0].embedding,
@@ -106,18 +200,17 @@ export async function POST(request: NextRequest) {
         const relaxedResults = await index.query(relaxedQueryOptions)
 
         if (relaxedResults.matches) {
-          // Filter results with score >= 0.6
           documents = relaxedResults.matches
-            .filter(match => (match.score || 0) >= 0.6)
-            .map(match => ({
+            .filter((match) => (match.score || 0) >= 0.6)
+            .map((match) => ({
               id: match.id,
               content: (match.metadata as PineconeMetadata).content,
               metadata: {
                 post_id: (match.metadata as PineconeMetadata).post_id,
                 title: (match.metadata as PineconeMetadata).title,
-                link: (match.metadata as PineconeMetadata).link
+                link: (match.metadata as PineconeMetadata).link,
               },
-              similarity: match.score || 0
+              similarity: match.score || 0,
             }))
         }
       } catch (secondTryError) {
@@ -125,35 +218,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If still no results, return 404
     if (documents.length === 0) {
-      await supabase.from('search_history').insert({
-        query: query.trim(),
-        user_id: user?.id || null,
-        total_results: 0,
-        summary: null
-      })
+      await saveSearchHistory(
+        query,
+        userId,
+        0,
+        null,
+        buildSearchPayload(null, [], 'No results found')
+      )
 
-      return NextResponse.json(
-        { error: 'No results found' },
-        { status: 404 }
+      return withAnonSearchCookie(
+        NextResponse.json({ error: 'No results found' }, { status: 404 }),
+        consumeAnonymousSearch
       )
     }
 
-    // Prepare context for summary
     const contextText = documents
       .map((doc: DocumentMatch) => doc.content)
       .join('\n\n')
       .slice(0, 2000)
 
-    // Generate summary answer using content LLM provider (Nebius by default).
     let summaryText: string | null = null
     if (hasContentLlmCredentials) {
       const summary = await contentLlmClient.chat.completions.create({
         model: contentLlmModel,
         messages: [
           {
-            role: "system",
+            role: 'system',
             content: `You are an expert UX design educator. Your role is to provide clear, accurate, and helpful answers about UX design concepts.
 When answering questions, follow these guidelines:
 - Provide concrete explanations with real-world examples where relevant
@@ -163,15 +254,15 @@ When answering questions, follow these guidelines:
 - Keep the tone professional but approachable
 - Format your response with Markdown if necessary
 - Write it as though you are giving the information, not 'the context...' or 'the query asks...'
-Use the provided context to enhance your answer, but also draw from fundamental UX knowledge for basic questions. Do not make things up if you don't know the answer, just say you don't know.`
+Use the provided context to enhance your answer, but also draw from fundamental UX knowledge for basic questions. Do not make things up if you don't know the answer, just say you don't know.`,
           },
           {
-            role: "user",
-            content: `Query: "${query}"\n\nContext:\n${contextText}\n\nProvide a brief summary of how these results relate to the query.`
-          }
+            role: 'user',
+            content: `Query: "${query}"\n\nContext:\n${contextText}\n\nProvide a brief summary of how these results relate to the query.`,
+          },
         ],
         temperature: 0,
-        max_tokens: 1000
+        max_tokens: 1000,
       })
       summaryText = summary.choices[0]?.message?.content?.trim() || null
     } else {
@@ -181,50 +272,47 @@ Use the provided context to enhance your answer, but also draw from fundamental 
       })
     }
 
-  // Log all searches with user_id if available, null if not
-  await supabase.from('search_history').insert({
-    query: query.trim(),
-    summary: summaryText,
-    total_results: documents.length,
-    user_id: user?.id || null // null for anonymous users
-  })
+    await saveSearchHistory(
+      query,
+      userId,
+      documents.length,
+      summaryText,
+      buildSearchPayload(summaryText, documents, null)
+    )
 
-  return NextResponse.json({
-    results: documents,
-    answer: summaryText
-  })
+    return withAnonSearchCookie(
+      NextResponse.json({
+        results: documents,
+        answer: summaryText,
+      }),
+      consumeAnonymousSearch
+    )
+  } catch (error) {
+    console.error('Unexpected error:', error)
 
-} catch (error) {
-  console.error('Unexpected error:', error)
-  
-  // Log failed searches too
-  if (query) {
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      await supabase.from('search_history').insert({
-        query: query.trim(),
-        user_id: user?.id || null, // null for anonymous users
-        total_results: 0,
-        summary: null
-      })
-    } catch (dbError) {
-      console.error('Failed to save failed search:', dbError)
+    if (query) {
+      await saveSearchHistory(
+        query,
+        userId,
+        0,
+        null,
+        buildSearchPayload(null, [], error instanceof Error ? error.message : 'Internal server error')
+      )
     }
+
+    return withAnonSearchCookie(
+      NextResponse.json(
+        {
+          error: 'Internal server error',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { status: 500 }
+      ),
+      consumeAnonymousSearch
+    )
   }
-
-  return NextResponse.json(
-    { 
-      error: 'Internal server error', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    },
-    { status: 500 }
-  )
-}
 }
 
-// Add OPTIONS handler for CORS if needed
-export async function OPTIONS(request: Request) {
+export async function OPTIONS(_request: Request) {
   return NextResponse.json({}, { status: 200 })
 }

@@ -6,6 +6,8 @@ import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { useState } from 'react'
 import type { Database } from '@/types/supabase'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import Link from 'next/link'
 
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
@@ -72,6 +74,7 @@ export default function SearchPage() {
   const [answer, setAnswer] = useState<string>('')  // Changed from summary to answer
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [requiresAuth, setRequiresAuth] = useState(false)
   const supabase = createClient()
 
   const handleExampleClick = async (question: string) => {
@@ -89,6 +92,7 @@ export default function SearchPage() {
   
     setLoading(true)
     setError(null)
+    setRequiresAuth(false)
     
     try {
       console.log('Searching for:', searchQuery)
@@ -102,7 +106,16 @@ export default function SearchPage() {
       })
   
       if (!response.ok) {
-        throw new Error("Sorry, I couldn't find an answer to your question. Please try another.")
+        const errorBody = await response.json().catch(() => null)
+        const message =
+          (errorBody && typeof errorBody.error === 'string' && errorBody.error) ||
+          "Sorry, I couldn't find an answer to your question. Please try another."
+
+        if (response.status === 401 && errorBody?.code === 'AUTH_REQUIRED') {
+          setRequiresAuth(true)
+        }
+
+        throw new Error(message)
       }
   
       const data: SearchResponse = await response.json()
@@ -162,6 +175,7 @@ export default function SearchPage() {
       setQuery(searchQuery) // Update the input field
       setResults(sortedPosts)
       setAnswer(answer)
+      setRequiresAuth(false)
 
     } catch (err) {
       console.error('Search error:', err)
@@ -198,6 +212,7 @@ export default function SearchPage() {
       setResults([])
       setAnswer('')
       setError(null)
+      setRequiresAuth(false)
     }
   }}
   className="flex-1 px-4 py-3 text-lg border rounded-lg dark:bg-gray-800 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -255,6 +270,22 @@ export default function SearchPage() {
         <div className="p-4">
           {error}
         </div>
+        {requiresAuth && (
+          <div className="px-4 pb-4 flex gap-3">
+            <Link
+              href="/sign-up"
+              className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+            >
+              Create Account
+            </Link>
+            <Link
+              href="/sign-in"
+              className="inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
         </>
       )}
 
@@ -262,7 +293,22 @@ export default function SearchPage() {
         <>
           
           <div className="p-4 max-w-5xl mb-12 prose dark:prose-invert prose-lg">
-            <ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children }) => (
+                  <div className="my-4 overflow-x-auto">
+                    <table className="min-w-full border-collapse text-left text-base">{children}</table>
+                  </div>
+                ),
+                th: ({ children }) => (
+                  <th className="border-b border-gray-300 px-3 py-2 font-semibold dark:border-gray-600">{children}</th>
+                ),
+                td: ({ children }) => (
+                  <td className="border-b border-gray-200 px-3 py-2 align-top dark:border-gray-700">{children}</td>
+                ),
+              }}
+            >
               {answer}
             </ReactMarkdown>
           </div>
