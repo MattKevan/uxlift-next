@@ -56,6 +56,84 @@ interface SearchHistoryPayload {
   error: string | null
 }
 
+const MAX_VECTOR_CANDIDATES = 80
+const MAX_RETURNED_RESULTS = 20
+const MIN_SCORE_FLOOR = 0.45
+const SCORE_DROP_FROM_BEST = 0.18
+const CONTEXT_SOURCES_LIMIT = 12
+const SOURCE_EXCERPT_CHARS = 600
+
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function mapMatchToDocument(match: {
+  id: string
+  score?: number
+  metadata?: RecordMetadata
+}): DocumentMatch | null {
+  const metadata = match.metadata as PineconeMetadata | undefined
+  const postId = metadata?.post_id
+  const title = asString(metadata?.title)
+  const link = asString(metadata?.link)
+  const content = asString(metadata?.content)
+
+  if (typeof postId !== 'number' || !title || !link || !content) {
+    return null
+  }
+
+  return {
+    id: match.id,
+    content,
+    metadata: {
+      post_id: postId,
+      title,
+      link,
+    },
+    similarity: match.score || 0,
+  }
+}
+
+function selectRelevantDocuments(matches: Array<{
+  id: string
+  score?: number
+  metadata?: RecordMetadata
+}>): DocumentMatch[] {
+  const mapped = matches
+    .map(mapMatchToDocument)
+    .filter((item): item is DocumentMatch => item !== null)
+    .sort((a, b) => b.similarity - a.similarity)
+
+  if (mapped.length === 0) {
+    return []
+  }
+
+  // Keep one best chunk per article to increase article diversity.
+  const byPostId = new Map<number, DocumentMatch>()
+  for (const item of mapped) {
+    const current = byPostId.get(item.metadata.post_id)
+    if (!current || item.similarity > current.similarity) {
+      byPostId.set(item.metadata.post_id, item)
+    }
+  }
+
+  const uniqueByPost = Array.from(byPostId.values()).sort((a, b) => b.similarity - a.similarity)
+  const topScore = uniqueByPost[0]?.similarity || 0
+  const dynamicFloor = Math.max(MIN_SCORE_FLOOR, topScore - SCORE_DROP_FROM_BEST)
+
+  const filtered = uniqueByPost.filter((item) => item.similarity >= dynamicFloor)
+  return filtered.slice(0, MAX_RETURNED_RESULTS)
+}
+
+function stripInlineCitations(value: string): string {
+  return value
+    .replace(/\s*\[\d+\]/g, '')
+    .replace(/\[\d+\]\s*/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 const createServiceClient = () => createSupabaseClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -162,60 +240,17 @@ export async function POST(request: NextRequest) {
 
     let documents: DocumentMatch[] = []
 
-    const strictQueryOptions: QueryOptions = {
+    const wideQueryOptions: QueryOptions = {
       vector: embedding.data[0].embedding,
-      topK: 12,
+      topK: MAX_VECTOR_CANDIDATES,
       includeMetadata: true,
     }
 
     try {
-      const strictResults = await index.query(strictQueryOptions)
-
-      if (strictResults.matches && strictResults.matches.length > 0) {
-        documents = strictResults.matches
-          .filter((match) => (match.score || 0) >= 0.75)
-          .map((match) => ({
-            id: match.id,
-            content: (match.metadata as PineconeMetadata).content,
-            metadata: {
-              post_id: (match.metadata as PineconeMetadata).post_id,
-              title: (match.metadata as PineconeMetadata).title,
-              link: (match.metadata as PineconeMetadata).link,
-            },
-            similarity: match.score || 0,
-          }))
-      }
-    } catch (firstTryError) {
-      console.error('First attempt failed:', firstTryError)
-    }
-
-    if (documents.length === 0) {
-      const relaxedQueryOptions: QueryOptions = {
-        vector: embedding.data[0].embedding,
-        topK: 3,
-        includeMetadata: true,
-      }
-
-      try {
-        const relaxedResults = await index.query(relaxedQueryOptions)
-
-        if (relaxedResults.matches) {
-          documents = relaxedResults.matches
-            .filter((match) => (match.score || 0) >= 0.6)
-            .map((match) => ({
-              id: match.id,
-              content: (match.metadata as PineconeMetadata).content,
-              metadata: {
-                post_id: (match.metadata as PineconeMetadata).post_id,
-                title: (match.metadata as PineconeMetadata).title,
-                link: (match.metadata as PineconeMetadata).link,
-              },
-              similarity: match.score || 0,
-            }))
-        }
-      } catch (secondTryError) {
-        console.error('Second attempt failed:', secondTryError)
-      }
+      const wideResults = await index.query(wideQueryOptions)
+      documents = selectRelevantDocuments(wideResults.matches || [])
+    } catch (queryError) {
+      console.error('Search query failed:', queryError)
     }
 
     if (documents.length === 0) {
@@ -233,38 +268,77 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const contextText = documents
-      .map((doc: DocumentMatch) => doc.content)
+    const sourcesForAnswer = documents.slice(0, CONTEXT_SOURCES_LIMIT)
+    const formattedSources = sourcesForAnswer
+      .map((doc, index) => {
+        const sourceNumber = index + 1
+        return [
+          `[${sourceNumber}] ${doc.metadata.title}`,
+          `URL: ${doc.metadata.link}`,
+          `Relevance: ${doc.similarity.toFixed(3)}`,
+          `Excerpt: ${doc.content.slice(0, SOURCE_EXCERPT_CHARS)}`,
+        ].join('\n')
+      })
       .join('\n\n')
-      .slice(0, 2000)
 
     let summaryText: string | null = null
     if (hasContentLlmCredentials) {
+      const baseMessages = [
+        {
+          role: 'system' as const,
+          content: `You are a senior UX educator and practitioner.
+Answer the user's question directly using the provided sources as evidence.
+
+Rules:
+- Do not say "the query", "the context", "the results", or "the articles" unless explicitly asked.
+- Do not include citation markers like [1], [2], or source IDs in the output.
+- Start with a direct answer in 1-2 sentences.
+- Then add 4-6 concise bullet points with practical guidance.
+- If the user asks for recommendations (books, tools, methods), provide a ranked list with one-line reasons.
+- If evidence is weak or incomplete, say what is missing instead of guessing.
+- Prefer bullet lists. Do not use Markdown tables unless the user asks for a table.`,
+        },
+        {
+          role: 'user' as const,
+          content: `User question: "${query}"
+
+Sources:
+${formattedSources}
+
+Task:
+1) Answer the user question directly.
+2) Use only source-backed claims.
+3) Keep it concise and actionable.`,
+        },
+      ]
+
       const summary = await contentLlmClient.chat.completions.create({
         model: contentLlmModel,
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert UX design educator. Your role is to provide clear, accurate, and helpful answers about UX design concepts.
-When answering questions, follow these guidelines:
-- Provide concrete explanations with real-world examples where relevant
-- Focus on practical applications and industry best practices
-- If the question is about fundamentals (like "What is UX?"), start with a clear definition
-- Include key principles or components when explaining concepts
-- Keep the tone professional but approachable
-- Format your response with Markdown if necessary
-- Write it as though you are giving the information, not 'the context...' or 'the query asks...'
-Use the provided context to enhance your answer, but also draw from fundamental UX knowledge for basic questions. Do not make things up if you don't know the answer, just say you don't know.`,
-          },
-          {
-            role: 'user',
-            content: `Query: "${query}"\n\nContext:\n${contextText}\n\nProvide a brief summary of how these results relate to the query.`,
-          },
-        ],
+        messages: baseMessages,
         temperature: 0,
-        max_tokens: 1000,
+        max_tokens: 1200,
       })
-      summaryText = summary.choices[0]?.message?.content?.trim() || null
+
+      let text = summary.choices[0]?.message?.content?.trim() || ''
+
+      // If the response was cut off, ask for a complete concise rewrite.
+      if (summary.choices[0]?.finish_reason === 'length') {
+        const retry = await contentLlmClient.chat.completions.create({
+          model: contentLlmModel,
+          messages: [
+            ...baseMessages,
+            {
+              role: 'user',
+              content: 'Your previous answer was cut off. Rewrite it fully in under 220 words and finish cleanly.',
+            },
+          ],
+          temperature: 0,
+          max_tokens: 600,
+        })
+        text = retry.choices[0]?.message?.content?.trim() || text
+      }
+
+      summaryText = text ? stripInlineCitations(text) : null
     } else {
       logger.warn('Search summary LLM unavailable; returning results without generated answer', {
         provider: contentLlmProvider,

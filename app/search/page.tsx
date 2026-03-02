@@ -196,7 +196,7 @@ export default function SearchPage() {
       <div className='px-4 mb-10 sm:mb-18 mt-6'>
       <h1 className="text-4xl md:text-5xl font-bold mb-6 md:w-3/4 lg:w-4/5 tracking-tight">
         Search
-         <span className="text-gray-500"> over 5500 articles and get answers to your UX questions with our AI search tool.</span>
+         <span className="text-gray-500"> thousands of articles and get answers to your UX questions with our AI search tool.</span>
         </h1>
         </div>
 
