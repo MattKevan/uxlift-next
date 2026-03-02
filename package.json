@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "next-sitemap",
+    "postbuild": "echo 'Dynamic sitemap routes enabled; skipping next-sitemap'",
     "start": "next start",
     "env:local": "node scripts/switch-supabase-env.js local",
     "env:live": "node scripts/switch-supabase-env.js live",

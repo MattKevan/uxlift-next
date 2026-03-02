@@ -7,6 +7,11 @@ const publicApiRoutes: string[] = [
   '/api/image-proxy',
 ];
 
+const publicBypassRoutes: string[] = [
+  '/sitemap.xml',
+  '/robots.txt',
+];
+
 export const updateSession = async (request: NextRequest) => {
   try {
     let response = NextResponse.next({
@@ -38,12 +43,16 @@ export const updateSession = async (request: NextRequest) => {
       },
     );
 
-    const isPublicRoute = publicApiRoutes.some(route => 
+    const isPublicRoute = publicApiRoutes.some(route =>
       request.nextUrl.pathname.startsWith(route)
     );
 
-    if (isPublicRoute) {
-    return response;
+    const isPublicBypassRoute =
+      publicBypassRoutes.includes(request.nextUrl.pathname) ||
+      request.nextUrl.pathname.startsWith('/sitemaps/');
+
+    if (isPublicRoute || isPublicBypassRoute) {
+      return response;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
