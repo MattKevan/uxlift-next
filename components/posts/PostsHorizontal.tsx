@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
 import { Bookmark, Flag, Like } from '@mynaui/icons-react'
-import { Button } from '../catalyst/button'
+import { Button } from '../ui/button'
 import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
@@ -91,16 +91,16 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
         </p>
         <div className="mt-auto text-sm text-gray-400 items-center justify-between flex">
           <div className='flex gap-2'>
-<Button outline className='text-gray-500'>      
+<Button variant="outline" size="icon" className='text-gray-500' type="button" aria-label="Like post">      
    <Like />
 </Button>      
-<Button outline>      
+<Button variant="outline" size="icon" type="button" aria-label="Bookmark post">      
 
             <Bookmark />
             </Button>
           </div>
           <div>
-          <Button outline>      
+          <Button variant="outline" size="icon" type="button" aria-label="Report post">      
 
             <Flag />
             </Button>

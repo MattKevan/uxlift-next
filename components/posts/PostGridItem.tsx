@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { Bookmark, Flag, Like } from '@mynaui/icons-react'
-import { Button } from '../catalyst/button'
+import { Button } from '../ui/button'
 import { format } from 'date-fns'
 
 type BasePost = Database['public']['Tables']['content_post']['Row']
@@ -97,16 +97,16 @@ export function PostGridItem({ post }: { post: PostWithSite }) {
         )}
         <div className="mt-auto text-sm text-gray-500 flex items-center justify-between">
           <div className='flex gap-2'>
-            <Button plain>
+            <Button variant="ghost" size="icon" type="button" aria-label="Like post">
               <Like />
             </Button>
-            <Button plain>
+            <Button variant="ghost" size="icon" type="button" aria-label="Bookmark post">
             <Bookmark/>
             </Button>
             
           </div>
           <div>
-            <Button plain>
+            <Button variant="ghost" size="icon" type="button" aria-label="Report post">
             <Flag/>
             </Button>
           </div>

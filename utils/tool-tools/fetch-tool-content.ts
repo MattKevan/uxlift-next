@@ -266,8 +266,17 @@ function slugify(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
+const TOOL_SLUG_MAX_LENGTH = 50
+
+function trimSlugToMaxLength(value: string, maxLength = TOOL_SLUG_MAX_LENGTH): string {
+  return value
+    .slice(0, maxLength)
+    .replace(/-+$/g, '')
+}
+
 async function generateUniqueSlug(baseSlug: string, supabase: SupabaseClient<Database>) {
-  const normalizedBase = baseSlug || `tool-${Date.now()}`
+  const fallbackSlug = `tool-${Date.now()}`
+  const normalizedBase = trimSlugToMaxLength(baseSlug || fallbackSlug) || fallbackSlug
   let candidate = normalizedBase
   let counter = 2
 
@@ -282,7 +291,10 @@ async function generateUniqueSlug(baseSlug: string, supabase: SupabaseClient<Dat
       return candidate
     }
 
-    candidate = `${normalizedBase}-${counter}`
+    const suffix = `-${counter}`
+    const maxBaseLength = Math.max(1, TOOL_SLUG_MAX_LENGTH - suffix.length)
+    const trimmedBase = trimSlugToMaxLength(normalizedBase, maxBaseLength)
+    candidate = `${trimmedBase}${suffix}`
     counter += 1
   }
 }

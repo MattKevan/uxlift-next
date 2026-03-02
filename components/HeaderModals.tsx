@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Bookmark, Lightning } from '@mynaui/icons-react'
 import { Dialog, DialogTitle, DialogDescription, DialogBody, DialogActions } from './catalyst/dialog'
-import { Button } from './catalyst/button'
+import { Button } from './ui/button'
 import { useRouter } from 'next/navigation'
 
 export function AuthModals() {
@@ -49,8 +49,8 @@ export function AuthModals() {
           </p>
         </DialogBody>
         <DialogActions>
-          <Button onClick={() => setFeedModalOpen(false)}>Close</Button>
-          <Button color="white" onClick={handleCreateAccount}>Create Account</Button>
+          <Button variant="outline" onClick={() => setFeedModalOpen(false)}>Close</Button>
+          <Button onClick={handleCreateAccount}>Create Account</Button>
         </DialogActions>
       </Dialog>
 
@@ -71,8 +71,8 @@ export function AuthModals() {
           </p>
         </DialogBody>
         <DialogActions>
-          <Button onClick={() => setBookmarkModalOpen(false)}>Close</Button>
-          <Button color="white" onClick={handleCreateAccount}>Create Account</Button>
+          <Button variant="outline" onClick={() => setBookmarkModalOpen(false)}>Close</Button>
+          <Button onClick={handleCreateAccount}>Create Account</Button>
         </DialogActions>
       </Dialog>
     </>

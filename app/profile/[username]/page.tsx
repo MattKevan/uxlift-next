@@ -2,7 +2,8 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import type { Database } from '@/types/supabase'
 import { CustomImage } from '@/components/Image'
-import { Button } from '@/components/catalyst/button'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 type Params = Promise<{ username: string }>
 type SearchParams = Promise<{ page?: string }>
@@ -84,7 +85,9 @@ export default async function ProfilePage({
       </p>
       </div>
       <div>
-            <Button href='/profile/edit' outline>Edit profile</Button>
+            <Button asChild variant="outline">
+              <Link href='/profile/edit'>Edit profile</Link>
+            </Button>
       </div>
       </div>
 

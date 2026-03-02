@@ -1,8 +1,13 @@
 'use client'
 
-import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/components/catalyst/dialog'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select } from '@/components/ui/select'
 import type { Database } from '@/types/supabase'
 import { MultipleSelector, Option } from '@/components/ui/multiple-selector'
 
@@ -39,26 +44,21 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     tags_list: post.tags_list,
     title: post.title,
     user_id: post.user_id,
-    slug: post.slug 
-
+    slug: post.slug,
   })
   const [selectedTopics, setSelectedTopics] = useState<Option[]>(
-    post.content_post_topics.map(pt => ({
+    post.content_post_topics.map((pt) => ({
       value: String(pt.content_topic.id),
-      label: pt.content_topic.name
+      label: pt.content_topic.name,
     }))
   )
   const [availableTopics, setAvailableTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Fetch available topics
   useEffect(() => {
     const fetchTopics = async () => {
-      const { data: topics } = await supabase
-        .from('content_topic')
-        .select('*')
-        .order('name')
+      const { data: topics } = await supabase.from('content_topic').select('*').order('name')
 
       if (topics) {
         setAvailableTopics(topics)
@@ -66,15 +66,13 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     }
 
     fetchTopics()
-  }, [])
+  }, [supabase])
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
   }
 
@@ -88,19 +86,15 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
     setError('')
 
     try {
-      // Start a transaction
-      const { data: updatedPost, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('content_post')
         .update({
-          ...formData
+          ...formData,
         })
         .eq('id', post.id)
-        .select()
-        .single()
 
       if (updateError) throw updateError
 
-      // Delete existing topic relationships
       const { error: deleteError } = await supabase
         .from('content_post_topics')
         .delete()
@@ -108,21 +102,17 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
 
       if (deleteError) throw deleteError
 
-      // Insert new topic relationships
       if (selectedTopics.length > 0) {
-        const { error: insertError } = await supabase
-          .from('content_post_topics')
-          .insert(
-            selectedTopics.map(topic => ({
-              post_id: post.id,
-              topic_id: parseInt(topic.value)
-            }))
-          )
+        const { error: insertError } = await supabase.from('content_post_topics').insert(
+          selectedTopics.map((topic) => ({
+            post_id: post.id,
+            topic_id: parseInt(topic.value, 10),
+          }))
+        )
 
         if (insertError) throw insertError
       }
 
-      // Fetch the updated post with all relations
       const { data: finalPost, error: fetchError } = await supabase
         .from('content_post')
         .select(`
@@ -147,111 +137,84 @@ export default function EditPostModal({ post, isOpen, onClose, onUpdate }: EditP
   }
 
   return (
-    <Dialog open={isOpen} onClose={onClose}>
-      <div className="max-w-2xl">
-        <DialogTitle>Edit Post</DialogTitle>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Post</DialogTitle>
+        </DialogHeader>
 
-        <DialogBody>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Title
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                  required
-                />
-              </label>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="post-title">Title</Label>
+            <Input
+              id="post-title"
+              type="text"
+              name="title"
+              value={formData.title ?? ''}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Description
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                  required
-                />
-              </label>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="post-description">Description</Label>
+            <Textarea
+              id="post-description"
+              name="description"
+              value={formData.description ?? ''}
+              onChange={handleChange}
+              rows={3}
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Summary
-                <textarea
-                  name="summary"
-                  value={formData.summary}
-                  onChange={handleChange}
-                  rows={2}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                  required
-                />
-              </label>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="post-summary">Summary</Label>
+            <Textarea
+              id="post-summary"
+              name="summary"
+              value={formData.summary ?? ''}
+              onChange={handleChange}
+              rows={2}
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Topics
-                <div className="mt-1">
-                  <MultipleSelector
-                    value={selectedTopics}
-                    onChange={handleTopicChange}
-                    options={availableTopics.map(topic => ({
-                      value: String(topic.id),
-                      label: topic.name
-                    }))}
-                    placeholder="Select topics..."
-                    emptyIndicator={
-                      <p className="text-center text-sm text-gray-500">No topics found</p>
-                    }
-                  />
-                </div>
-              </label>
-            </div>
+          <div className="space-y-2">
+            <Label>Topics</Label>
+            <MultipleSelector
+              value={selectedTopics}
+              onChange={handleTopicChange}
+              options={availableTopics.map((topic) => ({
+                value: String(topic.id),
+                label: topic.name,
+              }))}
+              placeholder="Select topics..."
+              emptyIndicator={<p className="text-center text-sm text-muted-foreground">No topics found</p>}
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Status
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </label>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="post-status">Status</Label>
+            <Select id="post-status" name="status" value={formData.status ?? 'draft'} onChange={handleChange}>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </Select>
+          </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DialogActions>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </DialogActions>
-          </form>
-        </DialogBody>
-      </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   )
 }

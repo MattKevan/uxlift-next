@@ -12,7 +12,7 @@ jest.mock('@/components/submit-button/submit-button', () => ({
 }))
 
 // Mock the checkbox component
-jest.mock('@/components/catalyst/checkbox', () => ({
+jest.mock('@/components/ui/checkbox', () => ({
   Checkbox: ({ id, name }: { id: string, name: string }) => (
     <input type="checkbox" id={id} name={name} />
   )

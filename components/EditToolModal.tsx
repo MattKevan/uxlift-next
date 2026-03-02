@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import type { Database } from '@/types/supabase'
 import { CldUploadWidget } from 'next-cloudinary'
 import { sanitizeToolTitle } from '@/utils/tool-tools/sanitize-tool-title'
+import { MultipleSelector, Option } from '@/components/ui/multiple-selector'
 
 type Tool = Database['public']['Tables']['content_tool']['Row']
 type Topic = Database['public']['Tables']['content_topic']['Row']
@@ -81,8 +82,11 @@ export default function EditToolModal({
   const supabase = createClient()
   const isCreateMode = !tool
   const [formData, setFormData] = useState<Omit<Tool, 'id'>>(createInitialFormData(tool))
-  const [selectedTopics, setSelectedTopics] = useState<number[]>(
-    tool?.content_tool_topics.map((tt) => tt.content_topic.id) || []
+  const [selectedTopics, setSelectedTopics] = useState<Option[]>(
+    tool?.content_tool_topics.map((tt) => ({
+      value: String(tt.content_topic.id),
+      label: tt.content_topic.name,
+    })) || []
   )
   const [availableTopics, setAvailableTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -96,7 +100,12 @@ export default function EditToolModal({
     if (!isOpen) return
 
     setFormData(createInitialFormData(tool))
-    setSelectedTopics(tool?.content_tool_topics.map((tt) => tt.content_topic.id) || [])
+    setSelectedTopics(
+      tool?.content_tool_topics.map((tt) => ({
+        value: String(tt.content_topic.id),
+        label: tt.content_topic.name,
+      })) || []
+    )
     setUploadedImage(null)
     setError('')
   }, [isOpen, tool])
@@ -148,9 +157,8 @@ export default function EditToolModal({
     }))
   }
 
-  const handleTopicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map((option) => parseInt(option.value, 10))
-    setSelectedTopics(selectedOptions)
+  const handleTopicChange = (options: Option[]) => {
+    setSelectedTopics(options)
   }
 
   const handleCreate = async () => {
@@ -198,10 +206,10 @@ export default function EditToolModal({
     if (deleteError) throw deleteError
 
     if (selectedTopics.length > 0) {
-      const topicRelations = selectedTopics.map((topicId) => ({
+      const topicRelations = selectedTopics.map((topic) => ({
         id: Math.floor(Math.random() * 1_000_000_000),
         tool_id: tool.id,
-        topic_id: topicId,
+        topic_id: parseInt(topic.value, 10),
       }))
 
       const { error: insertError } = await supabase
@@ -387,20 +395,21 @@ export default function EditToolModal({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                     Topics
-                    <select
-                      multiple
-                      value={selectedTopics.map(String)}
-                      onChange={handleTopicChange}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                    >
-                      {availableTopics.map((topic) => (
-                        <option key={topic.id} value={topic.id}>
-                          {topic.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-1">
+                      <MultipleSelector
+                        value={selectedTopics}
+                        onChange={handleTopicChange}
+                        options={availableTopics.map((topic) => ({
+                          value: String(topic.id),
+                          label: topic.name,
+                        }))}
+                        placeholder="Select topics..."
+                        emptyIndicator={
+                          <p className="text-center text-sm text-gray-500">No topics found</p>
+                        }
+                      />
+                    </div>
                   </label>
-                  <p className="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple topics</p>
                 </div>
 
                 <div>

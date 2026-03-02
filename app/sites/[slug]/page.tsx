@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Pager } from '@/components/Pager'
-import { Button } from '@/components/catalyst/button'
+import { Button } from '@/components/ui/button'
 import { ExternalLink } from '@mynaui/icons-react'
 import type { Metadata } from 'next'
 
@@ -170,13 +170,15 @@ export default async function SitePage({
       )}
       </h1>
       <div className='flex gap-2'>
-      <Button >
-        <ExternalLink/>
-            <a href={site.url} target="_blank" rel="noopener noreferrer" >
-              Go to site
-            </a>
-          </Button> 
-           <Button outline>Follow</Button>
+      {site.url && (
+        <Button asChild>
+          <a href={site.url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink />
+            Go to site
+          </a>
+        </Button>
+      )}
+           <Button variant="outline" type="button">Follow</Button>
       </div>
       </div>
   

@@ -1,9 +1,9 @@
 // /app/sign-up/page.tsx
 
 import { signUpAction } from "@/app/actions/actions";
-import { Checkbox } from "@/components/catalyst/checkbox";
 import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button/submit-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { CldImage } from 'next-cloudinary'
-import { Button } from '@/components/catalyst/button'
+import { Button } from '@/components/ui/button'
 
 type Site = Database['public']['Tables']['content_site']['Row']
 
@@ -31,17 +31,20 @@ export function DirectoryCard({ site }: { site: Site }) {
             </p>
           )}
           <div className="flex gap-2 mt-auto">
-            <Button href={`/sites/${site.slug}`} color="white">
-              View articles
+            <Button asChild variant="outline">
+              <Link href={`/sites/${site.slug}`}>View articles</Link>
             </Button>
-            <Button 
-              href={site.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              color="white"
-            >
-              Visit site
-            </Button>
+            {site.url && (
+              <Button asChild variant="outline">
+                <a
+                  href={site.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Visit site
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       </div>
