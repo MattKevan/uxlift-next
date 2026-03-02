@@ -3,13 +3,13 @@
 import { createClient } from '@/utils/supabase/server'
 import {
   Pagination,
-  PaginationPrevious, 
+  PaginationContent,
+  PaginationPrevious,
   PaginationNext,
-  PaginationList,
-  PaginationPage,
-  PaginationGap,
-} from '@/components/catalyst/pagination'
-import { CldImage } from 'next-cloudinary'
+  PaginationItem,
+  PaginationLink,
+  PaginationEllipsis,
+} from '@/components/ui/pagination'
 import { BookCard } from '@/components/BookCards'
 
 export const dynamic = 'force-dynamic'
@@ -92,6 +92,8 @@ export default async function BooksPage({
   }
 
   const visiblePages = getVisiblePages()
+  const previousHref = currentPage > 1 ? `/books?page=${currentPage - 1}` : null
+  const nextHref = currentPage < totalPages ? `/books?page=${currentPage + 1}` : null
 
   return (
     <main>
@@ -113,29 +115,42 @@ export default async function BooksPage({
 
       {totalPages > 1 && (
         <Pagination className="p-4 border-b">
-          <PaginationPrevious 
-            href={currentPage > 1 ? `/books?page=${currentPage - 1}` : null} 
-          />
-          
-          <PaginationList>
-            {visiblePages.map((pageNum, idx) => 
-              pageNum === 'gap' ? (
-                <PaginationGap key={`gap-${idx}`} />
+          <PaginationContent>
+            <PaginationItem>
+              {previousHref ? (
+                <PaginationPrevious href={previousHref} />
               ) : (
-                <PaginationPage
-                  key={pageNum}
-                  href={`/books?page=${pageNum}`}
-                  current={pageNum === currentPage}
-                >
-                  {pageNum}
-                </PaginationPage>
+                <span className="pointer-events-none opacity-50">
+                  <PaginationPrevious href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+            {visiblePages.map((pageNum, idx) =>
+              pageNum === 'gap' ? (
+                <PaginationItem key={`gap-${idx}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={pageNum}>
+                  <PaginationLink
+                    href={`/books?page=${pageNum}`}
+                    isActive={pageNum === currentPage}
+                  >
+                    {pageNum}
+                  </PaginationLink>
+                </PaginationItem>
               )
             )}
-          </PaginationList>
-
-          <PaginationNext 
-            href={currentPage < totalPages ? `/books?page=${currentPage + 1}` : null}
-          />
+            <PaginationItem>
+              {nextHref ? (
+                <PaginationNext href={nextHref} />
+              ) : (
+                <span className="pointer-events-none opacity-50">
+                  <PaginationNext href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+          </PaginationContent>
         </Pagination>
       )}
     </main>

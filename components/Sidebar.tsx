@@ -1,5 +1,3 @@
-import { SidebarItem } from '@/components/catalyst/sidebar'
-
 interface MobileSidebarProps {
   onClose?: () => void
 }

@@ -2,7 +2,6 @@
 import { User } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 import Link from 'next/link'
-import { Avatar } from '@/components/catalyst/avatar'
 import LogoutButton from './LogoutButton'
 import { Cog, Command, UserCircle } from '@mynaui/icons-react'
 import { CustomImage } from './Image'

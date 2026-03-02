@@ -1,15 +1,15 @@
 // /app/news/page.tsx
 
 import { createClient } from '@/utils/supabase/server'
-import { PostItemSmall } from '@/components/posts/PostItemSmall'
 import {
   Pagination,
+  PaginationContent,
   PaginationPrevious,
   PaginationNext,
-  PaginationList,
-  PaginationPage,
-  PaginationGap,
-} from '@/components/catalyst/pagination'
+  PaginationItem,
+  PaginationLink,
+  PaginationEllipsis,
+} from '@/components/ui/pagination'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 
 export const dynamic = 'force-dynamic'
@@ -96,6 +96,8 @@ export default async function NewsPage({
   }
 
   const visiblePages = getVisiblePages()
+  const previousHref = currentPage > 1 ? `/news?page=${currentPage - 1}` : null
+  const nextHref = currentPage < totalPages ? `/news?page=${currentPage + 1}` : null
 
   return (
     <main>
@@ -115,29 +117,42 @@ export default async function NewsPage({
 
       {totalPages > 1 && (
         <Pagination className="p-4 border-b">
-          <PaginationPrevious 
-            href={currentPage > 1 ? `/news?page=${currentPage - 1}` : null} 
-          />
-          
-          <PaginationList>
-            {visiblePages.map((pageNum, idx) => 
-              pageNum === 'gap' ? (
-                <PaginationGap key={`gap-${idx}`} />
+          <PaginationContent>
+            <PaginationItem>
+              {previousHref ? (
+                <PaginationPrevious href={previousHref} />
               ) : (
-                <PaginationPage
-                  key={pageNum}
-                  href={`/news?page=${pageNum}`}
-                  current={pageNum === currentPage}
-                >
-                  {pageNum}
-                </PaginationPage>
+                <span className="pointer-events-none opacity-50">
+                  <PaginationPrevious href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+            {visiblePages.map((pageNum, idx) =>
+              pageNum === 'gap' ? (
+                <PaginationItem key={`gap-${idx}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={pageNum}>
+                  <PaginationLink
+                    href={`/news?page=${pageNum}`}
+                    isActive={pageNum === currentPage}
+                  >
+                    {pageNum}
+                  </PaginationLink>
+                </PaginationItem>
               )
             )}
-          </PaginationList>
-
-          <PaginationNext 
-            href={currentPage < totalPages ? `/news?page=${currentPage + 1}` : null}
-          />
+            <PaginationItem>
+              {nextHref ? (
+                <PaginationNext href={nextHref} />
+              ) : (
+                <span className="pointer-events-none opacity-50">
+                  <PaginationNext href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+          </PaginationContent>
         </Pagination>
       )}
     </main>

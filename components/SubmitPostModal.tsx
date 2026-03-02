@@ -2,8 +2,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogTitle, DialogDescription, DialogBody, DialogActions } from '@/components/catalyst/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useNotification } from '@/contexts/NotificationContext'
 import type { Database } from '@/types/supabase'
 
@@ -58,29 +67,28 @@ export default function SubmitPostModal({ isOpen, onClose, onSuccess }: SubmitPo
   }
 
   return (
-    <Dialog open={isOpen} onClose={onClose}>
-      <DialogTitle>Submit content</DialogTitle>
-      <DialogDescription>
-        Share an article with the UX Lift community.
-      </DialogDescription>
-      
-      <DialogBody>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Submit content</DialogTitle>
+          <DialogDescription>
+            Share an article with the UX Lift community.
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-              URL
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800"
-                placeholder="https://example.com/article"
-                required
-              />
-            </label>
+          <div className="space-y-2">
+            <Label htmlFor="submit-content-url">URL</Label>
+            <Input
+              id="submit-content-url"
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/article"
+              required
+            />
           </div>
 
-          <DialogActions>
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -94,9 +102,9 @@ export default function SubmitPostModal({ isOpen, onClose, onSuccess }: SubmitPo
             >
               {isLoading ? 'Processing...' : 'Submit'}
             </Button>
-          </DialogActions>
+          </DialogFooter>
         </form>
-      </DialogBody>
+      </DialogContent>
     </Dialog>
   )
 }

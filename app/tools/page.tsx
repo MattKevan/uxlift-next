@@ -3,7 +3,6 @@
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
-import { Divider } from '@/components/catalyst/divider'
 import { ToolCard } from '@/components/ToolCards'
 
 type Topic = Database['public']['Tables']['content_topic']['Row']

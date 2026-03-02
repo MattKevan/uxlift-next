@@ -2,12 +2,13 @@ import { createClient } from '@/utils/supabase/server'
 import { NewsletterPost } from '@/components/NewsletterPost'
 import {
   Pagination,
+  PaginationContent,
   PaginationPrevious,
   PaginationNext,
-  PaginationList,
-  PaginationPage,
-  PaginationGap,
-} from '@/components/catalyst/pagination'
+  PaginationItem,
+  PaginationLink,
+  PaginationEllipsis,
+} from '@/components/ui/pagination'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -65,6 +66,8 @@ export default async function NewsletterPage({
   }
 
   const visiblePages = getVisiblePages()
+  const previousHref = currentPage > 1 ? `/newsletter?page=${currentPage - 1}` : null
+  const nextHref = currentPage < totalPages ? `/newsletter?page=${currentPage + 1}` : null
 
   return (
     <main>
@@ -86,29 +89,42 @@ export default async function NewsletterPage({
 
       {totalPages > 1 && (
         <Pagination className="p-4 border-b">
-          <PaginationPrevious 
-            href={currentPage > 1 ? `/newsletter?page=${currentPage - 1}` : null} 
-          />
-          
-          <PaginationList>
-            {visiblePages.map((pageNum, idx) => 
-              pageNum === 'gap' ? (
-                <PaginationGap key={`gap-${idx}`} />
+          <PaginationContent>
+            <PaginationItem>
+              {previousHref ? (
+                <PaginationPrevious href={previousHref} />
               ) : (
-                <PaginationPage
-                  key={pageNum}
-                  href={`/newsletter?page=${pageNum}`}
-                  current={pageNum === currentPage}
-                >
-                  {pageNum}
-                </PaginationPage>
+                <span className="pointer-events-none opacity-50">
+                  <PaginationPrevious href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+            {visiblePages.map((pageNum, idx) =>
+              pageNum === 'gap' ? (
+                <PaginationItem key={`gap-${idx}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={pageNum}>
+                  <PaginationLink
+                    href={`/newsletter?page=${pageNum}`}
+                    isActive={pageNum === currentPage}
+                  >
+                    {pageNum}
+                  </PaginationLink>
+                </PaginationItem>
               )
             )}
-          </PaginationList>
-
-          <PaginationNext 
-            href={currentPage < totalPages ? `/newsletter?page=${currentPage + 1}` : null}
-          />
+            <PaginationItem>
+              {nextHref ? (
+                <PaginationNext href={nextHref} />
+              ) : (
+                <span className="pointer-events-none opacity-50">
+                  <PaginationNext href="#" tabIndex={-1} />
+                </span>
+              )}
+            </PaginationItem>
+          </PaginationContent>
         </Pagination>
       )}
     </main>

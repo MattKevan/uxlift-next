@@ -1,5 +1,12 @@
-import { Pagination, PaginationNext, PaginationPrevious, PaginationList,   PaginationGap,
-    PaginationPage } from '@/components/catalyst/pagination'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 
 interface PagerProps {
   currentPage: number
@@ -46,37 +53,52 @@ export function Pager({ currentPage, totalPages, baseUrl }: PagerProps) {
   }
 
   const pageRange = createPageRange()
+  const previousHref = currentPage > 1 ? `${baseUrl}?page=${currentPage - 1}` : null
+  const nextHref = currentPage < totalPages ? `${baseUrl}?page=${currentPage + 1}` : null
 
   return (
     <Pagination className="p-6 font-sans border-b">
-      <PaginationPrevious 
-        href={currentPage > 1 ? `${baseUrl}?page=${currentPage - 1}` : null}
-      />
-      
-      <PaginationList>
+      <PaginationContent>
+        <PaginationItem>
+          {previousHref ? (
+            <PaginationPrevious href={previousHref} />
+          ) : (
+            <span className="pointer-events-none opacity-50">
+              <PaginationPrevious href="#" tabIndex={-1} />
+            </span>
+          )}
+        </PaginationItem>
         {pageRange.map((pageNum, index) => {
           // If there's a gap in the sequence, add dots
           if (index > 0 && pageNum - pageRange[index - 1] > 1) {
             return (
-              <PaginationGap key={`gap-${pageNum}`} />
+              <PaginationItem key={`gap-${pageNum}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
             )
           }
           
           return (
-            <PaginationPage
-              key={pageNum}
-              href={`${baseUrl}?page=${pageNum}`}
-              current={pageNum === currentPage}
-            >
-              {pageNum}
-            </PaginationPage>
+            <PaginationItem key={pageNum}>
+              <PaginationLink
+                href={`${baseUrl}?page=${pageNum}`}
+                isActive={pageNum === currentPage}
+              >
+                {pageNum}
+              </PaginationLink>
+            </PaginationItem>
           )
         })}
-      </PaginationList>
-      
-      <PaginationNext 
-        href={currentPage < totalPages ? `${baseUrl}?page=${currentPage + 1}` : null}
-      />
+        <PaginationItem>
+          {nextHref ? (
+            <PaginationNext href={nextHref} />
+          ) : (
+            <span className="pointer-events-none opacity-50">
+              <PaginationNext href="#" tabIndex={-1} />
+            </span>
+          )}
+        </PaginationItem>
+      </PaginationContent>
     </Pagination>
   )
 }

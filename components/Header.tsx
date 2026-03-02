@@ -1,13 +1,11 @@
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
-import { Avatar } from '@/components/catalyst/avatar'
 import { MobileNav } from '@/components/MobileNav'
 import UserMenuButton from './UserMenuButton'
 import LoginRegisterButtons from './LoginRegisterButtons'
-import { Bookmark, FilePlus, Lightning, Search } from '@mynaui/icons-react'
+import { Lightning } from '@mynaui/icons-react'
 import { Button } from '@/components/ui/button'
 import SubmitContentButton from '@/components/SubmitContentButton'
-import { buttonVariants } from "@/components/ui/button"
 
 import {
   Popover,
