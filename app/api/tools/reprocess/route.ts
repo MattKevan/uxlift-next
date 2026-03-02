@@ -19,6 +19,7 @@ interface GitHubTokenCandidate {
 interface GitHubDispatchAttempt {
   source: string
   authScheme: 'token' | 'Bearer'
+  tokenLength: number
   status: number
   details: string
 }
@@ -110,6 +111,7 @@ async function queueToolReprocess(params: {
       attempts.push({
         source: candidate.source,
         authScheme,
+        tokenLength: candidate.token.length,
         status: response.status,
         details: truncateDetails(await response.text()),
       })
@@ -188,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     if (queueResult.reason === 'dispatch_failed') {
       const details = queueResult.attempts
-        .map((attempt) => `${attempt.source}/${attempt.authScheme}:${attempt.status}:${attempt.details}`)
+        .map((attempt) => `${attempt.source}/${attempt.authScheme}(len=${attempt.tokenLength}):${attempt.status}:${attempt.details}`)
         .join(' | ')
       return NextResponse.json(
         {
