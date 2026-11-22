@@ -1,7 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { cache } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getAllToolSlugs } from '@/lib/content/public-queries'
 import { notFound } from 'next/navigation'
 import { Database } from '@/types/supabase'
-import { Metadata, ResolvingMetadata } from 'next'
+import { Metadata } from 'next'
 import Markdown from 'react-markdown'
 import { Tag } from '@/components/Tags'
 import { Button } from '@/components/ui/button'
@@ -38,15 +40,20 @@ function getToolImageUrl(image: string | null) {
 }
 
 type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 interface PageProps {
   params: Params
-  searchParams: SearchParams
 }
 
-async function getToolData(slug: string) {
-  const supabase = await createClient()
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getAllToolSlugs()
+}
+
+const getToolData = cache(async (slug: string) => {
+  const supabase = createPublicClient()
   
   const { data: tool, error } = await supabase
     .from('content_tool')
@@ -68,11 +75,10 @@ async function getToolData(slug: string) {
   }
 
   return tool as ToolWithTopics
-}
+})
 
 export async function generateMetadata(
-  { params }: PageProps,
-  parent: ResolvingMetadata
+  { params }: PageProps
 ): Promise<Metadata> {
   const { slug } = await params
   const tool = await getToolData(slug)
@@ -106,7 +112,7 @@ export async function generateMetadata(
   }
 }
 
-export default async function ToolPage({ params, searchParams }: PageProps) {
+export default async function ToolPage({ params }: PageProps) {
   const { slug } = await params
   const tool = await getToolData(slug)
   const imageUrl = getToolImageUrl(tool?.image || null)
@@ -118,7 +124,7 @@ export default async function ToolPage({ params, searchParams }: PageProps) {
   const displayTitle = sanitizeToolTitle(tool.title, tool.title)
 
   // Get related tools with same topics
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   const topicIds = tool.content_tool_topics.map(({ topic }) => topic.id)
 
   const { data: relatedTools } = await supabase

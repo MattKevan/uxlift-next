@@ -10,13 +10,13 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * Only authenticated areas and API routes need a session. Public content
+     * pages must stay out of middleware so they can be served from the cache.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    '/admin/:path*',
+    '/protected/:path*',
+    '/profile/edit/:path*',
+    '/profile/create/:path*',
+    '/api/:path*',
   ],
 };

@@ -1,6 +1,6 @@
 // /app/tools/page.tsx
 
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import { ToolCard } from '@/components/ToolCards'
@@ -9,7 +9,7 @@ type Topic = Database['public']['Tables']['content_topic']['Row']
 type Tool = Database['public']['Tables']['content_tool']['Row']
 
 export default async function ToolsPage() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   // Get topics that have tools associated with them using a different approach
   const { data: topics, error: topicsError } = await supabase

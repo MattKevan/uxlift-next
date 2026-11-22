@@ -1,29 +1,17 @@
-import { createClient } from '@/utils/supabase/server'
-import Link from 'next/link'
-import { ResourceCard } from '@/components/ResourceCard'
-import type { Database } from '@/types/supabase'
+import { Suspense } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import ResourceBrowser from '@/components/resources/ResourceBrowser'
 import type { Metadata } from 'next'
 
-type Category = Database['public']['Tables']['content_resource_category']['Row']
-type Resource = Database['public']['Tables']['content_resource']['Row']
-
-type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ category?: string }>
-
-interface PageProps {
-  params: Params
-  searchParams: SearchParams
-}
+export const revalidate = false
 
 export const metadata: Metadata = {
   title: 'Resources | UX Lift',
   description: 'Discover UX resources including fonts, icon libraries, UI kits, and design systems.',
 }
 
-export default async function ResourcesPage({ params, searchParams }: PageProps) {
-  await params
-  const { category } = await searchParams
-  const supabase = await createClient()
+export default async function ResourcesPage() {
+  const supabase = createPublicClient()
 
   const { data: categories, error: categoriesError } = await supabase
     .from('content_resource_category')
@@ -35,12 +23,7 @@ export default async function ResourcesPage({ params, searchParams }: PageProps)
     return <div>Error loading resource categories</div>
   }
 
-  let selectedCategoryId: number | null = null
-  if (category) {
-    selectedCategoryId = categories?.find((item) => item.slug === category)?.id || null
-  }
-
-  let resourceQuery = supabase
+  const { data: resources, error: resourcesError } = await supabase
     .from('content_resource')
     .select(`
       *,
@@ -52,16 +35,6 @@ export default async function ResourcesPage({ params, searchParams }: PageProps)
     `)
     .eq('status', 'published')
     .order('date_published', { ascending: false, nullsFirst: false })
-
-  if (category) {
-    if (selectedCategoryId) {
-      resourceQuery = resourceQuery.eq('resource_category_id', selectedCategoryId)
-    } else {
-      resourceQuery = resourceQuery.eq('resource_category_id', -1)
-    }
-  }
-
-  const { data: resources, error: resourcesError } = await resourceQuery
 
   if (resourcesError) {
     console.error('Error fetching resources:', resourcesError)
@@ -92,8 +65,8 @@ export default async function ResourcesPage({ params, searchParams }: PageProps)
       (topicRefs || [])
         .map((row: any) => row.topic)
         .filter(Boolean)
-        .map((topic: any) => [topic.id, topic])
-    ).values()
+        .map((topic: any) => [topic.id, topic]),
+    ).values(),
   )
 
   return (
@@ -105,60 +78,13 @@ export default async function ResourcesPage({ params, searchParams }: PageProps)
         </h1>
       </div>
 
-      <section className="mb-8">
-        <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
-          Filter by resource category
-        </h2>
-        <div className="p-4 border-b flex flex-wrap gap-2">
-          <Link
-            href="/resources"
-            className={`px-3 py-1 rounded-full text-sm border ${!category ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-900'}`}
-          >
-            All
-          </Link>
-          {(categories || []).map((resourceCategory) => (
-            <Link
-              key={resourceCategory.id}
-              href={`/resources?category=${resourceCategory.slug}`}
-              className={`px-3 py-1 rounded-full text-sm border ${category === resourceCategory.slug ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-900'}`}
-            >
-              {resourceCategory.name}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
-          Browse by topic
-        </h2>
-        <div className="p-4 border-b flex flex-wrap gap-2">
-          {uniqueTopics.map((topic: any) => (
-            <Link
-              key={topic.id}
-              href={`/topics/${topic.slug}#resources`}
-              className="px-3 py-1 rounded-full text-sm border hover:bg-gray-100 dark:hover:bg-gray-900"
-            >
-              {topic.name}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="px-4 py-3 md:py-4 font-bold bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] border-b z-30">
-          {resources?.length || 0} resources
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {(resources || []).map((resource: any) => (
-            <ResourceCard key={resource.id} resource={resource} />
-          ))}
-        </div>
-
-        {resources?.length === 0 && (
-          <p className="text-gray-600 p-4">No resources found for this filter.</p>
-        )}
-      </section>
+      <Suspense fallback={<div className="h-24 animate-pulse bg-gray-100/60 dark:bg-gray-900/60" />}>
+        <ResourceBrowser
+          categories={categories ?? []}
+          resources={resources ?? []}
+          topics={uniqueTopics}
+        />
+      </Suspense>
     </main>
   )
 }

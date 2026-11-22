@@ -55,3 +55,11 @@ jobs:
           else
             node -r dotenv/config scripts/process-feeds.js feeds
           fi
+
+      - name: Revalidate changed pages
+        if: success()
+        run: node -r dotenv/config scripts/revalidate-content.js
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          REVALIDATE_URL: ${{ secrets.REVALIDATE_URL }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}

@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
 import type { Metadata } from 'next'
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 }
 
 export default async function PublicationsPage() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   
   // Get sites that are tagged as publications
   const { data: publications, error } = await supabase

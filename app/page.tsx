@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { ToolCard } from '@/components/ToolCards'
 import type { Database } from '@/types/supabase'
@@ -105,7 +105,7 @@ function getLastSevenDays(): string[] {
 }
 
 export default async function HomePage() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   const { data: posts, error: postsError } = await supabase
   .from('content_post')

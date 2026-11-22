@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import {
-  fetchAndProcessTool,
-  getToolUrlLookupVariants,
-  normalizeToolUrl
-} from '@/utils/tool-tools/fetch-tool-content'
 import { validateApiRequest, bulkCreateToolsRequestSchema } from '@/utils/validation'
 
 interface BulkResultItem {
@@ -45,6 +40,12 @@ export async function POST(request: NextRequest) {
       body,
       '/api/tools/bulk-create'
     )
+
+    const {
+      fetchAndProcessTool,
+      getToolUrlLookupVariants,
+      normalizeToolUrl,
+    } = await import('@/utils/tool-tools/fetch-tool-content')
 
     const requestItems: BulkInputItem[] = [
       ...(items || []),

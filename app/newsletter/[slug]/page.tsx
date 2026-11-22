@@ -1,11 +1,16 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getAllNewsletterSlugs } from '@/lib/content/public-queries'
 import { notFound } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { JSDOM } from 'jsdom'
 import DOMPurify from 'isomorphic-dompurify'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getAllNewsletterSlugs()
+}
 
 interface PageProps {
   params: Promise<{
@@ -45,7 +50,7 @@ function cleanHtml(html: string): string {
 export default async function NewsletterPost({ params }: PageProps) {
   const { slug } = await params
   
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   
   const { data: post } = await supabase
     .from('newsletter_posts')

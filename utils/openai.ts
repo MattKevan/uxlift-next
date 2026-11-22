@@ -7,5 +7,6 @@ if (!apiKey) {
 }
 
 export const openaiApi = new OpenAI({
-  apiKey: apiKey || ''
+  apiKey: apiKey || '',
+  fetch: globalThis.fetch as any,
 })

@@ -1,17 +1,6 @@
-import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { MobileNav } from '@/components/MobileNav'
-import UserMenuButton from './UserMenuButton'
-import LoginRegisterButtons from './LoginRegisterButtons'
-import { Lightning } from '@mynaui/icons-react'
-import { Button } from '@/components/ui/button'
-import SubmitContentButton from '@/components/SubmitContentButton'
-
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import HeaderUserNav from './HeaderUserNav'
 
 const menuItems = [
   { href: '/news', label: 'News' },
@@ -41,20 +30,7 @@ const moreItems = [
   
 ]
 
-export default async function Header() {
-  const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  let profile = null
-  if (user && !error) {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    profile = data
-  }
-
+export default function Header() {
   return (
     <header className="lg:ml-[60px] border-b bg-white/80 backdrop-blur-lg dark:bg-gray-950/80 sticky top-0 z-50">
       <nav className="flex items-center  ">
@@ -104,45 +80,9 @@ export default async function Header() {
         </ul>
 
         {/* User Navigation */}
-         {/* User Navigation */}
-      <div className="ml-auto flex items-center ">
-       
-
-        {user && profile ? (
-
-          <>
-                                  <SubmitContentButton user={user} profile={profile} />
-
-            <Link className='border-x p-4 hover:bg-accent transition-colors text-gray-500' href='/feed'>
-              <Lightning aria-hidden="true" />
-              <span className="sr-only">Go to your personalised feed</span>
-            </Link>
-     
-            <UserMenuButton user={user} profile={profile} />
-          </>
-        ) : (
-          <>
-<Button variant='outline' className='mr-4' asChild>
-  <Link href="/sign-in">Submit content</Link>
-</Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className='p-4 border-x hover:bg-accent transition-colors'
-                aria-label="Learn about the personalised feed"
-              >
-                <Lightning aria-hidden="true" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className='text-sm'>Sign in or sign up to create a personalised feed of UX articles and news.</PopoverContent>
-          </Popover>
-      
-
-            <LoginRegisterButtons />
-          </>
-        )}
-      </div>
+        <div className="ml-auto flex items-center">
+          <HeaderUserNav />
+        </div>
       </nav>
     </header>
   )

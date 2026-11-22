@@ -1,64 +1,52 @@
-import { createClient } from '@/utils/supabase/server'
+import { cache, Suspense } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getAllSiteSlugs } from '@/lib/content/public-queries'
+import PaginatedPostGrid from '@/components/posts/PaginatedPostGrid'
+import { normalizePost } from '@/lib/content/post-shape'
 import { notFound } from 'next/navigation'
 import { PostItem } from '@/components/posts/PostItem'
 import Link from 'next/link'
 import { Database } from '@/types/supabase'
-import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
-import { Pager } from '@/components/Pager'
 import { Button } from '@/components/ui/button'
 import { ExternalLink } from '@mynaui/icons-react'
 import type { Metadata } from 'next'
 
-type BasePost = Database['public']['Tables']['content_post']['Row']
-type Site = {
-  id: number
-  title: string | null
-  slug: string | null
-  url: string | null
-  site_icon: string | null
-}
-
-type Topic = {
-  id: number
-  name: string
-  slug: string
-}
-
-type PostTopic = {
-  topic: Topic
-}
-
-interface PostWithSite extends BasePost {
-  site: Site | null
-  content_post_topics: PostTopic[]
-}
-
 type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ page?: string }>
 
 interface PageProps {
   params: Params
-  searchParams: SearchParams 
 }
+
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getAllSiteSlugs()
+}
+
+const getSiteData = cache(async (slug: string) => {
+  const supabase = createPublicClient()
+
+  const { data: site, error } = await supabase
+    .from('content_site')
+    .select('id, title, description, url, site_icon')
+    .eq('slug', slug)
+    .single()
+
+  if (error || !site) {
+    return null
+  }
+
+  return site
+})
 
 const ITEMS_PER_PAGE = 20
 
-type MetadataProps = {
-  params: Params
-  searchParams: SearchParams
-}
-
 export async function generateMetadata(
-  { params }: MetadataProps,
+  { params }: PageProps,
 ): Promise<Metadata> {
   const { slug } = await params
-  const supabase = await createClient()
-
-  const { data: site } = await supabase
-    .from('content_site')
-    .select('id, title, description, url')
-    .eq('slug', slug)
-    .single()
+  const site = await getSiteData(slug)
 
   if (!site) {
     return {
@@ -84,28 +72,15 @@ export async function generateMetadata(
   }
 }
 
-export default async function SitePage({ 
-  params,
-  searchParams 
-}: PageProps) {
+export default async function SitePage({ params }: PageProps) {
   const { slug } = await params
-  const { page } = await searchParams
-  
-  const currentPage = Number(page) || 1
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE
-  
-  const supabase = await createClient()
-  
-  // First get the site details
-  const { data: site, error: siteError } = await supabase
-    .from('content_site')
-    .select('id, title, description, url, site_icon')
-    .eq('slug', slug)
-    .single()
+  const site = await getSiteData(slug)
 
-  if (siteError || !site) {
+  if (!site) {
     return notFound()
   }
+
+  const supabase = createPublicClient()
 
   // Get total count for pagination
   const { count } = await supabase
@@ -114,7 +89,7 @@ export default async function SitePage({
     .eq('site_id', site.id)
     .eq('status', 'published')
 
-  // Get paginated posts for this site
+  // Get page 1; later pages are fetched client-side
   const { data: posts, error: postsError } = await supabase
     .from('content_post')
     .select(`
@@ -141,7 +116,7 @@ export default async function SitePage({
     .eq('site_id', site.id)
     .eq('status', 'published')
     .order('date_published', { ascending: false })
-    .range(offset, offset + ITEMS_PER_PAGE - 1)
+    .range(0, ITEMS_PER_PAGE - 1)
 
   if (postsError) {
     console.error('Error fetching posts:', postsError)
@@ -150,11 +125,7 @@ export default async function SitePage({
 
   const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
 
-  // Transform posts to match PostItem component expectations
-  const transformedPosts: PostWithSite[] = (posts || []).map((post: any) => ({
-    ...post,
-    site: post.site || null  // Remove the ?.[0] as site is now a single object
-  }))
+  const transformedPosts = (posts ?? []).map(normalizePost)
 
   return (
     <main>
@@ -185,24 +156,27 @@ export default async function SitePage({
       <section className=' mb-10 sm:mb-18 border-b pt-12' id="articles" >
       <h2  className="text-lg font-bold pl-6 pt-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">{count} articles</h2>
 
-        <div  className="grid grid-cols-1 md:grid-cols-2 border-b">
-        {transformedPosts?.map((post) => (
-
-            <PostHorizontal key={post.id} post={post} />
-          ))}
-        </div>
-         
-          {transformedPosts?.length === 0 && (
-            <p className="text-gray-600">No posts found for this topic.</p>
-          )}
-
-      {totalPages > 1 && (
-        <Pager 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          baseUrl={`/topics/${slug}`}
-        />
-      )}
+        <Suspense
+          fallback={
+            <div className="grid grid-cols-1 md:grid-cols-2 border-b">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-40 animate-pulse border-b bg-gray-100/60 dark:bg-gray-900/60"
+                />
+              ))}
+            </div>
+          }
+        >
+          <PaginatedPostGrid
+            source={{ kind: 'site', siteId: site.id }}
+            initialPosts={transformedPosts}
+            pageSize={ITEMS_PER_PAGE}
+            totalPages={totalPages}
+            basePath={`/sites/${slug}`}
+            emptyMessage="No posts found for this site."
+          />
+        </Suspense>
         </section>
 
       

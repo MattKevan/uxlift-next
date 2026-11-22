@@ -1,63 +1,31 @@
 // /app/books/page.tsx
 
-import { createClient } from '@/utils/supabase/server'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationItem,
-  PaginationLink,
-  PaginationEllipsis,
-} from '@/components/ui/pagination'
-import { BookCard } from '@/components/BookCards'
+import { Suspense } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import PaginatedContentGrid from '@/components/PaginatedContentGrid'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const revalidate = false
 
-type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ page?: string }>
+const PAGE_SIZE = 24
 
-interface PageProps {
-  params: Params
-  searchParams: SearchParams
-}
-
-interface Book {
-  id: number
-  title: string
-  description: string
-  image_path: string | null
-  link: string
-  date_created: string
-  date_published: string | null
-  free: boolean
-  status: string
-  authors: string
-  publisher: string
-  summary: string | null
-}
-
-export default async function BooksPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const { page } = await searchParams
-  await params
-
-  const currentPage = Number(page) || 1
-  const pageSize = 24
-  const startIndex = (currentPage - 1) * pageSize
-
-  const supabase = await createClient()
+export default async function BooksPage() {
+  const supabase = createPublicClient()
 
   const { data: books, count } = await supabase
     .from('content_book')
     .select(`
-      *,
+      id,
+      title,
+      description,
+      authors,
+      publisher,
+      link,
+      image_path,
+      free,
+      status,
       topics:content_book_topics(
         topic:topic_id(
-        id,
+          id,
           name,
           slug
         )
@@ -65,35 +33,9 @@ export default async function BooksPage({
     `, { count: 'exact' })
     .eq('status', 'published')
     .order('title', { ascending: true }) // Changed from date_published to title
-    .range(startIndex, startIndex + pageSize - 1)
+    .range(0, PAGE_SIZE - 1)
 
-  const totalPages = count ? Math.ceil(count / pageSize) : 0
-
-  const getVisiblePages = () => {
-    const delta = 2
-    const range: (number | 'gap')[] = []
-    
-    for (let i = 1; i <= totalPages; i++) {
-      if (
-        i === 1 ||
-        i === totalPages ||
-        (i >= currentPage - delta && i <= currentPage + delta)
-      ) {
-        range.push(i)
-      } else if (
-        i === currentPage - delta - 1 || 
-        i === currentPage + delta + 1
-      ) {
-        range.push('gap')
-      }
-    }
-    
-    return range
-  }
-
-  const visiblePages = getVisiblePages()
-  const previousHref = currentPage > 1 ? `/books?page=${currentPage - 1}` : null
-  const nextHref = currentPage < totalPages ? `/books?page=${currentPage + 1}` : null
+  const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 0
 
   return (
     <main>
@@ -104,55 +46,29 @@ export default async function BooksPage({
       </div>
 
       <h2 className=" font-bold p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg sticky top-[57px] pb-4 border-b z-40">
-        {count} books
+        {count ?? 0} books
       </h2>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 '>
-  {books?.map((book) => (
-    <BookCard key={book.id} book={book} />
-  ))}
-</div>
-
-      {totalPages > 1 && (
-        <Pagination className="p-4 border-b">
-          <PaginationContent>
-            <PaginationItem>
-              {previousHref ? (
-                <PaginationPrevious href={previousHref} />
-              ) : (
-                <span className="pointer-events-none opacity-50">
-                  <PaginationPrevious href="#" tabIndex={-1} />
-                </span>
-              )}
-            </PaginationItem>
-            {visiblePages.map((pageNum, idx) =>
-              pageNum === 'gap' ? (
-                <PaginationItem key={`gap-${idx}`}>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              ) : (
-                <PaginationItem key={pageNum}>
-                  <PaginationLink
-                    href={`/books?page=${pageNum}`}
-                    isActive={pageNum === currentPage}
-                  >
-                    {pageNum}
-                  </PaginationLink>
-                </PaginationItem>
-              )
-            )}
-            <PaginationItem>
-              {nextHref ? (
-                <PaginationNext href={nextHref} />
-              ) : (
-                <span className="pointer-events-none opacity-50">
-                  <PaginationNext href="#" tabIndex={-1} />
-                </span>
-              )}
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-48 animate-pulse border-b border-r bg-gray-100/60 dark:bg-gray-900/60"
+              />
+            ))}
+          </div>
+        }
+      >
+        <PaginatedContentGrid
+          kind="books"
+          initialItems={books ?? []}
+          pageSize={PAGE_SIZE}
+          totalPages={totalPages}
+          basePath="/books"
+        />
+      </Suspense>
     </main>
   )
 }

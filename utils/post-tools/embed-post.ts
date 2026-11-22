@@ -41,7 +41,8 @@ interface ChunkConfig {
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
+  apiKey: process.env.OPENAI_API_KEY || '',
+  fetch: globalThis.fetch as any,
 })
 
 function cleanHTML(html: string): string {

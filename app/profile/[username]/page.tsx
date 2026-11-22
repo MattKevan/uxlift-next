@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 import { notFound } from 'next/navigation'
 import type { Database } from '@/types/supabase'
 import { CustomImage } from '@/components/Image'
@@ -20,7 +20,7 @@ export default async function ProfilePage({
   const { username } = await params  // Await the params
   const { page } = await searchParams  // Await the searchParams
   
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   const { data: profile } = await supabase
     .from('user_profiles')

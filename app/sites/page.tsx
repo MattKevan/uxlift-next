@@ -1,15 +1,12 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 
 export default async function SitesPage() {
-    const supabase = await createClient()
+    const supabase = createPublicClient()
       
     const { data: sites, error } = await supabase
       .from('content_site')
       .select('id, title, description, slug')
       .order('title', { ascending: true })
-
-    console.log('Sites data:', sites) // Debug log
-    console.log('Error:', error)      // Debug log
 
     if (error) {
       console.error('Error fetching sites:', error)

@@ -16,6 +16,7 @@ import type { Database, Json } from '@/types/supabase'
 
 const embeddingClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
+  fetch: globalThis.fetch as any,
 })
 
 const pinecone = new Pinecone()

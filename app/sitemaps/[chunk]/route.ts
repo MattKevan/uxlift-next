@@ -3,19 +3,33 @@ import {
   getCacheControl,
   getChunkUrlEntries,
   getEtag,
-  matchesEtag,
+  getSourceState,
   parseChunkId,
   renderUrlSetXml,
+  SITEMAP_SOURCE_ORDER,
 } from '@/lib/sitemap/core'
 
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 type RouteContext = {
   params: Promise<{ chunk: string }>
 }
 
-export async function GET(request: Request, context: RouteContext) {
+export async function generateStaticParams() {
+  const supabase = createSitemapClient()
+  const states = await Promise.all(
+    SITEMAP_SOURCE_ORDER.map((key) => getSourceState(supabase, key)),
+  )
+
+  return states.flatMap((state) =>
+    Array.from({ length: state.chunkCount }, (_, page) => ({
+      chunk: `${state.key}-${page}.xml`,
+    })),
+  )
+}
+
+export async function GET(_request: Request, context: RouteContext) {
   try {
     const { chunk } = await context.params
     const parsed = parseChunkId(chunk)
@@ -38,10 +52,6 @@ export async function GET(request: Request, context: RouteContext) {
       'Cache-Control': getCacheControl(),
       ETag: etag,
     })
-
-    if (matchesEtag(request.headers.get('if-none-match'), etag)) {
-      return new Response(null, { status: 304, headers })
-    }
 
     return new Response(xml, { status: 200, headers })
   } catch (error) {

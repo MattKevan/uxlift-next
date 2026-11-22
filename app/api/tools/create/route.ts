@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { fetchAndProcessTool } from '@/utils/tool-tools/fetch-tool-content'
 import { validateApiRequest, createToolRequestSchema } from '@/utils/validation'
 
 export async function POST(request: NextRequest) {
@@ -24,6 +23,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { url, description, status } = validateApiRequest(createToolRequestSchema, body, '/api/tools/create')
+
+    const { fetchAndProcessTool } = await import('@/utils/tool-tools/fetch-tool-content')
 
     const result = await fetchAndProcessTool(url, supabase, {
       user_id: profile.id,

@@ -1,6 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { cache } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getAllResourceSlugs } from '@/lib/content/public-queries'
 import { notFound } from 'next/navigation'
-import { Metadata, ResolvingMetadata } from 'next'
+import { Metadata } from 'next'
 import Markdown from 'react-markdown'
 import Link from 'next/link'
 import { ExternalLink } from '@mynaui/icons-react'
@@ -40,16 +42,16 @@ type ResourceWithRelations = {
 }
 
 type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 interface PageProps {
   params: Params
-  searchParams: SearchParams
 }
 
-type MetadataProps = {
-  params: Params
-  searchParams: SearchParams
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getAllResourceSlugs()
 }
 
 function getResourceImageUrl(imagePath: string | null) {
@@ -63,8 +65,8 @@ function getResourceImageUrl(imagePath: string | null) {
   return `https://res.cloudinary.com/${cloudName}/image/upload/${imagePath}`
 }
 
-async function getResourceData(slug: string) {
-  const supabase = await createClient()
+const getResourceData = cache(async (slug: string) => {
+  const supabase = createPublicClient()
 
   const { data: resource, error } = await supabase
     .from('content_resource')
@@ -92,13 +94,11 @@ async function getResourceData(slug: string) {
   }
 
   return resource as ResourceWithRelations
-}
+})
 
 export async function generateMetadata(
-  { params }: MetadataProps,
-  parent: ResolvingMetadata
+  { params }: PageProps
 ): Promise<Metadata> {
-  await parent
   const { slug } = await params
   const resource = await getResourceData(slug)
   const imageUrl = getResourceImageUrl(resource?.image_path || null)
@@ -129,8 +129,7 @@ export async function generateMetadata(
   }
 }
 
-export default async function ResourcePage({ params, searchParams }: PageProps) {
-  await searchParams
+export default async function ResourcePage({ params }: PageProps) {
   const { slug } = await params
   const resource = await getResourceData(slug)
   const imageUrl = getResourceImageUrl(resource?.image_path || null)
@@ -139,7 +138,7 @@ export default async function ResourcePage({ params, searchParams }: PageProps) 
     return notFound()
   }
 
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   const topicIds = resource.content_resource_topics.map(({ topic }) => topic.id)
 
   let relatedResources: any[] = []

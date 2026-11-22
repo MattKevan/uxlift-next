@@ -4,14 +4,13 @@ import {
   getEtag,
   getSitemapIndexEntries,
   getSitemapIndexVersion,
-  matchesEtag,
   renderSitemapIndexXml,
 } from '@/lib/sitemap/core'
 
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const supabase = createSitemapClient()
     const [entries, version] = await Promise.all([
@@ -26,10 +25,6 @@ export async function GET(request: Request) {
       'Cache-Control': getCacheControl(),
       ETag: etag,
     })
-
-    if (matchesEtag(request.headers.get('if-none-match'), etag)) {
-      return new Response(null, { status: 304, headers })
-    }
 
     return new Response(xml, { status: 200, headers })
   } catch (error) {

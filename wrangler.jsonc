@@ -1,13 +1,24 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "uxlift",
   "main": ".open-next/worker.js",
-  "name": "my-app",
   "compatibility_date": "2025-03-25",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "uxlift-opennext-cache"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "NEXT_TAG_CACHE_D1",
+      "database_name": "uxlift-opennext-tags",
+      "database_id": "f252c356-ff17-461a-b6d3-76238f47c94d"
+    }
+  ]
 }

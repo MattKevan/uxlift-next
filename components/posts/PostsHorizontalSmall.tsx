@@ -41,26 +41,12 @@ function getDisplayTitle(title: string | null) {
   return trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : 'this article'
 }
 
-function getProxiedImageSrc(imagePath: string) {
-  if (imagePath.startsWith('/')) return imagePath
-
-  try {
-    const parsedUrl = new URL(imagePath)
-    if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-      return `/api/image-proxy?url=${encodeURIComponent(imagePath)}`
-    }
-  } catch {
-    return imagePath
-  }
-
-  return imagePath
-}
 
 
 export function PostHorizontal({ post }: { post: PostWithSite }) {
   const hasValidImage = Boolean(post.image_path && post.image_path.trim() !== '')
   const displayTitle = getDisplayTitle(post.title)
-  const proxiedImageSrc = hasValidImage && post.image_path ? getProxiedImageSrc(post.image_path) : null
+  const imageSrc = hasValidImage ? post.image_path : null
 
   return (
 
@@ -158,10 +144,15 @@ export function PostHorizontal({ post }: { post: PostWithSite }) {
             aria-label={`Read article: ${displayTitle}`}
           >
             <img
-              src={proxiedImageSrc || undefined}
+              src={imageSrc || undefined}
               alt={`Thumbnail for ${displayTitle}`}
               className="object-cover w-full h-full inset-0"
               loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={(event) => {
+                event.currentTarget.src = '/default-avatar.png'
+              }}
             />
           </a>
         </div>

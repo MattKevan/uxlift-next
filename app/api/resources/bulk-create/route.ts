@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import {
-  fetchAndProcessResource,
-  getResourceUrlLookupVariants,
-  normalizeResourceUrl,
-} from '@/utils/resource-tools/fetch-resource-content'
 import { validateApiRequest, bulkCreateResourcesRequestSchema } from '@/utils/validation'
 
 interface BulkResultItem {
@@ -43,6 +38,12 @@ export async function POST(request: NextRequest) {
       body,
       '/api/resources/bulk-create'
     )
+
+    const {
+      fetchAndProcessResource,
+      getResourceUrlLookupVariants,
+      normalizeResourceUrl,
+    } = await import('@/utils/resource-tools/fetch-resource-content')
 
     const uniqueUrls = Array.from(new Set(urls.map((url) => url.trim())))
     const results: BulkResultItem[] = []

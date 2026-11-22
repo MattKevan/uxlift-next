@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { fetchAndProcessResource } from '@/utils/resource-tools/fetch-resource-content'
 import { validateApiRequest, createResourceRequestSchema } from '@/utils/validation'
 
 export async function POST(request: NextRequest) {
@@ -27,6 +26,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { url, status } = validateApiRequest(createResourceRequestSchema, body, '/api/resources/create')
+
+    const { fetchAndProcessResource } = await import('@/utils/resource-tools/fetch-resource-content')
 
     const result = await fetchAndProcessResource(url, supabase, {
       user_id: profile.id,

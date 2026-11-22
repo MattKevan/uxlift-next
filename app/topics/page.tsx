@@ -1,8 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { createPublicClient } from '@/utils/supabase/public'
 import Link from 'next/link'
 
 export default async function TopicsPage() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
       
   const { data: topics, error } = await supabase
     .from('content_topic')

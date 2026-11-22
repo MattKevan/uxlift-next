@@ -1,54 +1,36 @@
 // /app/topics/[slug]/page.tsx
-import { createClient } from '@/utils/supabase/server'
+import { cache, Suspense } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getAllTopicSlugs } from '@/lib/content/public-queries'
+import PaginatedPostGrid from '@/components/posts/PaginatedPostGrid'
+import { normalizePost } from '@/lib/content/post-shape'
 import { notFound } from 'next/navigation'
 import { Database } from '@/types/supabase'
 import type { Metadata } from 'next'
 import { ToolCard } from '@/components/ToolCards'
-import { Pager } from '@/components/Pager'
-import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
 import { Book, FileText, Tool } from '@mynaui/icons-react'
 import { BookCard } from '@/components/BookCards'
 import { BookWithTopics } from '@/components/BookCards'  // Import the interface
 import { ResourceCard } from '@/components/ResourceCard'
 import { Layers } from 'lucide-react'
 
-type BasePost = Database['public']['Tables']['content_post']['Row']
-type Site = {
-  id: number
-  title: string | null
-  slug: string | null
-  url: string | null
-  site_icon: string | null
-}
-
-type Topic = {
-  id: number
-  name: string
-  slug: string
-}
-
-type PostTopic = {
-  topic: Topic
-}
-
-interface PostWithSite extends BasePost {
-  site: Site | null
-  content_post_topics: PostTopic[]
-}
 type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ page?: string }>
-
-
 
 interface PageProps {
   params: Params
-  searchParams: SearchParams
+}
+
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getAllTopicSlugs()
 }
 
 const ITEMS_PER_PAGE = 22
 
-async function getTopicData(slug: string) {
-  const supabase = await createClient()
+const getTopicData = cache(async (slug: string) => {
+  const supabase = createPublicClient()
 
   const { data: topic, error: topicError } = await supabase
     .from('content_topic')
@@ -61,15 +43,10 @@ async function getTopicData(slug: string) {
   }
 
   return topic
-}
-
-type MetadataProps = {
-  params: Params
-  searchParams: SearchParams
-}
+})
 
 export async function generateMetadata(
-  { params }: MetadataProps,
+  { params }: PageProps,
 ): Promise<Metadata> {
   const { slug } = await params
   const topic = await getTopicData(slug)
@@ -92,15 +69,8 @@ export async function generateMetadata(
   }
 }
 
-export default async function TopicPage({ 
-  params,
-  searchParams 
-}: PageProps) {
+export default async function TopicPage({ params }: PageProps) {
   const { slug } = await params
-  const { page } = await searchParams
-  
-  const currentPage = Number(page) || 1
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE
   
   const topic = await getTopicData(slug)
 
@@ -108,7 +78,7 @@ export default async function TopicPage({
     return notFound()
   }
 
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   // Get tools for this topic
   const { data: tools, error: toolsError } = await supabase
@@ -223,17 +193,11 @@ export default async function TopicPage({
     .eq('topic_id', topic.id)
     .eq('post.status', 'published')
     .order('post(date_published)', { ascending: false })
-    .range(offset, offset + ITEMS_PER_PAGE - 1)
+    .range(0, ITEMS_PER_PAGE - 1)
 
-  const transformedPosts: PostWithSite[] = posts
-    ? posts.map((item: any) => ({
-        ...item.post,
-        site: item.post.site || null,
-        topics: item.post.content_post_topics
-          ?.map((topicRef: any) => topicRef.topic)
-          .filter(Boolean) || []
-      }))
-    : []
+  const transformedPosts = (posts ?? []).map((item: any) =>
+    normalizePost(item.post),
+  )
 
   if (postsError || toolsError || resourcesError) {
     console.error('Error fetching content:', postsError || toolsError || resourcesError)
@@ -262,23 +226,27 @@ export default async function TopicPage({
           {totalPostsCount} {topic.name} articles
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          {transformedPosts?.map((post) => (
-            <PostHorizontal key={post.id} post={post} />
-          ))}
-        </div>
-         
-        {transformedPosts?.length === 0 && (
-          <p className="text-gray-600 p-4">No posts found for this topic.</p>
-        )}
-
-        {totalPages > 1 && (
-          <Pager 
-            currentPage={currentPage}
+        <Suspense
+          fallback={
+            <div className="grid grid-cols-1 md:grid-cols-2 border-b">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-40 animate-pulse border-b bg-gray-100/60 dark:bg-gray-900/60"
+                />
+              ))}
+            </div>
+          }
+        >
+          <PaginatedPostGrid
+            source={{ kind: 'topic', topicId: topic.id }}
+            initialPosts={transformedPosts}
+            pageSize={ITEMS_PER_PAGE}
             totalPages={totalPages}
-            baseUrl={`/topics/${slug}`}
+            basePath={`/topics/${slug}`}
+            emptyMessage="No posts found for this topic."
           />
-        )}
+        </Suspense>
       </section>
 
       {uniqueTools.length > 0 && (

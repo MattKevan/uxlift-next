@@ -11,4 +11,5 @@ export const hasContentLlmCredentials = Boolean(nebiusApiKey)
 export const contentLlmClient = new OpenAI({
   apiKey: nebiusApiKey || '',
   baseURL: NEBIUS_BASE_URL,
+  fetch: globalThis.fetch as any,
 })

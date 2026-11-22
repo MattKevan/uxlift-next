@@ -10,8 +10,9 @@
     "db:sync-live-to-local": "node scripts/sync-live-data-to-local.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "bash scripts/build-cloudflare.sh && opennextjs-cloudflare preview",
+    "deploy": "bash scripts/deploy-cloudflare.sh",
+    "cf:build": "bash scripts/build-cloudflare.sh",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "update-types": "supabase gen types typescript --project-id nzticqypwdzqhbaestbf --schema public > types/supabase.ts"
   },

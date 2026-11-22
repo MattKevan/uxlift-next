@@ -1,8 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { cache } from 'react'
+import { createPublicClient } from '@/utils/supabase/public'
+import { getRecentArticleSlugs } from '@/lib/content/public-queries'
 import { notFound } from 'next/navigation'
 import { Database } from '@/types/supabase'
-import { Metadata, ResolvingMetadata } from 'next'
-import PageProps  from 'next/types'
+import { Metadata } from 'next'
 import { format } from 'date-fns'
 
 import { PostHorizontal } from '@/components/posts/PostsHorizontalSmall'
@@ -36,40 +37,19 @@ interface PostWithSite extends BasePost {
   content_post_topics: PostTopic[]
   topics?: Topic[]
 }
-interface RelatedPostResponse {
-  post: {
-    id: number
-    title: string
-    description: string
-    date_created: string
-    date_published: string | null
-    image_path: string | null
-    indexed: boolean
-    link: string
-    site_id: number | null
-    status: string
-    summary: string
-    content: string | null
-    tags_list: string | null
-    site: {
-      title: string | null
-      slug: string | null
-      site_icon: string | null
-    } | null
-  }
+
+
+// Pre-build the recent articles; the long tail is generated on first request
+// and cached. On-demand revalidation handles edits.
+export const revalidate = false
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  return getRecentArticleSlugs()
 }
 
-
-type Props = {
-  params: {
-    slug: string
-  }
-  searchParams: { [key: string]: string | string[] | undefined }
-}
-
-
-async function getPostData(slug: string) {
-  const supabase = await createClient()
+const getPostData = cache(async (slug: string) => {
+  const supabase = createPublicClient()
 
   const { data: post, error } = await supabase
     .from('content_post')
@@ -109,25 +89,16 @@ async function getPostData(slug: string) {
   }
 
   return transformedPost
-}
-
+})
 
 type Params = Promise<{ slug: string }>
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 interface PageProps {
   params: Params
-  searchParams: SearchParams
-}
-
-type MetadataProps = {
-  params: Params
-  searchParams: SearchParams
 }
 
 export async function generateMetadata(
-  { params }: MetadataProps,
-  parent: ResolvingMetadata
+  { params }: PageProps
 ): Promise<Metadata> {
   const { slug } = await params
   const post = await getPostData(slug)
@@ -157,10 +128,7 @@ export async function generateMetadata(
   }
 }
 
-export default async function PostPage({ 
-  params,
-  searchParams 
-}: PageProps) {
+export default async function PostPage({ params }: PageProps) {
   const { slug } = await params
   const post = await getPostData(slug)
   
@@ -168,7 +136,7 @@ export default async function PostPage({
     return notFound()
   }
 
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   // Get related posts from same site
   const { data: sameSitePosts } = await supabase

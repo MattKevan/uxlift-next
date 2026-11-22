@@ -12,6 +12,8 @@ Disallow: /profile/
 Disallow: /protected/
 Disallow: /sign-in/
 Disallow: /sign-up/
+Disallow: /*?page=
+Disallow: /*?category=
 
 # Host
 Host: https://www.uxlift.org

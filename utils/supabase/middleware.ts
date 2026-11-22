@@ -5,6 +5,7 @@ const publicApiRoutes: string[] = [
   '/api/search',
   '/api/fetch-url',
   '/api/image-proxy',
+  '/api/revalidate',
 ];
 
 const publicBypassRoutes: string[] = [
