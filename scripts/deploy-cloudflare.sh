@@ -61,12 +61,15 @@ fi
 echo "4/5 Building the app..."
 npm run cf:build
 
-echo "5/5 Deploying the real Worker..."
+echo "5/6 Deploying the real Worker..."
 # Deploy the built Worker directly. `opennextjs-cloudflare deploy` also tries to
 # pre-populate R2; without R2 API credentials that falls back to a very slow
 # sequential upload. The R2 cache fills on demand at runtime instead.
 npx wrangler deploy
 
+echo "6/6 Deploying the apex redirect Worker..."
+npx wrangler deploy --config wrangler.apex.jsonc
+
 echo
-echo "Deploy complete. The Worker is available at the URL printed above."
-echo "Add a custom domain/route in Cloudflare when you are ready to switch DNS."
+echo "Deploy complete."
+echo "www.uxlift.org serves the main Worker; uxlift.org 301s to www."

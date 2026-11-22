@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "uxlift-apex",
+  "main": "workers/apex-redirect.js",
+  "compatibility_date": "2025-03-25",
+  "routes": [
+    {
+      "pattern": "uxlift.org/*",
+      "zone_name": "uxlift.org"
+    }
+  ]
+}
