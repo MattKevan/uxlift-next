@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { reprocessTool } from '@/utils/tool-tools/fetch-tool-content'
+import { isGitHubWorkflowAvailable } from '@/utils/github-dispatch'
 import { reprocessToolRequestSchema, validateApiRequest } from '@/utils/validation'
 
 interface GitHubDispatchRequest {
@@ -125,6 +125,10 @@ async function queueToolReprocess(params: {
   }
 }
 
+function shouldQueueInGitHub() {
+  return process.env.NODE_ENV === 'production'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -154,53 +158,67 @@ export async function POST(request: NextRequest) {
       '/api/tools/reprocess'
     )
 
-    const queueResult = await queueToolReprocess({
-      toolId,
-      description,
-    })
+    if (shouldQueueInGitHub()) {
+      if (!(await isGitHubWorkflowAvailable('reprocess-tool.yml'))) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Tool reprocessing workflow is not available yet.',
+          },
+          { status: 503 }
+        )
+      }
 
-    if (queueResult.queued) {
-      console.log('[tools reprocess] queued', {
+      const queueResult = await queueToolReprocess({
         toolId,
-        eventType: queueResult.eventType,
-        tokenSource: queueResult.source,
+        description,
       })
 
-      return NextResponse.json(
-        {
-          success: true,
-          queued: true,
+      if (queueResult.queued) {
+        console.log('[tools reprocess] queued', {
           toolId,
-          message: 'Tool reprocess queued in GitHub Actions',
-        },
-        { status: 202 }
-      )
+          eventType: queueResult.eventType,
+          tokenSource: queueResult.source,
+        })
+
+        return NextResponse.json(
+          {
+            success: true,
+            queued: true,
+            toolId,
+            message: 'Tool reprocess queued in GitHub Actions',
+          },
+          { status: 202 }
+        )
+      }
+
+      if (queueResult.reason === 'missing_github_config') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'GitHub workflow configuration missing for tool reprocess',
+            details: queueResult.details,
+          },
+          { status: 500 }
+        )
+      }
+
+      if (queueResult.reason === 'dispatch_failed') {
+        const details = queueResult.attempts
+          .map((attempt) => `${attempt.source}/${attempt.authScheme}(len=${attempt.tokenLength}):${attempt.status}:${attempt.details}`)
+          .join(' | ')
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to queue GitHub workflow',
+            details,
+          },
+          { status: 500 }
+        )
+      }
     }
 
-    if (queueResult.reason === 'missing_github_config' && process.env.NODE_ENV !== 'development') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'GitHub workflow configuration missing for tool reprocess',
-          details: queueResult.details,
-        },
-        { status: 500 }
-      )
-    }
-
-    if (queueResult.reason === 'dispatch_failed') {
-      const details = queueResult.attempts
-        .map((attempt) => `${attempt.source}/${attempt.authScheme}(len=${attempt.tokenLength}):${attempt.status}:${attempt.details}`)
-        .join(' | ')
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to queue GitHub workflow',
-          details,
-        },
-        { status: 500 }
-      )
-    }
+    const { reprocessTool } = await import('@/utils/tool-tools/fetch-tool-content')
 
     const updatedTool = await reprocessTool(toolId, supabase, {
       description,

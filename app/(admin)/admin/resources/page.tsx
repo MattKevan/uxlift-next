@@ -247,7 +247,11 @@ export default function AdminResources() {
       })
 
       const responseText = await response.text()
-      let data: { error?: string } = {}
+      let data: {
+        error?: string
+        details?: string
+        queued?: boolean
+      } = {}
 
       if (responseText) {
         try {
@@ -259,8 +263,15 @@ export default function AdminResources() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || responseText || `Failed to reprocess resource (HTTP ${response.status})`
+          data.error
+            ? `${data.error}${data.details ? ` Details: ${data.details}` : ''}`
+            : responseText || `Failed to reprocess resource (HTTP ${response.status})`
         )
+      }
+
+      if (data.queued) {
+        alert('Resource reprocess queued in GitHub Actions. Refresh in a minute to see updates.')
+        return
       }
 
       await fetchResources()

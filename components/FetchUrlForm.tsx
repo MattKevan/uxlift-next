@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Database } from '@/types/supabase'
+import { pollSubmission } from '@/utils/poll-submission'
 
 type Post = Database['public']['Tables']['content_post']['Row']
 type Site = Database['public']['Tables']['content_site']['Row']
@@ -43,8 +44,19 @@ export default function FetchUrlForm({ onSuccess }: FetchUrlFormProps) {
       }
 
       setUrl('')
-      if (onSuccess && data.post) {
-        onSuccess(data.post as PostWithRelations)
+
+      let post = data.post as PostWithRelations | undefined
+
+      if (!post && data.postId) {
+        post = (await pollSubmission(Number(data.postId))) as PostWithRelations
+      }
+
+      if (!post) {
+        throw new Error('Content processing did not return a post')
+      }
+
+      if (onSuccess) {
+        onSuccess(post)
       }
 
     } catch (error) {

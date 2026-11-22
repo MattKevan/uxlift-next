@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useNotification } from '@/contexts/NotificationContext'
 import type { Database } from '@/types/supabase'
+import { pollSubmission } from '@/utils/poll-submission'
 
 type Post = Database['public']['Tables']['content_post']['Row']
 
@@ -51,10 +52,21 @@ export default function SubmitPostModal({ isOpen, onClose, onSuccess }: SubmitPo
       }
 
       setUrl('')
-      if (onSuccess && data.post) {
-        onSuccess(data.post as Post)
+
+      let post = data.post as Post | undefined
+
+      if (!post && data.postId) {
+        post = (await pollSubmission(Number(data.postId))) as Post
       }
-      
+
+      if (!post) {
+        throw new Error('Content processing did not return a post')
+      }
+
+      if (onSuccess) {
+        onSuccess(post)
+      }
+
       addNotification('success', 'Content submitted successfully!')
       onClose()
 

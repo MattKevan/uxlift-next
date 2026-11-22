@@ -27,6 +27,7 @@ export async function fetchAndProcessContent(
   options?: {
     user_id?: number;
     status?: string;
+    postId?: number;
   }
 ) {
   try {
@@ -67,16 +68,19 @@ export async function fetchAndProcessContent(
   )
 `
 
-    // Check if URL already exists
-    const { data: existingPost } = await supabase
-      .from('content_post')
-      .select(query)
-      .eq('link', validUrl)
-      .single()
+    // Check if URL already exists. When updating a queued placeholder we skip
+    // this check so the placeholder row can be turned into the final post.
+    if (!options?.postId) {
+      const { data: existingPost } = await supabase
+        .from('content_post')
+        .select(query)
+        .eq('link', validUrl)
+        .single()
 
-    if (existingPost) {
-      logger.debug('Post already exists in database', { url: validUrl, postId: existingPost.id })
-      return existingPost
+      if (existingPost) {
+        logger.debug('Post already exists in database', { url: validUrl, postId: existingPost.id })
+        return existingPost
+      }
     }
 
     const response = await fetch(validUrl, {
@@ -190,15 +194,24 @@ export async function fetchAndProcessContent(
 
     logger.debug('Creating new post', { userId: options?.user_id?.toString(), title: postData.title })
 
-    // Create post
-    const { data: post, error: postError } = await supabase
-      .from('content_post')
-      .insert([postData])
-      .select()
-      .single()
+    // Update the queued placeholder, or create a new post.
+    const postResult = options?.postId
+      ? await supabase
+          .from('content_post')
+          .update(postData)
+          .eq('id', options.postId)
+          .select()
+          .single()
+      : await supabase
+          .from('content_post')
+          .insert([postData])
+          .select()
+          .single()
+
+    const { data: post, error: postError } = postResult
 
     if (postError) {
-      if (postError.code === '23505') {
+      if (!options?.postId && postError.code === '23505') {
         const { data: existingPost, error: fetchError } = await supabase
           .from('content_post')
           .select('*')
@@ -212,7 +225,7 @@ export async function fetchAndProcessContent(
         return existingPost
       }
       
-      throw new Error(`Failed to insert post: ${postError.message}`)
+      throw new Error(`Failed to save post: ${postError.message}`)
     }
 
     if (!post) {

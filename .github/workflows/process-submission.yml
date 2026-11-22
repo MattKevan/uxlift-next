@@ -1,0 +1,56 @@
+name: Process Submission
+
+on:
+  repository_dispatch:
+    types: [fetch_url]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL to process'
+        required: true
+        type: string
+      user_id:
+        description: 'user_profiles.id of the submitter'
+        required: true
+        type: string
+      post_id:
+        description: 'Placeholder content_post.id'
+        required: true
+        type: string
+
+concurrency:
+  group: submission-${{ github.event.client_payload.post_id || github.event.inputs.post_id }}
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write env file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "NEBIUS_API_KEY=${{ secrets.NEBIUS_API_KEY }}" >> .env
+          echo "NEBIUS_LLM_MODEL=${{ secrets.NEBIUS_LLM_MODEL }}" >> .env
+
+      - name: Process submission
+        run: npx --yes tsx scripts/process-submission.ts
+        env:
+          SUBMISSION_URL: ${{ github.event.client_payload.url || github.event.inputs.url }}
+          SUBMISSION_USER_ID: ${{ github.event.client_payload.user_id || github.event.inputs.user_id }}
+          SUBMISSION_POST_ID: ${{ github.event.client_payload.post_id || github.event.inputs.post_id }}
