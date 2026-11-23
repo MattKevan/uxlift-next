@@ -12,8 +12,9 @@ export default defineCloudflareConfig({
   // Revalidate in-request. No Durable Object or Queue binding needed.
   queue: "direct",
 
-  // Leave off initially; it is a dangerous flag and can be tested later.
-  enableCacheInterception: false,
+  // Serve cached pages from R2 before the Next.js server starts, keeping cache
+  // hits inside the free 10 ms CPU limit.
+  enableCacheInterception: true,
 
   // Keep this; other values increase cold-start CPU usage.
   routePreloadingBehavior: "none",

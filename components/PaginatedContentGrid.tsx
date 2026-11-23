@@ -37,6 +37,7 @@ async function fetchPage(
       .select(`
         id,
         title,
+        slug,
         description,
         authors,
         publisher,

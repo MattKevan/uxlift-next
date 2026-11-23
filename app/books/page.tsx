@@ -16,6 +16,7 @@ export default async function BooksPage() {
     .select(`
       id,
       title,
+      slug,
       description,
       authors,
       publisher,

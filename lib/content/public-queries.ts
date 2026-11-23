@@ -92,3 +92,16 @@ export async function getAllSiteSlugs(): Promise<SlugParam[]> {
 
   return mapSlugs(data);
 }
+
+export async function getAllBookSlugs(): Promise<SlugParam[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("content_book")
+    .select("slug")
+    .eq("status", "published")
+    .not("slug", "is", null);
+
+  if (error) throw error;
+
+  return mapSlugs(data);
+}

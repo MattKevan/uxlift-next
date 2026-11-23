@@ -2,6 +2,7 @@
 'use client'
 
 import { CldImage } from 'next-cloudinary'
+import Link from 'next/link'
 import type { Database } from '@/types/supabase'
 
 // Use exact types from the database
@@ -13,6 +14,7 @@ export interface BookWithTopics {
   // Book properties from the database
   id: number
   title: string
+  slug: string | null
   description: string
   authors: string
   publisher: string
@@ -36,10 +38,8 @@ interface BookCardProps {
 
 export function BookCard({ book }: BookCardProps) {
   return (
-    <a
-      href={book.link}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      href={book.slug ? `/books/${book.slug}/` : book.link}
       className="group block transition-all duration-200 p-4 hover:bg-gray-50 hover:dark:bg-gray-900 h-full border-b sm:border-r"
     >
       <div className='flex flex-row gap-4'>
@@ -86,6 +86,6 @@ export function BookCard({ book }: BookCardProps) {
           />
         )}
       </div>
-    </a>
+    </Link>
   )
 }

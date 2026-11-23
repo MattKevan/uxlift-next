@@ -51,6 +51,7 @@ export default function EditBookModal({ book, isOpen, onClose, onUpdate }: EditB
   const supabase = createClient()
   const [formData, setFormData] = useState<Omit<Book, 'id'>>({
     title: book.title,
+    slug: book.slug,
     description: book.description,
     image_path: book.image_path,
     link: book.link,
