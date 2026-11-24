@@ -15,6 +15,7 @@ export type SitemapSourceKey =
   | 'articles'
   | 'tools'
   | 'resources'
+  | 'books'
   | 'topics'
   | 'sites'
   | 'newsletter'
@@ -118,6 +119,19 @@ const DYNAMIC_SOURCES: Record<Exclude<SitemapSourceKey, 'static'>, DynamicSource
       { op: 'not', column: 'slug', operator: 'is', value: null },
     ],
   },
+  books: {
+    key: 'books',
+    table: 'content_book',
+    slugField: 'slug',
+    lastmodField: 'date_published',
+    pathPrefix: '/books',
+    changefreq: 'monthly',
+    priority: 0.6,
+    filters: [
+      { op: 'eq', column: 'status', value: 'published' },
+      { op: 'not', column: 'slug', operator: 'is', value: null },
+    ],
+  },
   topics: {
     key: 'topics',
     table: 'content_topic',
@@ -159,6 +173,7 @@ export const SITEMAP_SOURCE_ORDER: SitemapSourceKey[] = [
   'articles',
   'tools',
   'resources',
+  'books',
   'topics',
   'sites',
   'newsletter',

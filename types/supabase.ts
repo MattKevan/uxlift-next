@@ -45,6 +45,7 @@ export type Database = {
           image_path: string | null
           link: string
           publisher: string
+          slug: string
           status: string
           summary: string | null
           title: string
@@ -60,6 +61,7 @@ export type Database = {
           image_path?: string | null
           link: string
           publisher: string
+          slug?: string
           status?: string
           summary?: string | null
           title: string
@@ -75,6 +77,7 @@ export type Database = {
           image_path?: string | null
           link?: string
           publisher?: string
+          slug?: string
           status?: string
           summary?: string | null
           title?: string

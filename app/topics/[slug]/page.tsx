@@ -156,6 +156,7 @@ export default async function TopicPage({ params }: PageProps) {
   const books: BookWithTopics[] = booksData?.map(book => ({
     id: book.id,
     title: book.title,
+    slug: book.slug,
     description: book.description,
     authors: book.authors,
     publisher: book.publisher,

@@ -25,12 +25,17 @@ const nextConfig = {
     // Configure redirects from old URLs if needed
     async redirects() {
       return [
-        // Example redirect
-        // {
-        //   source: '/old-path',
-        //   destination: '/new-path',
-        //   permanent: true,
-        // },
+        // Old book URLs that used a different slug from the current title.
+        {
+          source: '/books/about-face',
+          destination: '/books/about-face-the-essentials-of-interaction-design/',
+          permanent: true,
+        },
+        {
+          source: '/books/articulating-design-decisions-communicate-with-stakeholders-keep-your-sanity-and-deliver-the-best-user-experience',
+          destination: '/books/articulating-design-decisions/',
+          permanent: true,
+        },
       ]
     },
   
