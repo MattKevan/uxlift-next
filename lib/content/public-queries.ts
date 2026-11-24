@@ -16,17 +16,27 @@ export async function getRecentArticleSlugs(
   limit = Number(process.env.STATIC_ARTICLE_LIMIT ?? 500),
 ): Promise<SlugParam[]> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("content_post")
-    .select("slug")
-    .eq("status", "published")
-    .not("slug", "is", null)
-    .order("date_published", { ascending: false, nullsFirst: false })
-    .limit(limit);
+  const pageSize = 1000;
+  const slugs: SlugParam[] = [];
 
-  if (error) throw error;
+  for (let from = 0; from < limit; from += pageSize) {
+    const to = Math.min(from + pageSize, limit) - 1;
+    const { data, error } = await supabase
+      .from("content_post")
+      .select("slug")
+      .eq("status", "published")
+      .not("slug", "is", null)
+      .order("date_published", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .range(from, to);
 
-  return mapSlugs(data);
+    if (error) throw error;
+
+    slugs.push(...mapSlugs(data));
+    if (!data || data.length < to - from + 1) break;
+  }
+
+  return slugs;
 }
 
 export async function getAllToolSlugs(): Promise<SlugParam[]> {

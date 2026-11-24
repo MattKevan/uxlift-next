@@ -3,13 +3,13 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import Markdown from 'react-markdown'
-import { CldImage } from 'next-cloudinary'
 import { ExternalLink } from '@mynaui/icons-react'
 import { createPublicClient } from '@/utils/supabase/public'
 import { getAllBookSlugs } from '@/lib/content/public-queries'
 import { Tag } from '@/components/Tags'
 import { Button } from '@/components/ui/button'
 import { BookCard, type BookWithTopics } from '@/components/BookCards'
+import { BookCover } from '@/components/BookCover'
 
 type Topic = { id: number; name: string; slug: string }
 
@@ -158,7 +158,7 @@ export default async function BookPage({ params }: PageProps) {
           </div>
 
           {book.image_path && (
-            <CldImage
+            <BookCover
               src={book.image_path}
               alt={book.title}
               width={240}
